@@ -1,4 +1,7 @@
-# AUTISM Client
+# AUTISM Client multi
+I've seen a lot of people ask for a port of the client for earlier versions of minecraft, so I thought I would make one. All credit goes to the wonderful devs of the Autism Client for developing the client and making this possible.
+
+## From the Autism Client devs:
 
 AUTISM Client is the best Duping/Debugging client built for people who actually want control over what actions server recieves.
 
