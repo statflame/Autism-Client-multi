@@ -1,5 +1,6 @@
 # AUTISM Client multi
-I've seen a lot of people ask for a port of the client for earlier versions of minecraft, so I thought I would make one. All credit goes to the wonderful devs of the Autism Client for developing the client and making this possible. Just to be clear, this is vibecoded project.
+I've seen a lot of people ask for a port of the client for earlier versions of minecraft, so I thought I would make one. All credit goes to the wonderful devs of the Autism Client for developing the client and making this possible. 
+This is vibecoded project.
 ## Supported Versions
 | Series | Supported versions       |
 |--------|--------------------------|
