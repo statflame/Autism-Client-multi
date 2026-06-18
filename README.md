@@ -1,12 +1,10 @@
 # AUTISM Client multi
 I've seen a lot of people ask for a port of the client for earlier versions of minecraft, so I thought I would make one. All credit goes to the wonderful devs of the Autism Client for developing the client and making this possible. Just to be clear, this is vibecoded project.
-
 ## Supported Versions
-
 | Series | Supported versions       |
 |--------|--------------------------|
-| 1.21   | 1.21.9, 1.21.10, 1.21.11 |
-| 26.1   | 26.1, 26.1.1, 26.1.2     |
+| 1.21   | [1.21.9](https://github.com/statflame/Autism-Client-multi/releases/download/v2.5/AUTISM-Client-1.21.9.jar), [1.21.10](https://github.com/statflame/Autism-Client-multi/releases/download/v2.5/AUTISM-Client-1.21.10.jar), [1.21.11](https://github.com/statflame/Autism-Client-multi/releases/download/v2.5/AUTISM-Client-1.21.11.jar) |
+| 26.1   | [26.1](https://github.com/statflame/Autism-Client-multi/releases/download/v2.5/AUTISM-Client-26.1.jar), [26.1.1](https://github.com/statflame/Autism-Client-multi/releases/download/v2.5/AUTISM-Client-26.1.1.jar), [26.1.2](https://github.com/statflame/Autism-Client-multi/releases/download/v2.5/AUTISM-Client-26.1.2.jar) |
 
 ## From the Autism Client devs:
 
