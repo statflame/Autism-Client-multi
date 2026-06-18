@@ -1,6 +1,13 @@
 # AUTISM Client multi
 I've seen a lot of people ask for a port of the client for earlier versions of minecraft, so I thought I would make one. All credit goes to the wonderful devs of the Autism Client for developing the client and making this possible. Just to be clear, this is vibecoded project.
 
+## Supported Versions
+
+| Series | Supported versions       |
+|--------|--------------------------|
+| 1.21   | 1.21.9, 1.21.10, 1.21.11 |
+| 26.1   | 26.1, 26.1.1, 26.1.2     |
+
 ## From the Autism Client devs:
 
 AUTISM Client is the best Duping/Debugging client built for people who actually want control over what actions server recieves.
