@@ -20,7 +20,9 @@ import net.minecraft.world.item.CreativeModeTab;
 
 @Mixin(CreativeModeInventoryScreen.class)
 public abstract class AutismCreativeScreenMixin {
+    //? if >=1.21.11 {
     @Shadow protected abstract void renderTabButton(GuiGraphics graphics, int mouseX, int mouseY, CreativeModeTab tab);
+    //?}
 
     @org.spongepowered.asm.mixin.Unique
     private static final ThreadLocal<Boolean> autism$inSafeRecall = ThreadLocal.withInitial(() -> Boolean.FALSE);
@@ -34,6 +36,7 @@ public abstract class AutismCreativeScreenMixin {
         }
     }
 
+    //? if >=1.21.11 {
     @Inject(method = "renderTabButton", at = @At("HEAD"), cancellable = true, require = 0)
     private void autism$blockCoveredTabCursor(GuiGraphics graphics, int mouseX, int mouseY, CreativeModeTab tab, CallbackInfo ci) {
         if (autism$inSafeRecall.get()) return;
@@ -49,6 +52,7 @@ public abstract class AutismCreativeScreenMixin {
         }
         ci.cancel();
     }
+    //?}
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, require = 0)
     private void autism$mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
