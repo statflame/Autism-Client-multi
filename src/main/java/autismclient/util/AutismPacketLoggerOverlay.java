@@ -1280,7 +1280,7 @@ public class AutismPacketLoggerOverlay extends AutismOverlayBase {
     }
     @Override public boolean charTyped(char c, int mods) {
         if (!visible || collapsed) return false;
-        return searchField.isFocused() && searchField.charTyped(new CharacterEvent(c));
+        return searchField.isFocused() && searchField.charTyped(new CharacterEvent(c, 0));
     }
 
     private List<LogEntry> getActiveBuffer() {
@@ -3315,7 +3315,7 @@ public class AutismPacketLoggerOverlay extends AutismOverlayBase {
         @Override
         public boolean charTyped(char chr, int modifiers) {
             if (!visible) return false;
-            CharacterEvent event = new CharacterEvent(chr);
+            CharacterEvent event = new CharacterEvent(chr, 0);
             if (search.isFocused()) return search.charTyped(event);
             if (customPattern.isFocused()) return customPattern.charTyped(event);
             return false;
@@ -3693,7 +3693,7 @@ public class AutismPacketLoggerOverlay extends AutismOverlayBase {
 
         @Override
         public boolean charTyped(char chr, int modifiers) {
-            return visible && search.isFocused() && search.charTyped(new CharacterEvent(chr));
+            return visible && search.isFocused() && search.charTyped(new CharacterEvent(chr, 0));
         }
 
         @Override

@@ -1193,7 +1193,7 @@ public class AutismFabricatorOverlay extends AutismOverlayBase {
         int codepoint = (int) chr;
         if (!visible || collapsed) return false;
 
-        CharacterEvent input = new CharacterEvent(codepoint);
+        CharacterEvent input = new CharacterEvent(codepoint, 0);
         for (AutismChatField field : textFields) {
             if (field.isFocused() && field.charTyped(input)) {
                 return true;
@@ -1642,7 +1642,7 @@ public class AutismFabricatorOverlay extends AutismOverlayBase {
         net.minecraft.world.inventory.AbstractContainerMenu handler = MC.player.containerMenu;
         if (handler == null) return null;
 
-        net.minecraft.world.inventory.ContainerInput actionType = currentAction.toPacketAction(dropWholeStack).toContainerInput();
+        net.minecraft.world.inventory.ClickType actionType = currentAction.toPacketAction(dropWholeStack).toClickType();
         return new net.minecraft.network.protocol.game.ServerboundContainerClickPacket(
             handler.containerId, handler.getStateId(),
             (short) slot, (byte) getEffectiveButton(), actionType,
@@ -1686,7 +1686,7 @@ public class AutismFabricatorOverlay extends AutismOverlayBase {
 
             if (!queue) {
                 AutismSharedState.get().flushDelayedPackets(handler);
-                net.minecraft.world.inventory.ContainerInput actionType = currentAction.toPacketAction(dropWholeStack).toContainerInput();
+                net.minecraft.world.inventory.ClickType actionType = currentAction.toPacketAction(dropWholeStack).toClickType();
                 int effectiveButton = getEffectiveButton();
                 for (int i = 0; i < repeats; i++) {
                     AutismInventoryClickHelper.click(MC, slot, effectiveButton, actionType);

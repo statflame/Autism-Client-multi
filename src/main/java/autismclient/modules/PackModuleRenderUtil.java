@@ -4,7 +4,6 @@ import autismclient.util.AutismOverlayManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.InBedChatScreen;
-import net.minecraft.client.renderer.block.BlockAndTintGetter;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -14,7 +13,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.level.BlockAndLightGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
@@ -209,14 +208,14 @@ public final class PackModuleRenderUtil {
         if (MC != null && MC.levelRenderer != null) MC.levelRenderer.allChanged();
     }
 
-    public static int applyFullbrightLuminance(BlockAndLightGetter level, BlockPos pos, int packedBrightness) {
+    public static int applyFullbrightLuminance(BlockAndTintGetter level, BlockPos pos, int packedBrightness) {
         FullbrightSnapshot snapshot = fullbrightSnapshot();
         if (!snapshot.luminance()) return packedBrightness;
         int sky = "SKY".equals(snapshot.lightType()) ? snapshot.minimumLightLevel() : 0;
         int block = "BLOCK".equals(snapshot.lightType()) ? snapshot.minimumLightLevel() : 0;
         int originalSky = level == null || pos == null ? 0 : level.getBrightness(LightLayer.SKY, pos);
         int originalBlock = level == null || pos == null ? 0 : level.getBrightness(LightLayer.BLOCK, pos);
-        return net.minecraft.util.LightCoordsUtil.pack(Math.max(block, originalBlock), Math.max(sky, originalSky));
+        return net.minecraft.client.renderer.LightTexture.pack(Math.max(block, originalBlock), Math.max(sky, originalSky));
     }
 
     public static boolean shouldTrace(Entity entity) {

@@ -3139,9 +3139,9 @@ public final class PackBuiltinModules {
                 return shouldCancelStartBreakingBlock(action.getPos(), action.getDirection());
             }
             if (packet instanceof ServerboundInteractPacket interact) {
-                if (!matchesHand(choice("entity-interact-hand"), interact.hand())) return false;
+                if (!matchesHand(choice("entity-interact-hand"), ((autismclient.ducks.AutismInteractPacketDuck)(Object) interact).autism$hand())) return false;
                 if (MC.level == null) return false;
-                Entity entity = MC.level.getEntity(interact.entityId());
+                Entity entity = MC.level.getEntity(((autismclient.ducks.AutismInteractPacketDuck)(Object) interact).autism$entityId());
                 if (entity == null || !entityFilterAllowed(entity)) return false;
                 String id = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
                 return matchesRegistry(id, list("entity-interact"), choice("entity-interact-mode"));
@@ -3590,7 +3590,7 @@ public final class PackBuiltinModules {
             if (bool("containers") && stack.has(DataComponents.CONTAINER)) {
                 ItemContainerContents contents = stack.get(DataComponents.CONTAINER);
                 if (contents != null) {
-                    long stacks = contents.nonEmptyItemCopyStream().count();
+                    long stacks = contents.nonEmptyStream().count();
                     raw.add(Component.literal("Container: " + stacks + " stacks").withStyle(ChatFormatting.DARK_GRAY));
                 }
             }

@@ -254,7 +254,7 @@ public record AutismPacketDecodedView(Packet<?> packet,
             return;
         }
         if (value instanceof ChunkPos pos) {
-            lines.add("x=" + pos.x() + ", z=" + pos.z());
+            lines.add("x=" + pos.x + ", z=" + pos.z);
             return;
         }
         if (value instanceof Vec3 vec) {

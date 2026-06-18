@@ -12,6 +12,7 @@ import autismclient.gui.vanillaui.components.CompactTheme;
 import autismclient.gui.vanillaui.components.UiTone;
 import autismclient.gui.vanillaui.components.CompactSurfaces;
 import autismclient.util.AutismUiScale;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -81,7 +82,8 @@ public class AutismForceOpPreviewScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int mx = AutismUiScale.toVirtualInt(mouseX);
         int my = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -164,6 +166,10 @@ public class AutismForceOpPreviewScreen extends Screen {
         UiText.draw(graphics, font, text, THEME.fontFor(UiTone.BODY), color, x, y, false);
     }
 
+    private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e); }
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean allowBypass) {
         int mx = AutismUiScale.toVirtualInt(event.x());
@@ -192,13 +198,13 @@ public class AutismForceOpPreviewScreen extends Screen {
             onClose();
             return true;
         }
-        return super.mouseClicked(event, allowBypass);
+        return autism$superMouseClicked(event, allowBypass);
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         draggingScroll = false;
-        return super.mouseReleased(event);
+        return autism$superMouseReleased(event);
     }
 
     @Override
@@ -213,7 +219,7 @@ public class AutismForceOpPreviewScreen extends Screen {
             scroll = CompactScrollbar.scrollFromThumb(metrics, my, (int) scrollGrabOffset);
             return true;
         }
-        return super.mouseDragged(event, dragX, dragY);
+        return autism$superMouseDragged(event, dragX, dragY);
     }
 
     @Override
@@ -240,7 +246,7 @@ public class AutismForceOpPreviewScreen extends Screen {
             onClose();
             return true;
         }
-        return super.keyPressed(event);
+        return autism$superKeyPressed(event);
     }
 
     @Override
@@ -268,3 +274,4 @@ public class AutismForceOpPreviewScreen extends Screen {
         return DirectLayout.centerPanel(screenHeight(), panelH(), 4);
     }
 }
+

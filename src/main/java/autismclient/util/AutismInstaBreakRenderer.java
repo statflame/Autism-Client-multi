@@ -2,7 +2,6 @@ package autismclient.util;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.AutismRenderTypes;
 import net.minecraft.core.BlockPos;
@@ -24,45 +23,6 @@ public final class AutismInstaBreakRenderer {
     }
 
     public static void initialize() {
-        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
-            BlockPos pos = targetPos;
-            String shape = targetShape;
-            int renderColor = lineColor;
-            int renderSideColor = sideColor;
-
-            AutismSharedState state = AutismSharedState.get();
-            if (state.isPlaceCaptureActive()) {
-                Minecraft mc = Minecraft.getInstance();
-                if (mc != null && mc.level != null && mc.player != null) {
-                    HitResult hr = mc.hitResult;
-                    if (hr instanceof BlockHitResult bhr) {
-                        BlockPos support = bhr.getBlockPos();
-                        Direction face = bhr.getDirection() == null ? Direction.UP : bhr.getDirection();
-                        BlockPos preview = support.relative(face);
-                        if (!mc.level.isOutsideBuildHeight(preview)) {
-                            pos = preview;
-                            shape = "Lines";
-                            renderColor = 0xFFFF3B3B;
-                            renderSideColor = 0;
-                        }
-                    }
-                }
-            }
-
-            if (pos == null) return;
-            Vec3 camera = context.levelState().cameraRenderState.pos;
-            AABB box = new AABB(pos).move(-camera.x, -camera.y, -camera.z);
-            PoseStack poseStack = context.poseStack();
-            final String finalShape = shape;
-            final int finalColor = renderColor;
-            final int finalSideColor = renderSideColor;
-            if (drawSides(finalShape) && ((finalSideColor >>> 24) & 0xFF) > 0) {
-                context.submitNodeCollector().submitCustomGeometry(poseStack, AutismRenderTypes.storageEspFillSeeThrough(), (pose, buffer) -> fillBox(pose, buffer, box, finalSideColor));
-            }
-            if (drawLines(finalShape)) {
-                context.submitNodeCollector().submitCustomGeometry(poseStack, AutismRenderTypes.storageEspLinesSeeThrough(), (pose, buffer) -> renderBox(pose, buffer, box, finalColor));
-            }
-        });
     }
 
     public static void setTarget(BlockPos pos) {
@@ -122,8 +82,13 @@ public final class AutismInstaBreakRenderer {
 
     private static void line(PoseStack.Pose pose, VertexConsumer buffer, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
         Vector3f normal = new Vector3f((float) (x2 - x1), (float) (y2 - y1), (float) (z2 - z1)).normalize();
+        //? if >=1.21.11 {
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color).setNormal(pose, normal).setLineWidth(LINE_WIDTH);
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color).setNormal(pose, normal).setLineWidth(LINE_WIDTH);
+        //?} else {
+        /*buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color).setNormal(pose, normal);
+        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color).setNormal(pose, normal);*/
+        //?}
     }
 
     private static void fillBox(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color) {

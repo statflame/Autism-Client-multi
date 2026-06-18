@@ -9,17 +9,17 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 @Mixin(ChatComponent.class)
 public class AutismChatComponentCensorMixin {
-    @ModifyVariable(method = "addClientSystemMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(method = "addClientSystemMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private Component autism$censorClientSystemChat(Component component) {
         return NameCensorModule.censorComponent(component);
     }
 
-    @ModifyVariable(method = "addServerSystemMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(method = "addServerSystemMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private Component autism$censorServerSystemChat(Component component) {
         return NameCensorModule.censorServerComponent(component);
     }
 
-    @ModifyVariable(method = "addPlayerMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    @ModifyVariable(method = "addPlayerMessage", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private Component autism$censorPlayerChat(Component component) {
         return NameCensorModule.censorServerComponent(component);
     }

@@ -199,8 +199,8 @@ public final class PackModuleStorageEsp {
         int chunkRadius = Math.max(1, (int) Math.ceil(effectiveMax / 16.0));
 
         Vec3 playerPos = player.position();
-        int playerChunkX = player.chunkPosition().x();
-        int playerChunkZ = player.chunkPosition().z();
+        int playerChunkX = player.chunkPosition().x;
+        int playerChunkZ = player.chunkPosition().z;
 
         if (!blockTargets.isEmpty()) {
             ClientChunkCache chunks = level.getChunkSource();

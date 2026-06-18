@@ -1777,7 +1777,7 @@ public class AutismLANSyncOverlay extends AutismOverlayBase {
     public boolean charTyped(char chr, int modifiers) {
         if (!visible || collapsed) return false;
         if (lanChatField != null && lanChatField.isFocused()) {
-            return lanChatField.charTyped(new CharacterEvent(chr));
+            return lanChatField.charTyped(new CharacterEvent(chr, 0));
         }
         return false;
     }

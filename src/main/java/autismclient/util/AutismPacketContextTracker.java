@@ -35,7 +35,7 @@ import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -249,7 +249,7 @@ public final class AutismPacketContextTracker {
             activeContainerStateId = click.stateId();
             applyChangedSlots(click.changedSlots());
             cursorItem = summarizeHashedStack(click.carriedItem());
-            changes.add("Client " + describeInput(click.containerInput()) + " on slot " + click.slotNum()
+            changes.add("Client " + describeInput(click.clickType()) + " on slot " + click.slotNum()
                 + " changed " + click.changedSlots().size() + " slots");
             return;
         }
@@ -302,7 +302,7 @@ public final class AutismPacketContextTracker {
             return;
         }
         if (packet instanceof ClientboundForgetLevelChunkPacket forget) {
-            changes.add("Unload chunk " + forget.pos().x() + ", " + forget.pos().z());
+            changes.add("Unload chunk " + forget.pos().x + ", " + forget.pos().z);
             return;
         }
         if (packet instanceof ClientboundLevelChunkWithLightPacket chunk) {
@@ -464,7 +464,7 @@ public final class AutismPacketContextTracker {
         }
     }
 
-    private static String describeInput(ContainerInput input) {
+    private static String describeInput(ClickType input) {
         if (input == null) return "clicked";
         return switch (input) {
             case PICKUP -> "picked up / placed";

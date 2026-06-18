@@ -1,5 +1,6 @@
 package autismclient.mixin;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.LogoRenderer;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -26,8 +27,8 @@ public class AutismLogoRendererMixin {
     @Unique
     private static final int PACKUTIL_LOGO_Y_OFFSET = 0;
 
-    @Inject(method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IFI)V", at = @At("HEAD"), cancellable = true)
-    private void autism$renderHighResolutionLogo(GuiGraphicsExtractor graphics, int width, float alpha, int heightOffset, CallbackInfo ci) {
+    @Inject(method = "renderLogo(Lnet/minecraft/client/gui/GuiGraphics;IFI)V", at = @At("HEAD"), cancellable = true)
+    private void autism$renderHighResolutionLogo(GuiGraphics graphics, int width, float alpha, int heightOffset, CallbackInfo ci) {
 
         if (autismclient.util.AutismMenuPrefs.vanillaMenuVisuals()) return;
         int maxWidth = Math.min(PACKUTIL_LOGO_MAX_WIDTH, Math.max(180, width - 40));

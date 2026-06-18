@@ -17,7 +17,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -419,8 +419,8 @@ public final class InventoryTweaksModule extends PackModule {
         }
 
         if (packet instanceof ServerboundContainerClickPacket click) {
-            ContainerInput input = packetEnum(click, ContainerInput.class);
-            if (input != ContainerInput.THROW) return false;
+            ClickType input = packetEnum(click, ClickType.class);
+            if (input != ClickType.THROW) return false;
             int slotId = packetInt(click, "getSlot", "slot", "slotNum");
             AbstractContainerMenu handler = MC.player.containerMenu;
             if (handler == null || slotId < 0 || slotId >= handler.slots.size()) return false;
@@ -568,12 +568,12 @@ public final class InventoryTweaksModule extends PackModule {
                     float oldYaw = MC.player.getYRot();
                     if (dropBackwards) MC.player.setYRot(oldYaw + 180.0f);
                     try {
-                        AutismInventoryClickHelper.click(MC, click.slot(), 1, ContainerInput.THROW);
+                        AutismInventoryClickHelper.click(MC, click.slot(), 1, ClickType.THROW);
                     } finally {
                         if (dropBackwards) MC.player.setYRot(oldYaw);
                     }
                 } else {
-                    AutismInventoryClickHelper.click(MC, click.slot(), 0, ContainerInput.QUICK_MOVE);
+                    AutismInventoryClickHelper.click(MC, click.slot(), 0, ClickType.QUICK_MOVE);
                 }
                 nextClickAt = System.currentTimeMillis() + delayMs + (randomMs <= 0 ? 0 : ThreadLocalRandom.current().nextInt(randomMs + 1));
                 return true;

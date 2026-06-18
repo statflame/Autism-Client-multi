@@ -8,7 +8,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.*;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.core.BlockPos;
@@ -99,7 +99,7 @@ public class PacketRegenerator {
 
                 int slot = getFieldInt(packet, "slot", short.class, 0);
                 int button = getFieldInt(packet, "button", byte.class, 0);
-                ContainerInput action = getFieldEnum(packet, ContainerInput.class);
+                ClickType action = getFieldEnum(packet, ClickType.class);
 
                 it.unimi.dsi.fastutil.ints.Int2ObjectMap<net.minecraft.network.HashedStack> modifiedStacks =
                     new it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap<>();
@@ -176,7 +176,7 @@ public class PacketRegenerator {
 
         register(ServerboundInteractPacket.class, (packet, mc) -> {
 
-            int originalEntityId = packet.entityId();
+            int originalEntityId = ((autismclient.ducks.AutismInteractPacketDuck)(Object) packet).autism$entityId();
             Entity originalEntity = mc.level != null ? mc.level.getEntity(originalEntityId) : null;
 
             if (originalEntity == null && mc.level != null) {
@@ -200,7 +200,16 @@ public class PacketRegenerator {
 
             if (originalEntity != null) {
 
-                return new ServerboundInteractPacket(originalEntity.getId(), packet.hand(), packet.location(), packet.usingSecondaryAction());
+                autismclient.ducks.AutismInteractPacketDuck duck = (autismclient.ducks.AutismInteractPacketDuck)(Object) packet;
+                net.minecraft.world.InteractionHand hand = duck.autism$hand();
+                net.minecraft.world.phys.Vec3 hitPos = duck.autism$hitPos();
+                boolean secondary = packet.isUsingSecondaryAction();
+                if (hand == null) {
+                    return ServerboundInteractPacket.createAttackPacket(originalEntity, secondary);
+                }
+                return hitPos != null
+                    ? ServerboundInteractPacket.createInteractionPacket(originalEntity, secondary, hand, hitPos)
+                    : ServerboundInteractPacket.createInteractionPacket(originalEntity, secondary, hand);
             }
 
             return packet;

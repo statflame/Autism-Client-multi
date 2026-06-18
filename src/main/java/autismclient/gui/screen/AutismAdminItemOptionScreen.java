@@ -17,6 +17,7 @@ import autismclient.util.AutismNotifications;
 import autismclient.util.AutismUiScale;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
@@ -78,7 +79,8 @@ public final class AutismAdminItemOptionScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int mx = AutismUiScale.toVirtualInt(mouseX);
         int my = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -267,3 +269,4 @@ public final class AutismAdminItemOptionScreen extends Screen {
         return virtual <= 0 ? height : virtual;
     }
 }
+

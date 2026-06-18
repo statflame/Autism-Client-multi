@@ -5,7 +5,9 @@ import autismclient.security.AutismProtectorModResolver;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+//? if >=1.21.11 {
 import net.fabricmc.fabric.impl.resource.pack.ModNioPackResources;
+//?}
 import net.minecraft.client.resources.language.ClientLanguage;
 import net.minecraft.locale.Language;
 import net.minecraft.server.packs.CompositePackResources;
@@ -52,9 +54,13 @@ public class AutismProtectorClientLanguageMixin {
             original.call(stream, output);
             return;
         }
+        //? if >=1.21.11 {
         String modId = source instanceof ModNioPackResources modPack
             ? modPack.getFabricModMetadata().getId()
             : AutismProtectorModResolver.modFromClass(source.getClass());
+        //?} else {
+        /*String modId = AutismProtectorModResolver.modFromClass(source.getClass());*/
+        //?}
         if (modId == null) {
             original.call(stream, output);
             return;

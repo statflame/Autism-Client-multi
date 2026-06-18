@@ -3,7 +3,6 @@ package autismclient.modules;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import autismclient.util.AutismPerf;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -29,95 +28,6 @@ final class PackModuleWorldRenderer {
     static void initialize() {
         if (initialized) return;
         initialized = true;
-        LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (PackHideState.isActive()) return;
-            if (mc == null || mc.level == null || mc.player == null || mc.options.hideGui) return;
-            boolean drawTracers = PackModuleRenderUtil.hasWorldTracerWork();
-            boolean storageEnabled = PackModuleRegistry.isModuleEnabled("storage-esp");
-            boolean blockEnabled = PackModuleRegistry.isModuleEnabled("block-esp");
-            if (!drawTracers && !storageEnabled && !blockEnabled) return;
-            if (PackModuleRenderUtil.shouldSuppressEspForUi()) return;
-            PackModule tracer = PackModuleRegistry.get("tracers");
-            PackModule storage = PackModuleRegistry.get("storage-esp");
-            PackModule blockEsp = PackModuleRegistry.get("block-esp");
-
-            boolean storageFill = storageEnabled && Boolean.parseBoolean(storage.value("fill"));
-            boolean storageWire = storageEnabled;
-            boolean storageTrace = storageEnabled && Boolean.parseBoolean(storage.value("tracers"));
-            boolean blockFill = blockEnabled && Boolean.parseBoolean(blockEsp.value("fill"));
-            boolean blockWire = blockEnabled;
-            boolean blockTrace = blockEnabled && Boolean.parseBoolean(blockEsp.value("tracers"));
-            if (!drawTracers && !storageFill && !storageWire && !storageTrace && !blockFill && !blockWire && !blockTrace) return;
-            Vec3 camera = context.levelState().cameraRenderState.pos;
-            float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(false);
-            Vec3 from = eyeVector(mc);
-            float tracerWidth = parseFloat(tracer == null ? null : tracer.value("line-width"), 1.0f, 1.0f, 4.0f);
-            StorageSnapshot storageFrame = storageEnabled ? storageSnapshot(storage, mc.level, mc.player, tickDelta) : StorageSnapshot.empty();
-            StorageSnapshot blockFrame = blockEnabled ? blockSnapshot(blockEsp, mc.level, mc.player) : StorageSnapshot.empty();
-            PoseStack poseStack = context.poseStack();
-            context.submitNodeCollector().submitCustomGeometry(poseStack, AutismRenderTypes.storageEspFillSeeThrough(), (pose, buffer) -> {
-                if (storageFill && storageFrame != null) {
-
-                    final float fillOpacity = 0.3f;
-                    storageFrame.forEachBox((box, color) -> {
-                        AABB moved = box.move(-camera.x, -camera.y, -camera.z);
-                        fillBox(pose, buffer, moved, withAlpha(color, fillOpacity));
-                    });
-                }
-                if (blockFill && blockFrame != null) {
-                    final float fillOpacity = 0.3f;
-                    blockFrame.forEachBox((box, color) -> {
-                        AABB moved = box.move(-camera.x, -camera.y, -camera.z);
-                        fillBox(pose, buffer, moved, withAlpha(color, fillOpacity));
-                    });
-                }
-            });
-            context.submitNodeCollector().submitCustomGeometry(poseStack, AutismRenderTypes.storageEspLinesSeeThrough(), (pose, buffer) -> {
-                if (drawTracers) {
-                    for (Entity entity : mc.level.entitiesForRendering()) {
-                        if (!PackModuleRenderUtil.shouldTrace(entity)) continue;
-
-                        Vec3 base = interpolatedPosition(entity, tickDelta).subtract(camera);
-                        Vec3 top = base.add(0, entity.getBbHeight(), 0);
-                        int color = PackModuleRenderUtil.tracerColor(entity);
-                        clippedLine(pose, buffer, from, base, from, color, tracerWidth);
-                        clippedLine(pose, buffer, base, top, from, color, tracerWidth);
-                    }
-                }
-            });
-            context.submitNodeCollector().submitCustomGeometry(poseStack, AutismRenderTypes.storageEspLinesSeeThrough(), (pose, buffer) -> {
-                if (storageWire && storageFrame != null) {
-
-                    final float lineW = 1.5f;
-                    storageFrame.forEachBox((box, color) -> {
-                        AABB moved = box.move(-camera.x, -camera.y, -camera.z);
-                        renderStorageBox(pose, buffer, moved, color, lineW);
-                    });
-                }
-                if (blockWire && blockFrame != null) {
-                    final float lineW = 1.5f;
-                    blockFrame.forEachBox((box, color) -> {
-                        AABB moved = box.move(-camera.x, -camera.y, -camera.z);
-                        renderStorageBox(pose, buffer, moved, color, lineW);
-                    });
-                }
-                if (storageTrace && storageFrame != null) {
-                    final float traceW = 2.0f;
-                    storageFrame.forEachTrace((target, color) -> {
-                        Vec3 moved = target.subtract(camera);
-                        clippedLine(pose, buffer, from, moved, from, color, traceW);
-                    });
-                }
-                if (blockTrace && blockFrame != null) {
-                    final float traceW = 2.0f;
-                    blockFrame.forEachTrace((target, color) -> {
-                        Vec3 moved = target.subtract(camera);
-                        clippedLine(pose, buffer, from, moved, from, color, traceW);
-                    });
-                }
-            });
-        });
     }
 
     private static Vec3 interpolatedPosition(Entity entity, float tickDelta) {
@@ -131,7 +41,11 @@ final class PackModuleWorldRenderer {
     private static Vec3 eyeVector(Minecraft mc) {
         Camera camera = mc.gameRenderer.getMainCamera();
         if (camera == null) return Vec3.ZERO;
+        //? if >=1.21.11 {
         return Vec3.directionFromRotation(camera.xRot(), camera.yRot());
+        //?} else {
+        /*return Vec3.directionFromRotation(camera.getXRot(), camera.getYRot());*/
+        //?}
     }
 
     private static void renderEntityBox(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color) {
@@ -186,9 +100,15 @@ final class PackModuleWorldRenderer {
     private static void line(PoseStack.Pose pose, VertexConsumer buffer, double x1, double y1, double z1, double x2, double y2, double z2, int color, float width) {
         Vector3f normal = new Vector3f((float) (x1 - x2), (float) (y1 - y2), (float) (z1 - z2));
         if (normal.lengthSquared() > 0.0f) normal.normalize();
+        //? if >=1.21.11 {
         buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color).setNormal(pose, normal).setLineWidth(width);
         normal.negate();
         buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color).setNormal(pose, normal).setLineWidth(width);
+        //?} else {
+        /*buffer.addVertex(pose, (float) x1, (float) y1, (float) z1).setColor(color).setNormal(pose, normal);
+        normal.negate();
+        buffer.addVertex(pose, (float) x2, (float) y2, (float) z2).setColor(color).setNormal(pose, normal);*/
+        //?}
     }
 
     private static void fillBox(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color) {
@@ -225,8 +145,8 @@ final class PackModuleWorldRenderer {
         if (module == null || level == null || player == null) return StorageSnapshot.empty();
         long gameTime = level.getGameTime();
         int revision = PackModuleRegistry.revision();
-        int chunkX = player.chunkPosition().x();
-        int chunkZ = player.chunkPosition().z();
+        int chunkX = player.chunkPosition().x;
+        int chunkZ = player.chunkPosition().z;
         StorageSnapshot cached = storageSnapshot;
         if (cached.matches(gameTime, revision, chunkX, chunkZ)) return cached;
 
@@ -251,8 +171,8 @@ final class PackModuleWorldRenderer {
         if (module == null || level == null || player == null) return StorageSnapshot.empty();
         long gameTime = level.getGameTime();
         int revision = PackModuleRegistry.revision();
-        int chunkX = player.chunkPosition().x();
-        int chunkZ = player.chunkPosition().z();
+        int chunkX = player.chunkPosition().x;
+        int chunkZ = player.chunkPosition().z;
         StorageSnapshot cached = blockSnapshot;
         if (cached.matches(gameTime, revision, chunkX, chunkZ)) return cached;
 

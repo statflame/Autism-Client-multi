@@ -7,11 +7,11 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
 public class ClickAction implements MacroAction, WaitsForGui {
-    public enum ContainerInput {
+    public enum ClickType {
         LEFT, RIGHT
     }
 
-    public ContainerInput type;
+    public ClickType type;
     public int clickCount = 1;
     public boolean waitForGuiBefore = false;
     public boolean waitForGuiAfter = false;
@@ -19,7 +19,7 @@ public class ClickAction implements MacroAction, WaitsForGui {
 
     public ClickAction() {}
 
-    public ClickAction(ContainerInput type) {
+    public ClickAction(ClickType type) {
         this.type = type;
         this.clickCount = 1;
     }
@@ -28,7 +28,7 @@ public class ClickAction implements MacroAction, WaitsForGui {
     public void execute(Minecraft mc) {
         if (mc.player == null || mc.gameMode == null) return;
 
-        if (type == ContainerInput.LEFT) {
+        if (type == ClickType.LEFT) {
             if (mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) {
                 mc.player.swing(InteractionHand.MAIN_HAND);
             } else if (mc.hitResult.getType() == HitResult.Type.ENTITY) {
@@ -42,7 +42,7 @@ public class ClickAction implements MacroAction, WaitsForGui {
             if (mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) {
                 mc.gameMode.useItem(mc.player, InteractionHand.MAIN_HAND);
             } else if (mc.hitResult.getType() == HitResult.Type.ENTITY) {
-                mc.gameMode.interact(mc.player, ((EntityHitResult) mc.hitResult).getEntity(), (EntityHitResult) mc.hitResult, InteractionHand.MAIN_HAND);
+                mc.gameMode.interact(mc.player, ((EntityHitResult) mc.hitResult).getEntity(), InteractionHand.MAIN_HAND);
             } else if (mc.hitResult.getType() == HitResult.Type.BLOCK) {
                 mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, (BlockHitResult) mc.hitResult);
             }
@@ -65,7 +65,7 @@ public class ClickAction implements MacroAction, WaitsForGui {
     public net.minecraft.nbt.CompoundTag toTag() {
         net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
         tag.putString("type", getType().name());
-        tag.putString("clickType", (type == null ? ContainerInput.RIGHT : type).name());
+        tag.putString("clickType", (type == null ? ClickType.RIGHT : type).name());
         tag.putInt("clickCount", clickCount);
         tag.putBoolean("waitForGuiBefore", waitForGuiBefore);
         tag.putBoolean("waitForGuiAfter", waitForGuiAfter);
@@ -77,12 +77,12 @@ public class ClickAction implements MacroAction, WaitsForGui {
     public void fromTag(net.minecraft.nbt.CompoundTag tag) {
         if (tag.contains("clickType")) {
             try {
-                type = ContainerInput.valueOf(tag.getStringOr("clickType", "RIGHT"));
+                type = ClickType.valueOf(tag.getStringOr("clickType", "RIGHT"));
             } catch (IllegalArgumentException e) {
-                type = ContainerInput.RIGHT;
+                type = ClickType.RIGHT;
             }
         }
-        if (type == null) type = ContainerInput.RIGHT;
+        if (type == null) type = ClickType.RIGHT;
         if (tag.contains("clickCount")) {
             clickCount = tag.getIntOr("clickCount", 1);
         }
@@ -93,13 +93,13 @@ public class ClickAction implements MacroAction, WaitsForGui {
 
     @Override
     public String getDisplayName() {
-        String base = type == ContainerInput.LEFT ? "Left Click" : "Right Click";
+        String base = type == ClickType.LEFT ? "Left Click" : "Right Click";
         if (clickCount > 1) base += " x" + clickCount;
         return base + WaitsForGui.timingLabel(this);
     }
 
     @Override
     public String getIcon() {
-        return type == ContainerInput.LEFT ? "L" : "R";
+        return type == ClickType.LEFT ? "L" : "R";
     }
 }

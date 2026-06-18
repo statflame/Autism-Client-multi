@@ -2,6 +2,7 @@ package autismclient.gui.screen;
 
 import com.mojang.authlib.minecraft.BanDetails;
 import net.minecraft.SharedConstants;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CommonButtons;
@@ -71,7 +72,7 @@ public final class AutismPanicTitleScreen extends Screen {
             b -> this.minecraft.setScreen(new LanguageSelectScreen(this, this.minecraft.options, this.minecraft.getLanguageManager())), true));
         language.setPosition(this.width / 2 - 124, rowY);
         this.addRenderableWidget(Button.builder(Component.translatable("menu.options"),
-            b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options, false)))
+            b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)))
             .bounds(this.width / 2 - 100, rowY, 98, 20).build());
         this.addRenderableWidget(Button.builder(Component.translatable("menu.quit"), b -> this.minecraft.stop())
             .bounds(this.width / 2 + 2, rowY, 98, 20).build());
@@ -100,21 +101,22 @@ public final class AutismPanicTitleScreen extends Screen {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        this.minecraft.gameRenderer.getPanorama().extractRenderState(graphics, this.width, this.height, this.panoramaShouldSpin());
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
+        this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
 
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
-        this.vanillaLogo.extractRenderState(graphics, this.width, 1.0F);
+        super.render(g, mouseX, mouseY, delta);
+        this.vanillaLogo.renderLogo((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, 1.0F);
         if (!this.vanillaSplashChosen) {
             this.vanillaSplash = pickVanillaSplash();
             this.vanillaSplashChosen = true;
         }
         if (this.vanillaSplash != null && !this.minecraft.options.hideSplashTexts().get()) {
-            this.vanillaSplash.extractRenderState(graphics, this.width, this.font, 1.0F);
+            this.vanillaSplash.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.font, 1.0F);
         }
         String version = "Minecraft " + SharedConstants.getCurrentVersion().name();
         graphics.text(this.font, version, 2, this.height - 10, ARGB.white(1.0F));
@@ -124,7 +126,11 @@ public final class AutismPanicTitleScreen extends Screen {
         List<String> pool = vanillaSplashPool();
         if (pool.isEmpty()) return null;
         String text = pool.get(SPLASH_RANDOM.nextInt(pool.size()));
+        //? if >=1.21.11 {
         return new SplashRenderer(Component.literal(text).setStyle(net.minecraft.network.chat.Style.EMPTY.withColor(-256)));
+        //?} else {
+        /*return new SplashRenderer(text);*/
+        //?}
     }
 
     private List<String> vanillaSplashPool() {

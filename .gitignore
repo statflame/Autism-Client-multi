@@ -5,6 +5,7 @@
 !/CREDITS.md
 !/build.gradle.kts
 !/settings.gradle.kts
+!/stonecutter.gradle.kts
 !/gradle.properties
 !/gradlew
 !/gradlew.bat
@@ -28,3 +29,14 @@
 /out/
 /run/
 /src/main/resources/assets/template/
+
+!/26x/
+!/26x/**
+/26x/.gradle/
+/26x/build/
+/26x/out/
+/26x/run/
+/26x/versions/
+/26x/addon-templates/**/build/
+/26x/mc-src*/
+/26x/src/main/resources/assets/template/

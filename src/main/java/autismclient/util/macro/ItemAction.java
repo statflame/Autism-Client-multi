@@ -202,7 +202,7 @@ public class ItemAction implements MacroAction, WaitsForGui {
                     continue;
                 }
                 for (int j = 0; j < clickCount; j++) {
-                    AutismInventoryClickHelper.click(mc, fs, fb, fa.toContainerInput());
+                    AutismInventoryClickHelper.click(mc, fs, fb, fa.toClickType());
                 }
             }
         } else if (useSlot && targetSlot >= 0) {
@@ -226,7 +226,7 @@ public class ItemAction implements MacroAction, WaitsForGui {
             }
 
             for (int i = 0; i < times; i++) {
-                AutismInventoryClickHelper.click(mc, resolvedTargetSlot, effectiveButton, action.toContainerInput());
+                AutismInventoryClickHelper.click(mc, resolvedTargetSlot, effectiveButton, action.toClickType());
             }
         } else if (getAction() == AutismDropAction.PICKUP_ALL && useCursorItemForPickupAll) {
             AutismCursorClickHelper.click(mc, null, times);

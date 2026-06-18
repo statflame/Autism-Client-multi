@@ -51,7 +51,7 @@ public final class PackModuleScreenRenderer {
         long frame = ++frameIndex;
         Projection projection = new Projection(
             camera.position(),
-            camera.getViewRotationProjectionMatrix(new Matrix4f()),
+            new Matrix4f().rotation(camera.rotation()),
             AutismUiScale.getVirtualScreenWidth(),
             AutismUiScale.getVirtualScreenHeight()
         );

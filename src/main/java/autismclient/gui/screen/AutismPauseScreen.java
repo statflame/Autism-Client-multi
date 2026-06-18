@@ -1,6 +1,7 @@
 package autismclient.gui.screen;
 
 import net.minecraft.SharedConstants;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
@@ -57,7 +58,7 @@ public class AutismPauseScreen extends Screen {
 
         y += 24;
         this.addRenderableWidget(Button.builder(OPTIONS,
-            b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options, true)))
+            b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)))
             .bounds(cx - 102, y, 98, 20).build());
         boolean canShareToLan = this.minecraft.hasSingleplayerServer() && !this.minecraft.getSingleplayerServer().isPublished();
         if (canShareToLan) {
@@ -76,8 +77,9 @@ public class AutismPauseScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
+        super.render(g, mouseX, mouseY, delta);
         int textWidth = this.font.width(this.title);
         graphics.text(this.font, this.title, this.width / 2 - textWidth / 2, 40, -1);
     }

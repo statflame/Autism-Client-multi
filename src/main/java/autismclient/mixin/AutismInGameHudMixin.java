@@ -29,6 +29,7 @@ import autismclient.util.AutismUiScale;
 import autismclient.util.macro.MacroExecutor;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.DeltaTracker;
@@ -38,8 +39,9 @@ public abstract class AutismInGameHudMixin {
     @Unique private static final Minecraft MC = Minecraft.getInstance();
     @Unique private static final int PACKUTIL_RIGHT_PANEL_W = 172;
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void yang$renderAutismQueue(GuiGraphicsExtractor context, DeltaTracker deltaTracker, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("TAIL"))
+    private void yang$renderAutismQueue(GuiGraphics g, DeltaTracker deltaTracker, CallbackInfo ci) {
+        GuiGraphicsExtractor context = (GuiGraphicsExtractor)(Object) g;
         if (!isAutismActive()) return;
         if (MacroExecutor.hasRenderWork()) MacroExecutor.onRender(1.0f);
         if (MC.options.hideGui) return;

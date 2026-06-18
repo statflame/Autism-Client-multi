@@ -37,7 +37,7 @@ import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket;
 import net.minecraft.world.entity.PositionMoveRotation;
 import net.minecraft.world.entity.Relative;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -199,8 +199,8 @@ public final class AutismNormalPacketAnalyzer {
         if (packet instanceof ServerboundContainerClickPacket click) {
             out.context("Client clicks inside a handled screen.", AutismColors.textPrimary());
             out.context("Container: #" + click.containerId() + " state=" + click.stateId(), AutismColors.packetBlue());
-            out.context("Input: " + describeInput(click.containerInput()) + " (" + click.containerInput() + ")", AutismColors.successText());
-            out.context("Slot: " + click.slotNum() + " | Button: " + describeButton(click.containerInput(), click.buttonNum()), AutismColors.textPrimary());
+            out.context("Input: " + describeInput(click.clickType()) + " (" + click.clickType() + ")", AutismColors.successText());
+            out.context("Slot: " + click.slotNum() + " | Button: " + describeButton(click.clickType(), click.buttonNum()), AutismColors.textPrimary());
             out.context("Changed Slots: " + click.changedSlots().size(), AutismColors.textPrimary());
             int shown = 0;
             for (Int2ObjectMap.Entry<HashedStack> slot : click.changedSlots().int2ObjectEntrySet()) {
@@ -318,7 +318,7 @@ public final class AutismNormalPacketAnalyzer {
         }
         if (packet instanceof ClientboundForgetLevelChunkPacket forget) {
             out.context("Client should unload a chunk.", AutismColors.textPrimary());
-            out.context("Chunk: " + forget.pos().x() + ", " + forget.pos().z(), AutismColors.successText());
+            out.context("Chunk: " + forget.pos().x + ", " + forget.pos().z, AutismColors.successText());
             return;
         }
         if (packet instanceof ClientboundLevelChunkWithLightPacket chunk) {
@@ -544,7 +544,7 @@ public final class AutismNormalPacketAnalyzer {
         if (packet instanceof ClientboundForgetLevelChunkPacket forget) {
             out.decoded("Status: complete", AutismColors.packetGreen());
             out.decoded("Meaning: client should unload a chunk", AutismColors.textPrimary());
-            out.decoded("Chunk: " + forget.pos().x() + ", " + forget.pos().z(), AutismColors.successText());
+            out.decoded("Chunk: " + forget.pos().x + ", " + forget.pos().z, AutismColors.successText());
             return true;
         }
         if (packet instanceof ClientboundLevelChunkWithLightPacket chunk) {
@@ -594,9 +594,9 @@ public final class AutismNormalPacketAnalyzer {
         out.decoded("Meaning: client clicked inside a handled screen", AutismColors.textPrimary());
         out.decoded("Container Id: " + click.containerId(), AutismColors.packetBlue());
         out.decoded("State Id: " + click.stateId(), AutismColors.textSecondary());
-        out.decoded("Input: " + describeInput(click.containerInput()) + " (" + click.containerInput() + ")", AutismColors.successText());
+        out.decoded("Input: " + describeInput(click.clickType()) + " (" + click.clickType() + ")", AutismColors.successText());
         out.decoded("Slot: " + click.slotNum() + " (" + AutismPacketContextTracker.slotArea(before, click.slotNum()) + ")", AutismColors.textPrimary());
-        out.decoded("Button: " + describeButton(click.containerInput(), click.buttonNum()), AutismColors.textPrimary());
+        out.decoded("Button: " + describeButton(click.clickType(), click.buttonNum()), AutismColors.textPrimary());
         out.decoded("Slot Before: " + before.slotItem(click.slotNum()), AutismColors.textMuted());
         out.decoded("Slot After: " + after.slotItem(click.slotNum()), AutismColors.successText());
         out.decoded("Cursor Before: " + before.cursorItem(), AutismColors.textMuted());
@@ -730,7 +730,7 @@ public final class AutismNormalPacketAnalyzer {
         return count;
     }
 
-    private static String describeInput(ContainerInput input) {
+    private static String describeInput(ClickType input) {
         if (input == null) return "unknown";
         return switch (input) {
             case PICKUP -> "PICKUP left/right click pickup/place";
@@ -743,11 +743,11 @@ public final class AutismNormalPacketAnalyzer {
         };
     }
 
-    private static String describeButton(ContainerInput input, int button) {
-        if (input == ContainerInput.PICKUP) return button == 0 ? "0 left click" : button == 1 ? "1 right click" : String.valueOf(button);
-        if (input == ContainerInput.QUICK_MOVE) return button == 0 ? "0 shift-left" : button == 1 ? "1 shift-right" : String.valueOf(button);
-        if (input == ContainerInput.SWAP) return button == 40 ? "40 offhand" : button + " hotbar slot";
-        if (input == ContainerInput.THROW) return button == 0 ? "0 drop one" : button == 1 ? "1 drop stack" : String.valueOf(button);
+    private static String describeButton(ClickType input, int button) {
+        if (input == ClickType.PICKUP) return button == 0 ? "0 left click" : button == 1 ? "1 right click" : String.valueOf(button);
+        if (input == ClickType.QUICK_MOVE) return button == 0 ? "0 shift-left" : button == 1 ? "1 shift-right" : String.valueOf(button);
+        if (input == ClickType.SWAP) return button == 40 ? "40 offhand" : button + " hotbar slot";
+        if (input == ClickType.THROW) return button == 0 ? "0 drop one" : button == 1 ? "1 drop stack" : String.valueOf(button);
         return String.valueOf(button);
     }
 

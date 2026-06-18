@@ -10,6 +10,7 @@ import autismclient.gui.vanillaui.components.CompactTheme;
 import autismclient.gui.vanillaui.components.UiTone;
 import autismclient.util.AutismLinks;
 import autismclient.util.AutismUiScale;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
@@ -86,7 +87,7 @@ public class AutismWelcomeScreen extends Screen {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
     }
 
     private boolean continueUnlocked() {
@@ -99,8 +100,9 @@ public class AutismWelcomeScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        this.minecraft.gameRenderer.getPanorama().extractRenderState(graphics, this.width, this.height, this.panoramaShouldSpin());
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
+        this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
 
         float uiMouseX = (float) AutismUiScale.toVirtual(mouseX);
         float uiMouseY = (float) AutismUiScale.toVirtual(mouseY);
@@ -355,3 +357,4 @@ public class AutismWelcomeScreen extends Screen {
         }
     }
 }
+

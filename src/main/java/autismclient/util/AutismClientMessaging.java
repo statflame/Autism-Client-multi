@@ -3,7 +3,7 @@ package autismclient.util;
 import autismclient.mixin.accessor.AutismChatComponentAccessor;
 import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.chat.GuiMessage;
+import net.minecraft.client.GuiMessage;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
@@ -60,7 +60,7 @@ public final class AutismClientMessaging {
         MC.execute(() -> {
             if (MC.player != null) {
                 if (!replaceGroup.isEmpty()) removeReplaceableMessage(replaceGroup);
-                MC.gui.getChat().addClientSystemMessage(text);
+                MC.gui.getChat().addMessage(text);
             } else if (MC.getChatListener() != null) {
                 MC.getChatListener().handleSystemMessage(text, false);
             }

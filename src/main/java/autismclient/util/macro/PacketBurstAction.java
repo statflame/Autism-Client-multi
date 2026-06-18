@@ -19,7 +19,7 @@ import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.phys.Vec3;
 
 public class PacketBurstAction implements MacroAction {
@@ -70,7 +70,7 @@ public class PacketBurstAction implements MacroAction {
             case ENTITY_INTERACT -> {
                 int id = entityId;
                 if (id < 0 && mc.crosshairPickEntity != null) id = mc.crosshairPickEntity.getId();
-                yield id < 0 ? null : new ServerboundInteractPacket(id, interactionHand(), Vec3.ZERO, false);
+                net.minecraft.world.entity.Entity autismTarget = (id < 0 || mc.level == null) ? null : mc.level.getEntity(id); yield autismTarget == null ? null : ServerboundInteractPacket.createInteractionPacket(autismTarget, false, interactionHand());
             }
             case CLIENT_COMMAND -> mc.player == null ? null : new ServerboundPlayerCommandPacket(mc.player, MacroStringList.enumValue(ServerboundPlayerCommandPacket.Action.class, playerCommand, ServerboundPlayerCommandPacket.Action.OPEN_INVENTORY));
             case BUNDLE_SELECT -> new ServerboundSelectBundleItemPacket(slot >= 0 ? slot : 36 + (mc.player == null ? 0 : mc.player.getInventory().getSelectedSlot()), bundleIndex);
@@ -82,8 +82,8 @@ public class PacketBurstAction implements MacroAction {
         };
     }
 
-    private ContainerInput input() {
-        return MacroStringList.enumValue(ContainerInput.class, containerInput, ContainerInput.PICKUP);
+    private ClickType input() {
+        return MacroStringList.enumValue(ClickType.class, containerInput, ClickType.PICKUP);
     }
 
     private InteractionHand interactionHand() {

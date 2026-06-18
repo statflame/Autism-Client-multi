@@ -71,7 +71,7 @@ public final class AutismClientMod implements ClientModInitializer {
             AutismModule.get().tick();
             AutismJoinMacroController.onClientTick(client);
         });
-        ClientTickEvents.END_LEVEL_TICK.register(level -> AutismLANSync.getInstance().onLevelTick(level.getGameTime()));
+        ClientTickEvents.END_WORLD_TICK.register(level -> AutismLANSync.getInstance().onLevelTick(level.getGameTime()));
         ClientConfigurationConnectionEvents.INIT.register((listener, client) -> AutismModule.get().onConfigurationConnectionStarted());
         ClientConfigurationConnectionEvents.DISCONNECT.register((listener, client) -> {
             AutismFakeGamemode.clear();

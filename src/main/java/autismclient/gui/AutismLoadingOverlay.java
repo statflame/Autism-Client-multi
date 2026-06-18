@@ -5,6 +5,7 @@ import autismclient.gui.vanillaui.UiRenderer;
 import autismclient.util.AutismColors;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -48,7 +49,8 @@ public class AutismLoadingOverlay extends LoadingOverlay {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float a) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
         long now = Util.getMillis();
@@ -64,8 +66,6 @@ public class AutismLoadingOverlay extends LoadingOverlay {
         if (fadeOutAnim >= 1.0F) {
             if (this.autism$minecraft.screen != null) {
                 this.autism$tryRenderScreen(graphics, 0, 0, a);
-            } else {
-                this.autism$minecraft.gui.extractDeferredSubtitles();
             }
 
             int alpha = Mth.ceil((1.0F - Mth.clamp(fadeOutAnim - 1.0F, 0.0F, 1.0F)) * 255.0F);
@@ -75,8 +75,6 @@ public class AutismLoadingOverlay extends LoadingOverlay {
         } else if (this.autism$fadeIn) {
             if (this.autism$minecraft.screen != null && fadeInAnim < 1.0F) {
                 this.autism$tryRenderScreen(graphics, mouseX, mouseY, a);
-            } else {
-                this.autism$minecraft.gui.extractDeferredSubtitles();
             }
 
             int alpha = Mth.ceil(Mth.clamp((double) fadeInAnim, 0.15, 1.0) * 255.0);
@@ -84,7 +82,6 @@ public class AutismLoadingOverlay extends LoadingOverlay {
             UiRenderer.rect(graphics, UiBounds.of(0, 0, width, height), replaceAlpha(BG_COLOR, alpha));
             logoAlpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
         } else {
-            this.autism$minecraft.gameRenderer.getGameRenderState().guiRenderState.clearColorOverride = BG_COLOR;
             logoAlpha = 1.0F;
         }
 
@@ -108,7 +105,7 @@ public class AutismLoadingOverlay extends LoadingOverlay {
         net.minecraft.client.gui.screens.Screen screen = this.autism$minecraft.screen;
         if (screen == null) return;
         try {
-            screen.extractRenderStateWithTooltipAndSubtitles(graphics, mouseX, mouseY, a);
+            screen.renderWithTooltipAndSubtitles((GuiGraphics)(Object) graphics, mouseX, mouseY, a);
         } catch (Exception ignored) {
 
         }
@@ -186,7 +183,11 @@ public class AutismLoadingOverlay extends LoadingOverlay {
             this.autism$fadeOutStart = Util.getMillis();
             if (this.autism$minecraft.screen != null) {
                 Window window = this.autism$minecraft.getWindow();
+                //? if >=1.21.11 {
                 this.autism$minecraft.screen.init(window.getGuiScaledWidth(), window.getGuiScaledHeight());
+                //?} else {
+                /*this.autism$minecraft.screen.resize(this.autism$minecraft, window.getGuiScaledWidth(), window.getGuiScaledHeight());*/
+                //?}
             }
         }
     }

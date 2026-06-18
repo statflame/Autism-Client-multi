@@ -14,6 +14,7 @@ import autismclient.gui.vanillaui.components.UiTone;
 import autismclient.util.AutismProxyManager;
 import autismclient.util.AutismUiScale;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonInfo;
@@ -159,7 +160,8 @@ public class AutismProxyConfigScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int virtualMouseX = AutismUiScale.toVirtualInt(mouseX);
         int virtualMouseY = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -217,6 +219,7 @@ public class AutismProxyConfigScreen extends Screen {
         drawText(graphics, row.hint(), x + 10, y + 17, MUTED, false, textMaxWidth);
     }
 
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         MouseButtonEvent virtualEvent = virtualEvent(event);
@@ -227,11 +230,11 @@ public class AutismProxyConfigScreen extends Screen {
             return true;
         }
         if (CompactDropdown.mouseClicked(dropdowns, virtualEvent.x(), virtualEvent.y(), virtualEvent.button())) return true;
-        if (virtualEvent.button() != 0) return super.mouseClicked(virtualEvent, doubleClick);
+        if (virtualEvent.button() != 0) return autism$superMouseClicked(virtualEvent, doubleClick);
         for (CompactOverlayButton button : buttons) {
             if (CompactOverlayButton.fireIfHit(button, virtualEvent.x(), virtualEvent.y(), virtualEvent.button())) return true;
         }
-        return super.mouseClicked(virtualEvent, doubleClick);
+        return autism$superMouseClicked(virtualEvent, doubleClick);
     }
 
     @Override
@@ -345,3 +348,4 @@ public class AutismProxyConfigScreen extends Screen {
     private record ConfigRow(String label, String value, String hint, int y, boolean toggle, boolean enabled) {
     }
 }
+

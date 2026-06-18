@@ -123,8 +123,8 @@ public abstract class AutismClientConnectionMixin {
         if (packet instanceof ServerboundInteractPacket entityPacket) {
             net.minecraft.world.entity.Entity targeted = Minecraft.getInstance().crosshairPickEntity;
             if (targeted != null && targeted != Minecraft.getInstance().player) {
-                net.minecraft.world.InteractionHand capturedHand = entityPacket.hand();
-                net.minecraft.world.phys.Vec3 capturedHitPos = entityPacket.location();
+                net.minecraft.world.InteractionHand capturedHand = ((autismclient.ducks.AutismInteractPacketDuck)(Object) entityPacket).autism$hand();
+                net.minecraft.world.phys.Vec3 capturedHitPos = ((autismclient.ducks.AutismInteractPacketDuck)(Object) entityPacket).autism$hitPos();
                 AutismSharedState.get().setLastContainerTarget(
                     capturedHitPos != null
                         ? AutismContainerTarget.forEntityAt(targeted, capturedHand, capturedHitPos)

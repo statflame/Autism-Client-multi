@@ -18,6 +18,7 @@ import autismclient.util.AutismProxyManager;
 import autismclient.util.AutismProxyType;
 import autismclient.util.AutismUiScale;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -509,7 +510,8 @@ public class AutismProxiesScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int virtualMouseX = AutismUiScale.toVirtualInt(mouseX);
         int virtualMouseY = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -564,7 +566,7 @@ public class AutismProxiesScreen extends Screen {
         } finally {
         }
 
-        super.extractRenderState(graphics, virtualMouseX, virtualMouseY, delta);
+        super.render(g, virtualMouseX, virtualMouseY, delta);
         } finally {
             AutismUiScale.popOverlayScale(graphics);
         }
@@ -605,11 +607,14 @@ public class AutismProxiesScreen extends Screen {
         CompactOverlayButton.renderStyled(graphics, this.font, row.deleteButton, mouseX, mouseY);
     }
 
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         MouseButtonEvent virtualEvent = virtualEvent(event);
-        if (virtualEvent.button() != 0) return super.mouseClicked(virtualEvent, doubleClick);
-        if (compactLayout()) return super.mouseClicked(virtualEvent, doubleClick);
+        if (virtualEvent.button() != 0) return autism$superMouseClicked(virtualEvent, doubleClick);
+        if (compactLayout()) return autism$superMouseClicked(virtualEvent, doubleClick);
         CompactScrollbar.Metrics scrollbar = proxyScrollbarMetrics(filteredProxies().size());
         if (scrollbar.hasScroll() && scrollbar.contains(virtualEvent.x(), virtualEvent.y())) {
             proxyScrollbarDragging = true;
@@ -638,7 +643,7 @@ public class AutismProxiesScreen extends Screen {
             }
         }
         clearInputFocus();
-        return super.mouseClicked(virtualEvent, doubleClick);
+        return autism$superMouseClicked(virtualEvent, doubleClick);
     }
 
     private boolean overButton(CompactOverlayButton button, double mouseX, double mouseY) {
@@ -656,7 +661,7 @@ public class AutismProxiesScreen extends Screen {
             proxyScrollbarDragging = false;
             return true;
         }
-        return super.mouseReleased(virtualEvent(event));
+        return autism$superMouseReleased(virtualEvent(event));
     }
 
     @Override
@@ -669,7 +674,7 @@ public class AutismProxiesScreen extends Screen {
             rebuildButtons();
             return true;
         }
-        return super.mouseDragged(virtualEvent, AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
+        return autism$superMouseDragged(virtualEvent, AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
     }
 
     @Override
@@ -957,3 +962,4 @@ public class AutismProxiesScreen extends Screen {
     private record ProxyRow(AutismProxy proxy, int y, CompactOverlayButton toggleButton, CompactOverlayButton checkButton, CompactOverlayButton deleteButton) {
     }
 }
+

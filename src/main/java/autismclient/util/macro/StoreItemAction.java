@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +41,7 @@ public class StoreItemAction implements MacroAction {
         if (h == mc.player.inventoryMenu) return;
 
         for (int slotId : collectTransferSlots(mc)) {
-            AutismInventoryClickHelper.click(mc, slotId, 0, ContainerInput.QUICK_MOVE);
+            AutismInventoryClickHelper.click(mc, slotId, 0, ClickType.QUICK_MOVE);
         }
 
         if (closeAfter && !persistent) {

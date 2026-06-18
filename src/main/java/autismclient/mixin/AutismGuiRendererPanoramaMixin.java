@@ -18,18 +18,19 @@ public abstract class AutismGuiRendererPanoramaMixin {
     private final CubeMap autism$customCubeMap = new CubeMap(
         Identifier.fromNamespaceAndPath("autismclient", "textures/gui/title/background/panorama"));
 
-    @Inject(method = "registerPanoramaTextures", at = @At("TAIL"))
+    @Inject(method = "registerPanoramaTextures", at = @At("TAIL"), require = 0)
     private void autism$registerCustomPanorama(TextureManager textureManager, CallbackInfo ci) {
         autism$customCubeMap.registerTextures(textureManager);
     }
 
     @Redirect(
         method = "render",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/CubeMap;render(FF)V")
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/CubeMap;render(Lnet/minecraft/client/Minecraft;FF)V"),
+        require = 0
     )
     private void autism$renderPanorama(CubeMap vanillaCubeMap, float rotX, float rotY) {
         CubeMap target = autismclient.util.AutismMenuPrefs.vanillaMenuVisuals() ? vanillaCubeMap : autism$customCubeMap;
-        target.render(rotX, rotY);
+        target.render(net.minecraft.client.Minecraft.getInstance(), rotX, rotY);
     }
 
     @Inject(method = "close", at = @At("TAIL"))

@@ -7,7 +7,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.HashedStack;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.network.protocol.game.ServerboundSelectBundleItemPacket;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -90,7 +90,7 @@ public class BundleDupeV2Action implements MacroAction {
             mc.player.containerMenu.getStateId(),
             (short) slot,
             (byte) button,
-            ContainerInput.PICKUP,
+            ClickType.PICKUP,
             new Int2ObjectOpenHashMap<>(),
             HashedStack.EMPTY
         ));

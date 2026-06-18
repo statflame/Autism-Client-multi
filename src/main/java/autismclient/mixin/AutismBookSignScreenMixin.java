@@ -121,9 +121,9 @@ public abstract class AutismBookSignScreenMixin extends Screen implements Autism
         manager.register(launcherOverlay);
 
         Screen screen = (Screen) (Object) this;
-        ScreenEvents.afterExtract(screen).register((scrn, drawContext, mouseX, mouseY, tickDelta) -> {
+        ScreenEvents.afterRender(screen).register((scrn, drawContext, mouseX, mouseY, tickDelta) -> {
             if (autism$isAutismActive()) {
-                AutismOverlayManager.get().renderAll(drawContext, mouseX, mouseY, tickDelta);
+                AutismOverlayManager.get().renderAll((net.minecraft.client.gui.GuiGraphicsExtractor)(Object) drawContext, mouseX, mouseY, tickDelta);
             }
         });
     }

@@ -31,6 +31,6 @@ public final class AutismDisplayItemUtils {
             .set(DataComponents.ITEM_MODEL, model)
             .set(DataComponents.ITEM_NAME, Component.translatable(item.getDescriptionId()))
             .build();
-        return Holder.direct(item, components);
+        return Holder.direct(item);
     }
 }

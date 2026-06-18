@@ -7114,7 +7114,7 @@ public class ActionEditorOverlay extends AutismOverlayBase {
         if (!visible) return false;
         if (packetSelectorOverlay.isVisible()) return packetSelectorOverlay.charTyped(chr, modifiers);
         if (raceStepSelectorOverlay.isVisible()) return raceStepSelectorOverlay.charTyped(chr, modifiers);
-        CharacterEvent ci = new CharacterEvent(chr);
+        CharacterEvent ci = new CharacterEvent(chr, 0);
         for (AutismChatField f : textFields.values()) {
             if (f.isFocused() && f.charTyped(ci)) return true;
         }

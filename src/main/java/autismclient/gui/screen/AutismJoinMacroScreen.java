@@ -13,6 +13,7 @@ import autismclient.util.AutismMacroManager;
 import autismclient.util.AutismNotifications;
 import autismclient.util.AutismOverlayManager;
 import autismclient.util.AutismUiScale;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
@@ -96,7 +97,8 @@ public final class AutismJoinMacroScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int virtualMouseX = AutismUiScale.toVirtualInt(mouseX);
         int virtualMouseY = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -630,3 +632,4 @@ public final class AutismJoinMacroScreen extends Screen {
         TRIGGER
     }
 }
+

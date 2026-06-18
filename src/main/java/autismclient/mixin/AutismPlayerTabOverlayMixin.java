@@ -19,7 +19,7 @@ public class AutismPlayerTabOverlayMixin {
     }
 
     @ModifyArg(
-        method = "extractRenderState",
+        method = "render",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Font;split(Lnet/minecraft/network/chat/FormattedText;I)Ljava/util/List;"),
         index = 0,
         require = 0

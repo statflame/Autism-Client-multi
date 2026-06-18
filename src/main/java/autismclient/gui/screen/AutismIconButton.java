@@ -1,5 +1,6 @@
 package autismclient.gui.screen;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.Button;
@@ -29,7 +30,12 @@ public class AutismIconButton extends Button {
     }
 
     @Override
-    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    //? if >=1.21.11 {
+    protected void renderContents(GuiGraphics g, int mouseX, int mouseY, float delta) {
+    //?} else {
+    /*protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float delta) {*/
+    //?}
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         Font font = Minecraft.getInstance().font;
         int color = active ? 0xFFFFFFFF : 0xFF8A7474;
         if (icon == null) {

@@ -19,6 +19,7 @@ import autismclient.gui.vanillaui.components.UiTone;
 import autismclient.modules.PackModule;
 import autismclient.modules.PackModuleOption;
 import autismclient.util.AutismUiScale;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
@@ -81,7 +82,8 @@ public class AutismStringListSettingScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int mx = AutismUiScale.toVirtualInt(mouseX);
         int my = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -632,3 +634,4 @@ public class AutismStringListSettingScreen extends Screen {
         CLOSE
     }
 }
+

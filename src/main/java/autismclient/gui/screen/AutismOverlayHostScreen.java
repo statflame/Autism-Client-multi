@@ -3,6 +3,7 @@ package autismclient.gui.screen;
 import autismclient.util.AutismOverlayManager;
 import autismclient.util.AutismUiScale;
 import autismclient.util.IAutismOverlay;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -45,7 +46,8 @@ public class AutismOverlayHostScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
 
         AutismOverlayManager.get().renderAll(graphics, mouseX, mouseY, delta);
     }
@@ -98,3 +100,4 @@ public class AutismOverlayHostScreen extends Screen {
         return AutismOverlayManager.get().handleCharTyped((char) input.codepoint(), 0);
     }
 }
+

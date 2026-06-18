@@ -79,7 +79,7 @@ public final class AutismItemNbtInspector {
             component(DataComponents.CUSTOM_MODEL_DATA, "Custom Model Data"),
             component(DataComponents.TOOLTIP_STYLE, "Tooltip Style"),
             component(DataComponents.DYED_COLOR, "Dyed Color"),
-            component(DataComponents.DYE, "Dye"),
+            component(DataComponents.DYED_COLOR, "Dye"),
             component(DataComponents.RARITY, "Rarity"),
             component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, "Glint Override"),
             component(DataComponents.TOOLTIP_DISPLAY, "Tooltip Display"));
@@ -109,6 +109,7 @@ public final class AutismItemNbtInspector {
             if (stack.has(DataComponents.MAX_STACK_SIZE)) builder.line("Max Stack: " + stack.getMaxStackSize(), AutismColors.textSecondary());
         }
 
+        //? if >=1.21.11 {
         addPresentComponents(builder, stack, "Usage / Combat", AutismColors.packetOrange(),
             component(DataComponents.USE_EFFECTS, "Use Effects"),
             component(DataComponents.MINIMUM_ATTACK_CHARGE, "Minimum Attack Charge"),
@@ -125,6 +126,17 @@ public final class AutismItemNbtInspector {
             component(DataComponents.PIERCING_WEAPON, "Piercing Weapon"),
             component(DataComponents.KINETIC_WEAPON, "Kinetic Weapon"),
             component(DataComponents.SWING_ANIMATION, "Swing Animation"));
+        //?} else {
+        /*addPresentComponents(builder, stack, "Usage / Combat", AutismColors.packetOrange(),
+            component(DataComponents.FOOD, "Food"),
+            component(DataComponents.CONSUMABLE, "Consumable"),
+            component(DataComponents.USE_REMAINDER, "Use Remainder"),
+            component(DataComponents.USE_COOLDOWN, "Use Cooldown"),
+            component(DataComponents.DAMAGE_RESISTANT, "Damage Resistant"),
+            component(DataComponents.TOOL, "Tool"),
+            component(DataComponents.WEAPON, "Weapon"),
+            component(DataComponents.BLOCKS_ATTACKS, "Blocks Attacks"));*/
+        //?}
 
         addPresentComponents(builder, stack, "Equipment / Enchanting", AutismColors.packetBlue(),
             component(DataComponents.ENCHANTABLE, "Enchantable"),
@@ -151,7 +163,7 @@ public final class AutismItemNbtInspector {
             builder.blank();
             builder.section("Contents", AutismColors.packetGreen());
             if (container != null) {
-                long count = container.nonEmptyItemCopyStream().count();
+                long count = container.nonEmptyStream().count();
                 builder.line("Container Items: " + count, AutismColors.textSecondary());
             }
             if (bundle != null) builder.line("Bundle Items: " + bundle.size(), AutismColors.textSecondary());

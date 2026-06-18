@@ -2,7 +2,7 @@ package autismclient.util;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.concurrent.CountDownLatch;
@@ -13,7 +13,7 @@ public final class AutismInventoryClickHelper {
     private AutismInventoryClickHelper() {
     }
 
-    public static boolean click(Minecraft mc, int handlerSlotId, int button, ContainerInput input) {
+    public static boolean click(Minecraft mc, int handlerSlotId, int button, ClickType input) {
         if (mc == null) return false;
         if (mc.isSameThread()) {
             return clickNow(mc, handlerSlotId, button, input);
@@ -38,7 +38,7 @@ public final class AutismInventoryClickHelper {
         return clicked.get();
     }
 
-    private static boolean clickNow(Minecraft mc, int handlerSlotId, int button, ContainerInput input) {
+    private static boolean clickNow(Minecraft mc, int handlerSlotId, int button, ClickType input) {
         if (mc == null || mc.player == null || mc.gameMode == null || mc.getConnection() == null || input == null) return false;
         AbstractContainerMenu handler = mc.player.containerMenu;
         if (handler == null || handlerSlotId < 0 || handlerSlotId >= handler.slots.size()) return false;
@@ -46,7 +46,7 @@ public final class AutismInventoryClickHelper {
         ItemStack beforeSlot = handler.slots.get(handlerSlotId).getItem().copy();
 
         try {
-            mc.gameMode.handleContainerInput(handler.containerId, handlerSlotId, button, input, mc.player);
+            mc.gameMode.handleInventoryMouseClick(handler.containerId, handlerSlotId, button, input, mc.player);
             AutismCursorClickHelper.recordAfterContainerClick(mc, handler, handlerSlotId, button, input, beforeCarried, beforeSlot);
             return true;
         } catch (RuntimeException ignored) {

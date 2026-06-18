@@ -12,7 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
 
@@ -66,7 +66,7 @@ public class XCarryCommand extends Command {
         shared.setXCarryArmorBypass(true);
         try {
 
-            mc.gameMode.handleContainerInput(container.containerId, sourceSlotId, 0, ContainerInput.PICKUP, p);
+            mc.gameMode.handleInventoryMouseClick(container.containerId, sourceSlotId, 0, ClickType.PICKUP, p);
             if (container.getCarried().isEmpty()) {
                 AutismClientMessaging.sendPrefixed("§cCould not pick up the held item.");
                 return SUCCESS;
@@ -89,14 +89,14 @@ public class XCarryCommand extends Command {
             if (targetSlot < 0 || targetSlot >= container.slots.size()) {
                 AutismClientMessaging.sendPrefixed("§cInvalid slot (" + targetSlot + ").");
 
-                mc.gameMode.handleContainerInput(container.containerId, sourceSlotId, 0, ContainerInput.PICKUP, p);
+                mc.gameMode.handleInventoryMouseClick(container.containerId, sourceSlotId, 0, ClickType.PICKUP, p);
                 return SUCCESS;
             }
 
-            mc.gameMode.handleContainerInput(container.containerId, targetSlot, 0, ContainerInput.PICKUP, p);
+            mc.gameMode.handleInventoryMouseClick(container.containerId, targetSlot, 0, ClickType.PICKUP, p);
 
             if (!container.getCarried().isEmpty()) {
-                mc.gameMode.handleContainerInput(container.containerId, sourceSlotId, 0, ContainerInput.PICKUP, p);
+                mc.gameMode.handleInventoryMouseClick(container.containerId, sourceSlotId, 0, ClickType.PICKUP, p);
             }
 
             forcedSlots.add(targetSlot);

@@ -37,7 +37,6 @@ import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCommandBlockPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCreativeModeSlotPacket;
-import net.minecraft.network.protocol.game.ServerboundSetGameRulePacket;
 import net.minecraft.network.protocol.game.ServerboundSeenAdvancementsPacket;
 import net.minecraft.network.protocol.game.ServerboundSelectBundleItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
@@ -53,12 +52,11 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Input;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.entity.CommandBlockEntity;
-import net.minecraft.world.level.gamerules.GameRule;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -374,7 +372,7 @@ public final class AutismPacketArgumentBuilder {
                     ? parseVec3(firstArg(args, "location", "pos"))
                     : currentEntityHitLocation(new Vec3(doubleArg(args, 0.0D, "x"), doubleArg(args, 0.0D, "y"), doubleArg(args, 0.0D, "z")));
                 boolean secondary = boolArg(args, false, "secondary", "usingSecondaryAction");
-                return Result.ok(new ServerboundInteractPacket(entityId, hand, location, secondary), "typed constructor");
+                net.minecraft.world.entity.Entity autismTarget = MC.level != null ? MC.level.getEntity(entityId) : null; if (autismTarget == null) return Result.error("Entity " + entityId + " not found for interact packet."); return Result.ok(ServerboundInteractPacket.createInteractionPacket(autismTarget, secondary, hand, location), "typed constructor");
             }
             if (packetClass == ServerboundContainerClickPacket.class) {
                 requireOnly(args, "containerId", "id", "stateId", "slotNum", "slot", "buttonNum", "button", "containerInput", "input", "click", "changedSlots", "changed", "carriedItem", "carried");
@@ -382,7 +380,7 @@ public final class AutismPacketArgumentBuilder {
                 int stateId = intArg(args, AutismPacketArgumentBuilder::currentContainerStateId, "stateId");
                 short slot = (short) intArg(args, "slotNum", "slot");
                 byte button = (byte) intArg(args, 0, "buttonNum", "button");
-                ContainerInput input = enumArg(ContainerInput.class, args, "containerInput", "input", "click");
+                ClickType input = enumArg(ClickType.class, args, "containerInput", "input", "click");
                 Int2ObjectMap<HashedStack> changed = parseHashedSlotMap(firstArg(args, "changedSlots", "changed"));
                 HashedStack carried = parseHashedStack(firstArg(args, "carriedItem", "carried"));
                 return Result.ok(new ServerboundContainerClickPacket(containerId, stateId, slot, button, input, changed, carried), "typed constructor");
@@ -442,10 +440,6 @@ public final class AutismPacketArgumentBuilder {
                     boolArg(args, false, "conditional"),
                     boolArg(args, false, "automatic")
                 ), "typed constructor");
-            }
-            if (packetClass == ServerboundSetGameRulePacket.class) {
-                requireOnly(args, "entries", "rules", "rule", "value");
-                return Result.ok(new ServerboundSetGameRulePacket(gameRuleEntries(args)), "typed constructor");
             }
             if (packetClass == ServerboundSeenAdvancementsPacket.class) {
                 requireOnly(args, "action", "tab");
@@ -739,7 +733,6 @@ public final class AutismPacketArgumentBuilder {
         if (packetClass == ServerboundContainerClickPacket.class) return List.of("slot", "input", "button", "containerId", "stateId", "changed", "carried");
         if (packetClass == ServerboundSignUpdatePacket.class) return List.of("pos", "front", "lines", "line0", "line1", "line2", "line3");
         if (packetClass == ServerboundEditBookPacket.class) return List.of("slot", "pages", "title");
-        if (packetClass == ServerboundSetGameRulePacket.class) return List.of("rule", "value", "entries");
         if (packetClass == ServerboundSetCreativeModeSlotPacket.class) return List.of("slot", "item");
         if (packetClass == ServerboundPlayerInputPacket.class) return List.of("forward", "backward", "left", "right", "jump", "shift", "sprint");
         if (packetClass == ServerboundInteractPacket.class) return List.of("entityId", "hand", "location", "secondary");
@@ -809,7 +802,7 @@ public final class AutismPacketArgumentBuilder {
         if (field.equals("rotation")) return Rotation.class;
         if (field.equals("hand")) return InteractionHand.class;
         if (field.equals("direction") || field.equals("dir") || field.equals("face")) return Direction.class;
-        if (field.equals("input") || field.equals("click") || field.equals("containerinput")) return ContainerInput.class;
+        if (field.equals("input") || field.equals("click") || field.equals("containerinput")) return ClickType.class;
         AutismPacketSchemaRegistry.PacketSchema schema = AutismPacketSchemaRegistry.find(packetClass);
         if (schema == null) return null;
         for (AutismPacketSchemaRegistry.FieldSchema schemaField : schema.fields()) {
@@ -831,7 +824,7 @@ public final class AutismPacketArgumentBuilder {
             case "Difficulty" -> "net.minecraft.world.Difficulty";
             case "GameType" -> "net.minecraft.world.level.GameType";
             case "RecipeBookType" -> "net.minecraft.world.inventory.RecipeBookType";
-            case "ContainerInput" -> "net.minecraft.world.inventory.ContainerInput";
+            case "ClickType" -> "net.minecraft.world.inventory.ClickType";
             case "InteractionHand" -> "net.minecraft.world.InteractionHand";
             case "Direction" -> "net.minecraft.core.Direction";
             case "Mirror" -> "net.minecraft.world.level.block.Mirror";
@@ -880,7 +873,6 @@ public final class AutismPacketArgumentBuilder {
         if (packetClass == ServerboundEditBookPacket.class) return List.of(prefix + "slot=0 pages=\"page one|page two\" title=\"title\"");
         if (packetClass == ServerboundSignUpdatePacket.class) return List.of(prefix + "pos=0,64,0 lines=\"one|two|three|four\"");
         if (packetClass == ServerboundSetCreativeModeSlotPacket.class) return List.of(prefix + "slot=0 item=held", prefix + "slot=0 item=empty");
-        if (packetClass == ServerboundSetGameRulePacket.class) return List.of(prefix + "rule=doDaylightCycle value=false");
         if (packetClass == ServerboundCustomPayloadPacket.class) return List.of(prefix + "brand=vanilla");
         if (packetClass == ServerboundMoveVehiclePacket.class) return List.of(prefix + "dry", prefix + "pos=current yaw=current pitch=current");
         return List.of(prefix + "dry", prefix + "rawHex=hex:00 dry", prefix + "packetHex=hex:0000 dry");
@@ -1248,24 +1240,6 @@ public final class AutismPacketArgumentBuilder {
 
     private static Optional<String> optionalString(String value) {
         return value == null || isNone(value) ? Optional.empty() : Optional.of(value);
-    }
-
-    private static List<ServerboundSetGameRulePacket.Entry> gameRuleEntries(Map<String, String> args) {
-        String packed = firstArg(args, "entries", "rules");
-        if (packed == null) {
-            String rule = firstArg(args, "rule");
-            String value = firstArg(args, "value");
-            if (rule == null || value == null) throw new IllegalArgumentException("Provide entries=rule=value|rule2=value2 or rule=... value=...");
-            packed = rule + "=" + value;
-        }
-        List<ServerboundSetGameRulePacket.Entry> entries = new ArrayList<>();
-        for (String entry : splitList(packed, "\\|", 256)) {
-            int eq = entry.indexOf('=');
-            if (eq < 0) throw new IllegalArgumentException("Game rule entries must be rule=value.");
-            ResourceKey<GameRule<?>> key = ResourceKey.create(Registries.GAME_RULE, parseIdentifierDefault(entry.substring(0, eq).trim()));
-            entries.add(new ServerboundSetGameRulePacket.Entry(key, entry.substring(eq + 1)));
-        }
-        return List.copyOf(entries);
     }
 
     private static Identifier parseIdentifierDefault(String value) {

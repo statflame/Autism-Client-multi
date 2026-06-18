@@ -29,6 +29,7 @@ import autismclient.util.IAutismOverlay;
 import autismclient.util.macro.ToggleModuleAction;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -85,7 +86,8 @@ public class AutismModuleScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         if (menu == null) {
             menu = new VanillaModuleMenuController(new ModuleMenuHost());
             menu.init();
@@ -117,6 +119,9 @@ public class AutismModuleScreen extends Screen {
         }
     }
 
+    private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e); }
+    private boolean autism$superKeyReleased(KeyEvent e) { return super.keyReleased(e); }
+    private boolean autism$superCharTyped(CharacterEvent e) { return super.charTyped(e); }
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         int mx = AutismUiScale.toVirtualInt(event.x());
@@ -161,13 +166,13 @@ public class AutismModuleScreen extends Screen {
         if (menu != null && !menu.hasTopLayer() && AutismOverlayManager.get().handleKeyPressed(input.key(), input.scancode(), input.modifiers())) return true;
         if (menu != null && menu.keyPressed(input.key(), input.scancode(), input.modifiers())) return true;
         if (passMovementKey(input, true)) return false;
-        return super.keyPressed(input);
+        return autism$superKeyPressed(input);
     }
 
     @Override
     public boolean keyReleased(KeyEvent input) {
         if (passMovementKey(input, false)) return false;
-        return super.keyReleased(input);
+        return autism$superKeyReleased(input);
     }
 
     @Override
@@ -176,7 +181,7 @@ public class AutismModuleScreen extends Screen {
         if (packetSelectorOverlay != null && packetSelectorOverlay.isVisible() && packetSelectorOverlay.charTyped(chr, 0)) return true;
         if (menu != null && !menu.hasTopLayer() && AutismOverlayManager.get().handleCharTyped(chr, 0)) return true;
         if (menu != null && menu.charTyped(chr)) return true;
-        return super.charTyped(input);
+        return autism$superCharTyped(input);
     }
 
     @Override
@@ -550,3 +555,4 @@ public class AutismModuleScreen extends Screen {
         }
     }
 }
+

@@ -4,7 +4,7 @@ import autismclient.mixin.accessor.AutismItemStackRenderStateAccessor;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.renderer.block.model.BakedQuad;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -61,39 +61,6 @@ public final class GoldenLeverModule extends PackModule {
     }
 
     private static void tintLayer(ItemStackRenderState.LayerRenderState layer) {
-        if (layer == null) return;
-        List<BakedQuad> quads = layer.prepareQuadList();
-        for (int i = 0; i < quads.size(); i++) {
-            quads.set(i, withTintIndex(quads.get(i)));
-        }
-        IntList tints = layer.tintLayers();
-        tints.clear();
-        tints.add(GOLD_TINT);
-    }
-
-    private static BakedQuad withTintIndex(BakedQuad quad) {
-        BakedQuad.MaterialInfo materialInfo = quad.materialInfo();
-        if (materialInfo.tintIndex() == 0) return quad;
-        BakedQuad.MaterialInfo tintedInfo = new BakedQuad.MaterialInfo(
-            materialInfo.sprite(),
-            materialInfo.layer(),
-            materialInfo.itemRenderType(),
-            0,
-            materialInfo.shade(),
-            materialInfo.lightEmission()
-        );
-        return new BakedQuad(
-            quad.position0(),
-            quad.position1(),
-            quad.position2(),
-            quad.position3(),
-            quad.packedUV0(),
-            quad.packedUV1(),
-            quad.packedUV2(),
-            quad.packedUV3(),
-            quad.direction(),
-            tintedInfo
-        );
     }
 
     private static boolean isActive() {

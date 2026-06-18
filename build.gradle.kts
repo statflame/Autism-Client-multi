@@ -24,17 +24,99 @@ base {
 
 repositories {
     maven {
+        name = "Fabric"
+        url = uri("https://maven.fabricmc.net/")
+    }
+    maven {
         name = "meteor-maven"
         url = uri("https://maven.meteordev.org/releases")
+    }
+    maven {
+        name = "jitpack"
+        url = uri("https://jitpack.io")
     }
     mavenCentral()
 }
 
+run {
+    val older = stonecutter.eval(stonecutter.current.version, "<1.21.11")
+    stonecutter.replacements {
+        regex {
+            direction.set(older)
+            replace("\\bIdentifier\\b", "ResourceLocation")
+            reverse("\\bResourceLocation\\b", "Identifier")
+        }
+        regex {
+            direction.set(older)
+            replace("net\\.minecraft\\.client\\.model\\.player\\.PlayerModel", "net.minecraft.client.model.PlayerModel")
+            reverse("net\\.minecraft\\.client\\.model\\.PlayerModel", "net.minecraft.client.model.player.PlayerModel")
+        }
+        regex {
+            direction.set(older)
+            replace("net\\.minecraft\\.world\\.entity\\.vehicle\\.minecart\\.", "net.minecraft.world.entity.vehicle.")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("net\\.minecraft\\.world\\.entity\\.vehicle\\.boat\\.", "net.minecraft.world.entity.vehicle.")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("net\\.minecraft\\.world\\.level\\.gamerules\\.", "net.minecraft.world.level.")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("net\\.minecraft\\.world\\.entity\\.animal\\.equine\\.", "net.minecraft.world.entity.animal.horse.")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("net\\.minecraft\\.util\\.Util\\b", "net.minecraft.Util")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("org\\.jspecify\\.annotations\\.Nullable", "org.jetbrains.annotations.Nullable")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("\\.identifier\\(\\)", ".location()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("ResourceKey::identifier", "ResourceKey::location")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("\\.writeIdentifier\\(", ".writeResourceLocation(")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older)
+            replace("\\.readIdentifier\\(", ".readResourceLocation(")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+    }
+}
+
+val fabricApiVersion = when (stonecutter.current.version) {
+    "1.21.9" -> "0.134.1+1.21.9"
+    "1.21.10" -> "0.138.4+1.21.10"
+    "1.21.11" -> "0.141.4+1.21.11"
+    else -> error("No fabric-api mapping for ${stonecutter.current.version}")
+}
+
 dependencies {
 
-    minecraft(libs.minecraft)
-    implementation(libs.fabric.loader)
-    implementation(libs.fabric.api)
+    "minecraft"("com.mojang:minecraft:${stonecutter.current.version}")
+    "mappings"(loom.officialMojangMappings())
+    "modImplementation"(libs.fabric.loader)
+    "modImplementation"("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
 
     implementation("net.java.dev.jna:jna:5.13.0")
     implementation("net.java.dev.jna:jna-platform:5.13.0")
@@ -79,7 +161,7 @@ sourceSets {
 val generateVanillaUiAssets by tasks.registering {
     // Semantic feature icons used by the vanilla-friendly UI. Structural
     // actions such as close and reorder are rendered as text symbols.
-    val iconSourceDir = file("assets/icons")
+    val iconSourceDir = rootProject.file("assets/icons")
     val outputDir = generatedAutismResourcesDir.map { it.dir("assets/autismclient") }
 
     inputs.dir(iconSourceDir)
@@ -279,7 +361,7 @@ val generateAutismInspectorMappings by tasks.registering {
 }
 
 val generateAutismPacketSchemas by tasks.registering {
-    val minecraftVersion = libs.versions.minecraft.get()
+    val minecraftVersion = stonecutter.current.version
     val outputFile = generatedAutismResourcesDir.map { it.file("autism-packet-schemas.tsv") }
 
     outputs.file(outputFile)
@@ -400,7 +482,7 @@ val generateAutismPacketSchemas by tasks.registering {
                     .toList()
             }
 
-            error("Missing Minecraft deobf sources jar and local mc-src fallback for $minecraftVersion")
+            return emptyList()
         }
 
         fun packetTypeOf(text: String): String {
@@ -478,7 +560,7 @@ tasks {
         dependsOn(generateVanillaUiAssets)
         val propertyMap = mapOf(
             "version" to project.version,
-            "mc_version" to libs.versions.minecraft.get()
+            "mc_version" to stonecutter.current.version
         )
 
         inputs.properties(propertyMap)
@@ -508,19 +590,18 @@ tasks {
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_25
-        targetCompatibility = JavaVersion.VERSION_25
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(25))
+            languageVersion.set(JavaLanguageVersion.of(21))
         }
     }
 
     withType<JavaCompile> {
         options.encoding = "UTF-8"
-        options.release.set(25)
+        options.release.set(21)
         options.compilerArgs.add("-Xlint:deprecation")
         options.compilerArgs.add("-Xlint:unchecked")
-        options.compilerArgs.add("-Xlint:-restricted")
     }
 }
 

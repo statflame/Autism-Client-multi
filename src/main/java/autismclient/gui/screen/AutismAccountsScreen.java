@@ -28,6 +28,7 @@ import com.mojang.blaze3d.Blaze3D;
 import com.mojang.util.UndashedUuid;
 import net.minecraft.client.User;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -477,7 +478,8 @@ public class AutismAccountsScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int virtualMouseX = AutismUiScale.toVirtualInt(mouseX);
         int virtualMouseY = AutismUiScale.toVirtualInt(mouseY);
         refreshOperationControls();
@@ -524,7 +526,7 @@ public class AutismAccountsScreen extends Screen {
         } finally {
         }
 
-        super.extractRenderState(graphics, virtualMouseX, virtualMouseY, delta);
+        super.render(g, virtualMouseX, virtualMouseY, delta);
         } finally {
             AutismUiScale.popOverlayScale(graphics);
         }
@@ -617,43 +619,55 @@ public class AutismAccountsScreen extends Screen {
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 40, 8, size, size, 8, 8, 64, 64);
     }
 
+    private boolean autism$superMouseClicked(double x, double y, int button, boolean doubleClick) {
+        return super.mouseClicked(new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0)), doubleClick);
+    }
+    private boolean autism$superMouseReleased(double x, double y, int button) {
+        return super.mouseReleased(new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0)));
+    }
+    private boolean autism$superMouseDragged(double x, double y, int button, double dx, double dy) {
+        return super.mouseDragged(new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0)), AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        MouseButtonEvent virtualEvent = virtualEvent(event);
-        if (virtualEvent.button() != 0) return super.mouseClicked(virtualEvent, doubleClick);
-        if (compactListLayout()) return super.mouseClicked(virtualEvent, doubleClick);
+        double vx = AutismUiScale.toVirtual(event.x());
+        double vy = AutismUiScale.toVirtual(event.y());
+        int vb = event.button();
+        if (vb != 0) return autism$superMouseClicked(vx, vy, vb, doubleClick);
+        if (compactListLayout()) return autism$superMouseClicked(vx, vy, vb, doubleClick);
         CompactScrollbar.Metrics scrollbar = accountScrollbarMetrics(displayAccounts().size());
-        if (scrollbar.hasScroll() && scrollbar.contains(virtualEvent.x(), virtualEvent.y())) {
+        if (scrollbar.hasScroll() && scrollbar.contains(vx, vy)) {
             accountScrollbarDragging = true;
-            accountScrollbarGrabOffset = scrollbar.overThumb(virtualEvent.x(), virtualEvent.y()) ? Math.max(0, (int) Math.round(virtualEvent.y()) - scrollbar.thumbY()) : scrollbar.thumbHeight() / 2;
-            savedListScrollOffset = quantizeScrollOffset(CompactScrollbar.scrollFromThumb(scrollbar, virtualEvent.y(), accountScrollbarGrabOffset), ROW_HEIGHT, scrollbar.maxScroll());
+            accountScrollbarGrabOffset = scrollbar.overThumb(vx, vy) ? Math.max(0, (int) Math.round(vy) - scrollbar.thumbY()) : scrollbar.thumbHeight() / 2;
+            savedListScrollOffset = quantizeScrollOffset(CompactScrollbar.scrollFromThumb(scrollbar, vy, accountScrollbarGrabOffset), ROW_HEIGHT, scrollbar.maxScroll());
             savedListScroll.jumpTo(savedListScrollOffset, scrollbar.maxScroll());
             rebuildButtons();
             clearInputFocus();
             return true;
         }
-        if (isInPreview(virtualEvent.x(), virtualEvent.y())) {
+        if (isInPreview(vx, vy)) {
             previewRotationY = currentPreviewRotationY();
             previewAutoRotationStartTime = Blaze3D.getTime();
             previewDragging = true;
-            lastPreviewMouseX = virtualEvent.x();
-            lastPreviewMouseY = virtualEvent.y();
+            lastPreviewMouseX = vx;
+            lastPreviewMouseY = vy;
             clearInputFocus();
             return true;
         }
         for (CompactOverlayButton button : buttons) {
-            if (CompactOverlayButton.fireIfHit(button, virtualEvent.x(), virtualEvent.y(), virtualEvent.button())) return true;
+            if (CompactOverlayButton.fireIfHit(button, vx, vy, vb)) return true;
         }
         for (AccountRow row : accountRows) {
-            if (CompactOverlayButton.fireIfHit(row.deleteButton, virtualEvent.x(), virtualEvent.y(), virtualEvent.button())) return true;
-            if (CompactOverlayButton.fireIfHit(row.loginButton, virtualEvent.x(), virtualEvent.y(), virtualEvent.button())) return true;
-            if (virtualEvent.x() >= rowX() && virtualEvent.x() < rowRight() && virtualEvent.y() >= row.y && virtualEvent.y() < row.y + ROW_HEIGHT - 3) {
+            if (CompactOverlayButton.fireIfHit(row.deleteButton, vx, vy, vb)) return true;
+            if (CompactOverlayButton.fireIfHit(row.loginButton, vx, vy, vb)) return true;
+            if (vx >= rowX() && vx < rowRight() && vy >= row.y && vy < row.y + ROW_HEIGHT - 3) {
                 selectedAccount = row.account();
                 return true;
             }
         }
         clearInputFocus();
-        return super.mouseClicked(virtualEvent, doubleClick);
+        return autism$superMouseClicked(vx, vy, vb, doubleClick);
     }
 
     private void toggleFilter(AutismAccountType filterType) {
@@ -666,6 +680,9 @@ public class AutismAccountsScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+        double vx = AutismUiScale.toVirtual(event.x());
+        double vy = AutismUiScale.toVirtual(event.y());
+        int vb = event.button();
         if (accountScrollbarDragging) {
             accountScrollbarDragging = false;
             return true;
@@ -675,15 +692,17 @@ public class AutismAccountsScreen extends Screen {
             previewDragging = false;
             return true;
         }
-        return super.mouseReleased(virtualEvent(event));
+        return autism$superMouseReleased(vx, vy, vb);
     }
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-        MouseButtonEvent virtualEvent = virtualEvent(event);
+        double vx = AutismUiScale.toVirtual(event.x());
+        double vy = AutismUiScale.toVirtual(event.y());
+        int vb = event.button();
         if (accountScrollbarDragging) {
             CompactScrollbar.Metrics scrollbar = accountScrollbarMetrics(displayAccounts().size());
-            savedListScrollOffset = quantizeScrollOffset(CompactScrollbar.scrollFromThumb(scrollbar, virtualEvent.y(), accountScrollbarGrabOffset), ROW_HEIGHT, scrollbar.maxScroll());
+            savedListScrollOffset = quantizeScrollOffset(CompactScrollbar.scrollFromThumb(scrollbar, vy, accountScrollbarGrabOffset), ROW_HEIGHT, scrollbar.maxScroll());
             savedListScroll.jumpTo(savedListScrollOffset, scrollbar.maxScroll());
             rebuildButtons();
             return true;
@@ -691,11 +710,11 @@ public class AutismAccountsScreen extends Screen {
         if (previewDragging) {
             previewRotationX = Math.max(-50.0F, Math.min(50.0F, previewRotationX - (float) AutismUiScale.toVirtual(dy) * 2.5F));
             previewRotationY += (float) AutismUiScale.toVirtual(dx) * 2.5F;
-            lastPreviewMouseX = virtualEvent.x();
-            lastPreviewMouseY = virtualEvent.y();
+            lastPreviewMouseX = vx;
+            lastPreviewMouseY = vy;
             return true;
         }
-        return super.mouseDragged(virtualEvent, AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
+        return autism$superMouseDragged(vx, vy, vb, dx, dy);
     }
 
     @Override

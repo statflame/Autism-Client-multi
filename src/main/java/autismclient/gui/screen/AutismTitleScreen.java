@@ -17,10 +17,10 @@ import autismclient.modules.PackHideState;
 import autismclient.util.AutismUiScale;
 import autismclient.util.AutismWindowBranding;
 import com.mojang.authlib.minecraft.BanDetails;
-import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.mojang.blaze3d.Blaze3D;
 import com.mojang.realmsclient.RealmsMainScreen;
 import net.minecraft.SharedConstants;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CommonButtons;
@@ -187,7 +187,7 @@ public class AutismTitleScreen extends Screen {
             b -> this.minecraft.setScreen(new LanguageSelectScreen(this, this.minecraft.options, this.minecraft.getLanguageManager())), true));
         language.setPosition(this.width / 2 - 124, rowY);
         this.addRenderableWidget(Button.builder(Component.translatable("menu.options"),
-            b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options, false)))
+            b -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options)))
             .bounds(this.width / 2 - 100, rowY, 98, 20).build());
         this.addRenderableWidget(Button.builder(Component.translatable("menu.quit"), b -> this.minecraft.stop())
             .bounds(this.width / 2 + 2, rowY, 98, 20).build());
@@ -211,13 +211,14 @@ public class AutismTitleScreen extends Screen {
     }
 
     @Override
-    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         long perf = AutismPerf.begin();
-        this.minecraft.gameRenderer.getPanorama().extractRenderState(graphics, this.width, this.height, this.panoramaShouldSpin());
+        this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
 
         float uiMouseX = (float) AutismUiScale.toVirtual(mouseX);
         float uiMouseY = (float) AutismUiScale.toVirtual(mouseY);
@@ -234,7 +235,6 @@ public class AutismTitleScreen extends Screen {
             for (MenuButton button : buttons) {
                 button.render(graphics, uiMouseX, uiMouseY, delta);
                 if (button.contains(uiMouseX, uiMouseY)) {
-                    graphics.requestCursor(button.enabled ? CursorTypes.POINTING_HAND : CursorTypes.NOT_ALLOWED);
                     if (button.tooltip != null) {
                         hoveredTooltip = button.tooltip;
                     }
@@ -251,15 +251,15 @@ public class AutismTitleScreen extends Screen {
     }
 
     private void renderVanillaSkin(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        this.minecraft.gameRenderer.getPanorama().extractRenderState(graphics, this.width, this.height, this.panoramaShouldSpin());
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
-        this.vanillaLogo.extractRenderState(graphics, this.width, 1.0F);
+        this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        super.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, mouseX, mouseY, delta);
+        this.vanillaLogo.renderLogo((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, 1.0F);
         if (!this.vanillaSplashChosen) {
             this.vanillaSplash = pickVanillaSplash();
             this.vanillaSplashChosen = true;
         }
         if (this.vanillaSplash != null && !this.minecraft.options.hideSplashTexts().get()) {
-            this.vanillaSplash.extractRenderState(graphics, this.width, this.font, 1.0F);
+            this.vanillaSplash.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.font, 1.0F);
         }
         String version = "Minecraft " + SharedConstants.getCurrentVersion().name();
         graphics.text(this.font, version, 2, this.height - 10, ARGB.white(1.0F));
@@ -269,7 +269,11 @@ public class AutismTitleScreen extends Screen {
         List<String> pool = vanillaSplashPool();
         if (pool.isEmpty()) return null;
         String text = pool.get(SPLASH_RANDOM.nextInt(pool.size()));
+        //? if >=1.21.11 {
         return new SplashRenderer(Component.literal(text).setStyle(net.minecraft.network.chat.Style.EMPTY.withColor(-256)));
+        //?} else {
+        /*return new SplashRenderer(text);*/
+        //?}
     }
 
     private List<String> vanillaSplashPool() {
@@ -294,6 +298,8 @@ public class AutismTitleScreen extends Screen {
         return vanillaSplashPool;
     }
 
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() != 0) return false;
@@ -324,7 +330,7 @@ public class AutismTitleScreen extends Screen {
             essentialPreviewDragging = false;
             return true;
         }
-        return super.mouseReleased(event);
+        return autism$superMouseReleased(event);
     }
 
     @Override
@@ -334,7 +340,7 @@ public class AutismTitleScreen extends Screen {
             essentialPreviewRotationY += (float) AutismUiScale.toVirtual(dx) * 2.5F;
             return true;
         }
-        return super.mouseDragged(event, dx, dy);
+        return autism$superMouseDragged(event, dx, dy);
     }
 
     @Override
@@ -387,7 +393,7 @@ public class AutismTitleScreen extends Screen {
             () -> this.minecraft.setScreen(new RealmsMainScreen(this))).withTooltip(disabledReason).asMainRow(3));
         buttons.get(buttons.size() - 1).withLabelTexture(TEXT_REALMS, 136, 24, 68, 12);
         buttons.add(new MenuButton(rowX, rowTop + (rowH + gap) * 3, rowW, rowH, Component.translatable("menu.options"), true,
-            () -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options, false))).asMainRow(4));
+            () -> this.minecraft.setScreen(new OptionsScreen(this, this.minecraft.options))).asMainRow(4));
         buttons.get(buttons.size() - 1).withLabelTexture(TEXT_OPTIONS, 138, 24, 69, 12);
         int quitY = rowTop + (rowH + gap) * 4;
         buttons.add(new MenuButton(rowX, quitY, rowW, rowH, Component.translatable("menu.quit"), true,
@@ -467,8 +473,6 @@ public class AutismTitleScreen extends Screen {
         if (!essentialLoaded || !panel.visible()) return;
         if (panel.compact()) return;
 
-        boolean previewHovered = panel.previewContains(mouseX, mouseY);
-        if (previewHovered) graphics.requestCursor(CursorTypes.POINTING_HAND);
         renderEssentialSkinPreview(graphics, panel);
     }
 
@@ -1104,3 +1108,4 @@ public class AutismTitleScreen extends Screen {
     }
 
 }
+

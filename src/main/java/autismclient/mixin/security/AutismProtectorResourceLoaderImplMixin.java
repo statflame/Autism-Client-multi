@@ -1,5 +1,6 @@
 package autismclient.mixin.security;
 
+//? if >=1.21.11 {
 import autismclient.security.AutismProtectorModResolver;
 import autismclient.security.AutismProtectorTracker;
 import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType;
@@ -27,3 +28,9 @@ public class AutismProtectorResourceLoaderImplMixin {
         AutismProtectorTracker.addDefaultAllowedMods(AutismProtectorModResolver.dependenciesFor(mod));
     }
 }
+//?} else {
+/*import org.spongepowered.asm.mixin.Mixin;
+
+@Mixin(net.minecraft.client.Minecraft.class)
+public class AutismProtectorResourceLoaderImplMixin {
+}*///?}

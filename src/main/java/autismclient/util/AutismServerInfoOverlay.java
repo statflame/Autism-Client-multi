@@ -855,8 +855,8 @@ public class AutismServerInfoOverlay extends AutismOverlayBase {
         String diff = MC.level != null ? MC.level.getDifficulty().getDisplayName().getString() : "--";
         String time = "--";
         if (MC.level != null) {
-            long dayCount = MC.level.getOverworldClockTime() / 24000L;
-            long timeOfDay = MC.level.getOverworldClockTime() % 24000L;
+            long dayCount = MC.level.getDayTime() / 24000L;
+            long timeOfDay = MC.level.getDayTime() % 24000L;
             int hours = (int) ((timeOfDay / 1000 + 6) % 24);
             int minutes = (int) ((timeOfDay % 1000) * 60 / 1000);
             time = "Day " + dayCount + " (" + String.format("%02d:%02d", hours, minutes) + ")";
@@ -5068,8 +5068,8 @@ public class AutismServerInfoOverlay extends AutismOverlayBase {
         sb.append("Difficulty: ").append(MC.level != null ? MC.level.getDifficulty().getDisplayName().getString() : "--").append("\n");
         sb.append("World:      ").append(getCurrentWorldName()).append("\n");
         if (MC.level != null) {
-            long dayCount = MC.level.getOverworldClockTime() / 24000L;
-            long timeOfDay = MC.level.getOverworldClockTime() % 24000L;
+            long dayCount = MC.level.getDayTime() / 24000L;
+            long timeOfDay = MC.level.getDayTime() % 24000L;
             int hours = (int) ((timeOfDay / 1000 + 6) % 24);
             int minutes = (int) ((timeOfDay % 1000) * 60 / 1000);
             sb.append("Time:       Day ").append(dayCount).append(" (").append(String.format("%02d:%02d", hours, minutes)).append(")\n");

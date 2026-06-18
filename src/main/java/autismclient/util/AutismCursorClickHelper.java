@@ -3,7 +3,7 @@ package autismclient.util;
 import autismclient.util.macro.ItemTarget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -68,7 +68,7 @@ public final class AutismCursorClickHelper {
             if (triggerSlot < 0) break;
 
             try {
-                mc.gameMode.handleContainerInput(handler.containerId, triggerSlot, 0, ContainerInput.PICKUP_ALL, mc.player);
+                mc.gameMode.handleInventoryMouseClick(handler.containerId, triggerSlot, 0, ClickType.PICKUP_ALL, mc.player);
                 refreshOriginStack(handler);
                 clickedAny = true;
             } catch (RuntimeException ignored) {
@@ -83,7 +83,7 @@ public final class AutismCursorClickHelper {
             AbstractContainerMenu handler,
             int slotId,
             int button,
-            ContainerInput input,
+            ClickType input,
             ItemStack beforeCarried,
             ItemStack beforeSlot
     ) {
@@ -94,7 +94,7 @@ public final class AutismCursorClickHelper {
             return;
         }
 
-        if (input == ContainerInput.PICKUP
+        if (input == ClickType.PICKUP
                 && slotId >= 0
                 && slotId < handler.slots.size()
                 && (button == 0 || button == 1)

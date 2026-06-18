@@ -26,11 +26,13 @@ public class AutismProtectorOptionsMixin {
         return original.call(name, type, key, category);
     }
 
+    //? if >=1.21.11 {
     @WrapOperation(method = "<init>", at = @At(value = "NEW", target = "(Ljava/lang/String;Lcom/mojang/blaze3d/platform/InputConstants$Type;ILnet/minecraft/client/KeyMapping$Category;I)Lnet/minecraft/client/KeyMapping;"))
     private KeyMapping autism$keyMapping(String name, InputConstants.Type type, int key, KeyMapping.Category category, int order, Operation<KeyMapping> original) {
         AutismProtectorTracker.addVanillaKeybind(name);
         return original.call(name, type, key, category, order);
     }
+    //?}
 
     @WrapOperation(method = "<init>", at = @At(value = "NEW", target = "(Ljava/lang/String;ILnet/minecraft/client/KeyMapping$Category;Ljava/util/function/BooleanSupplier;Z)Lnet/minecraft/client/ToggleKeyMapping;"))
     private ToggleKeyMapping autism$toggleKeyMapping(String name, int key, KeyMapping.Category category, BooleanSupplier needsToggle,

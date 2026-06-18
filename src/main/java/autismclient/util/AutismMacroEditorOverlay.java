@@ -2050,7 +2050,7 @@ public class AutismMacroEditorOverlay extends AutismOverlayBase {
          this.addStepPickerEntry(entries, "inventory", "Inventory Audit", "Snapshot slots, compare after reopen, or run automated dupe tests.", () -> this.addAction(new InventoryAuditAction()));
          this.addStepPickerEntry(entries, "inventory", "Craft", "Craft one or more recipes.", () -> this.addAction(new CraftAction()));
          this.addStepPickerEntry(
-            entries, "interaction", "Mouse Click", "Simulate mouse clicks in world.", () -> this.addAction(new ClickAction(ClickAction.ContainerInput.RIGHT))
+            entries, "interaction", "Mouse Click", "Simulate mouse clicks in world.", () -> this.addAction(new ClickAction(ClickAction.ClickType.RIGHT))
          );
          this.addStepPickerEntry(entries, "network", "Packet", "Send captured packets from the queue.", () -> this.addAction(new SendPacketAction()));
          this.addStepPickerEntry(entries, "network", "Packet Gate", "Cancel, delay, or allow packet groups.", () -> {
@@ -4795,13 +4795,13 @@ public class AutismMacroEditorOverlay extends AutismOverlayBase {
          return false;
       } else if (this.isStepPickerOpen()) {
          if (this.stepPickerSearchField != null && this.stepPickerSearchField.isFocused()) {
-            CharacterEvent charInput = new CharacterEvent(chr);
+            CharacterEvent charInput = new CharacterEvent(chr, 0);
             if (this.stepPickerSearchField.charTyped(charInput)) return true;
             this.stepPickerSearchField.write(String.valueOf(chr));
          }
          return true;
       } else {
-         CharacterEvent charInput = new CharacterEvent(chr);
+         CharacterEvent charInput = new CharacterEvent(chr, 0);
          if (this.nameField.charTyped(charInput)) {
             return true;
          } else if (this.nameField.isFocused()) {

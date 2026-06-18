@@ -548,7 +548,12 @@ public final class ColorPicker {
             this.height = height;
             this.pixels = new NativeImage(width, height, true);
             this.texture = RenderSystem.getDevice().createTexture("AUTISM " + name, 5, TextureFormat.RGBA8, width, height, 1, 1);
+            //? if >=1.21.11 {
             this.sampler = RenderSystem.getSamplerCache().getRepeat(FilterMode.NEAREST);
+            //?} else {
+            /*this.texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.REPEAT);
+            this.texture.setTextureFilter(FilterMode.NEAREST, false);*/
+            //?}
             this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
         }
 

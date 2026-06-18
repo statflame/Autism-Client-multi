@@ -286,7 +286,7 @@ public class AutismMinecraftClientMixin {
             return;
         }
 
-        if (client.getWindow() != null && !client.getWindow().isFocused()) {
+        if (!client.isWindowActive()) {
             AutismModule module = AutismModule.get();
             if (module != null && module.isActive() && module.isNoPauseOnLostFocus()) {
                 ci.cancel();

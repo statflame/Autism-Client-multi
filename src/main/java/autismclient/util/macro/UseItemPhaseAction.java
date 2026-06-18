@@ -11,7 +11,7 @@ import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 
@@ -110,16 +110,16 @@ public class UseItemPhaseAction implements MacroAction {
 
     public void finishRelease(Minecraft mc) {
         if (mc == null || mc.player == null || mc.getConnection() == null) return;
-        if (swapSlotBeforeRelease >= 0) clickSlot(mc, swapSlotBeforeRelease, swapButton, ContainerInput.SWAP);
+        if (swapSlotBeforeRelease >= 0) clickSlot(mc, swapSlotBeforeRelease, swapButton, ClickType.SWAP);
         if (releaseAfterHold) {
             mc.getConnection().send(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN));
         }
         if (dropSlotAfterRelease) {
-            clickSlot(mc, dropSlot, 0, ContainerInput.THROW);
+            clickSlot(mc, dropSlot, 0, ClickType.THROW);
         }
     }
 
-    private void clickSlot(Minecraft mc, int slot, int button, ContainerInput input) {
+    private void clickSlot(Minecraft mc, int slot, int button, ClickType input) {
         int handlerSlot = useCustomSlotMapping ? AutismInventoryHelper.resolveConfiguredHandlerSlot(mc, slot) : slot;
         if (handlerSlot < 0) return;
         AutismInventoryClickHelper.click(mc, handlerSlot, button, input);

@@ -6,7 +6,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 
 public final class AutismInventoryHelper {
     public static final int PLAYER_VISIBLE_SLOT_COUNT = 41;
@@ -200,9 +200,9 @@ public final class AutismInventoryHelper {
         if (!handler.getCarried().isEmpty()) return false;
 
         int syncId = handler.containerId;
-        mc.gameMode.handleContainerInput(syncId, fromScreenSlot, 0, ContainerInput.PICKUP, mc.player);
-        mc.gameMode.handleContainerInput(syncId, toScreenSlot, 0, ContainerInput.PICKUP, mc.player);
-        mc.gameMode.handleContainerInput(syncId, fromScreenSlot, 0, ContainerInput.PICKUP, mc.player);
+        mc.gameMode.handleInventoryMouseClick(syncId, fromScreenSlot, 0, ClickType.PICKUP, mc.player);
+        mc.gameMode.handleInventoryMouseClick(syncId, toScreenSlot, 0, ClickType.PICKUP, mc.player);
+        mc.gameMode.handleInventoryMouseClick(syncId, fromScreenSlot, 0, ClickType.PICKUP, mc.player);
         return true;
     }
 

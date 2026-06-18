@@ -6,6 +6,7 @@ import autismclient.util.AutismBindUtil;
 import autismclient.util.AutismCompatManager;
 import autismclient.util.AutismConfig;
 import autismclient.util.AutismLinks;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.CycleButton;
@@ -69,10 +70,18 @@ public class AutismModMenuConfigScreen extends Screen {
         if (AutismCompatManager.isMeteorAvailable()) prefixes.remove(".");
         String currentPrefix = AutismCompatManager.effectiveCommandPrefix();
         if (!prefixes.contains(currentPrefix)) currentPrefix = prefixes.isEmpty() ? "%" : prefixes.get(0);
+        //? if >=1.21.11 {
         addRenderableWidget(CycleButton.<String>builder(Component::literal, currentPrefix)
             .withValues(prefixes)
             .create(x, y, w, h, Component.literal("Command Prefix"),
                 (b, value) -> module.setCommandPrefix(value)));
+        //?} else {
+        /*addRenderableWidget(CycleButton.<String>builder(Component::literal)
+            .withValues(prefixes)
+            .withInitialValue(currentPrefix)
+            .create(x, y, w, h, Component.literal("Command Prefix"),
+                (b, value) -> module.setCommandPrefix(value)));*/
+        //?}
         y += h + gap;
 
         keybinds.add(new Keybind("Module Menu", () -> cfg.keybindModuleMenu, v -> { cfg.keybindModuleMenu = v; cfg.save(); }));
@@ -132,7 +141,6 @@ public class AutismModMenuConfigScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (capturing >= 0) {
-
             applyCapture(event.key() == GLFW.GLFW_KEY_ESCAPE ? -1 : event.key());
             return true;
         }
@@ -149,8 +157,9 @@ public class AutismModMenuConfigScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+    public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
+        super.render(g, mouseX, mouseY, partialTick);
         graphics.centeredText(this.font, this.title, this.width / 2, 12, 0xFFFFFFFF);
     }
 

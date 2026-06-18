@@ -43,8 +43,8 @@ final class PackModuleBlockEsp {
 
         ClientChunkCache chunks = level.getChunkSource();
         Vec3 playerPos = player.position();
-        int playerChunkX = player.chunkPosition().x();
-        int playerChunkZ = player.chunkPosition().z();
+        int playerChunkX = player.chunkPosition().x;
+        int playerChunkZ = player.chunkPosition().z;
         int emitted = 0;
 
         for (int radius = 0; radius <= chunkRadius && emitted < maxTargets; radius++) {

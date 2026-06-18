@@ -16,6 +16,7 @@ import autismclient.gui.vanillaui.components.UiTone;
 import autismclient.util.AutismNotifications;
 import autismclient.util.AutismUiScale;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -132,7 +133,8 @@ public final class AutismAddonsScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int mx = AutismUiScale.toVirtualInt(mouseX);
         int my = AutismUiScale.toVirtualInt(mouseY);
         AutismUiScale.pushOverlayScale(graphics);
@@ -153,7 +155,7 @@ public final class AutismAddonsScreen extends Screen {
             }
             CompactScrollbar.Metrics scrollbar = scrollbarMetrics(filteredReports().size());
             CompactScrollbar.draw(graphics, scrollbar, scrollbar.contains(mx, my), scrollbarDragging);
-            super.extractRenderState(graphics, mx, my, delta);
+            super.render(g, mx, my, delta);
         } finally {
             AutismUiScale.popOverlayScale(graphics);
         }
@@ -238,10 +240,13 @@ public final class AutismAddonsScreen extends Screen {
         return y + 12;
     }
 
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         MouseButtonEvent virtual = virtualEvent(event);
-        if (virtual.button() != 0) return super.mouseClicked(virtual, doubleClick);
+        if (virtual.button() != 0) return autism$superMouseClicked(virtual, doubleClick);
         for (CompactOverlayButton button : buttons) {
             if (CompactOverlayButton.fireIfHit(button, virtual.x(), virtual.y(), virtual.button())) return true;
         }
@@ -262,7 +267,7 @@ public final class AutismAddonsScreen extends Screen {
             clearInputFocus();
             return true;
         }
-        return super.mouseClicked(virtual, doubleClick);
+        return autism$superMouseClicked(virtual, doubleClick);
     }
 
     @Override
@@ -271,7 +276,7 @@ public final class AutismAddonsScreen extends Screen {
             scrollbarDragging = false;
             return true;
         }
-        return super.mouseReleased(virtualEvent(event));
+        return autism$superMouseReleased(virtualEvent(event));
     }
 
     @Override
@@ -283,7 +288,7 @@ public final class AutismAddonsScreen extends Screen {
             listScroll.jumpTo(scrollOffset, scrollbar.maxScroll());
             return true;
         }
-        return super.mouseDragged(virtual, AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
+        return autism$superMouseDragged(virtual, AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
     }
 
     @Override
@@ -470,3 +475,4 @@ public final class AutismAddonsScreen extends Screen {
         return new MouseButtonEvent(AutismUiScale.toVirtual(event.x()), AutismUiScale.toVirtual(event.y()), new MouseButtonInfo(event.button(), 0));
     }
 }
+

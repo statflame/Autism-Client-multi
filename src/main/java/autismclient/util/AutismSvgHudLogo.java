@@ -154,7 +154,12 @@ public final class AutismSvgHudLogo {
         private LinearDynamicTexture(String label, NativeImage pixels) {
             this.pixels = pixels;
             this.texture = RenderSystem.getDevice().createTexture(label, 5, TextureFormat.RGBA8, pixels.getWidth(), pixels.getHeight(), 1, 1);
+            //? if >=1.21.11 {
             this.sampler = RenderSystem.getSamplerCache().getRepeat(FilterMode.LINEAR);
+            //?} else {
+            /*this.texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.REPEAT);
+            this.texture.setTextureFilter(FilterMode.LINEAR, false);*/
+            //?}
             this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
             RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.texture, pixels);
         }

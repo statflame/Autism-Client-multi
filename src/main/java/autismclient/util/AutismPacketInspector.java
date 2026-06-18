@@ -560,9 +560,9 @@ public final class AutismPacketInspector {
         if (packet instanceof ServerboundInteractPacket interactEntity) {
             wrote = true;
             complete = true;
-            int entityId = interactEntity.entityId();
+            int entityId = ((autismclient.ducks.AutismInteractPacketDuck)(Object) interactEntity).autism$entityId();
             appendEntityIdLine(builder, "Entity Id", entityId);
-            builder.line("Player Sneaking: " + interactEntity.usingSecondaryAction(), AutismColors.textPrimary());
+            builder.line("Player Sneaking: " + interactEntity.isUsingSecondaryAction(), AutismColors.textPrimary());
             InteractionCapture capture = captureInteraction(interactEntity);
             if (capture.kind != null) {
                 builder.line("Interaction: " + capture.kind, AutismColors.textPrimary());
@@ -2559,7 +2559,7 @@ public final class AutismPacketInspector {
             Object modifiedStacks = invokeFirstNoArg(clickSlotPacket, "getModifiedStacks", "modifiedStacks");
             Object cursorStack = invokeFirstNoArg(clickSlotPacket, "cursor", "getStack", "getCursorStack", "cursorStack");
             if (syncId != null || slot != null || actionType != null) {
-                builder.line("Interaction: " + describeContainerInput(actionType), AutismColors.textPrimary());
+                builder.line("Interaction: " + describeClickType(actionType), AutismColors.textPrimary());
                 if (syncId != null) builder.line("Sync Id: " + safeLeafString(syncId), AutismColors.textPrimary());
                 if (revision != null) builder.line("Revision: " + safeLeafString(revision), AutismColors.textSecondary());
                 if (slot != null) builder.line("Slot: " + safeLeafString(slot), AutismColors.textPrimary());
@@ -3492,7 +3492,7 @@ public final class AutismPacketInspector {
         };
     }
 
-    private static String describeContainerInput(Object actionType) {
+    private static String describeClickType(Object actionType) {
         if (!(actionType instanceof Enum<?> enumValue)) {
             return actionType == null ? "Click Slot" : "Click Slot (" + safeLeafString(actionType) + ")";
         }
@@ -3968,8 +3968,8 @@ public final class AutismPacketInspector {
         InteractionCapture capture = new InteractionCapture();
         try {
             capture.kind = "Interact At";
-            capture.hand = packet.hand();
-            capture.hitPos = packet.location();
+            capture.hand = ((autismclient.ducks.AutismInteractPacketDuck)(Object) packet).autism$hand();
+            capture.hitPos = ((autismclient.ducks.AutismInteractPacketDuck)(Object) packet).autism$hitPos();
         } catch (Throwable ignored) {
             Object interactionType = getField(packet, "type");
             if (interactionType != null && interactionType != INACCESSIBLE) {

@@ -21,13 +21,13 @@ public abstract class AutismCameraMixin {
     @Shadow
     protected abstract void setRotation(float yRot, float xRot);
 
-    @Inject(
-        method = "update(Lnet/minecraft/client/DeltaTracker;)V",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/Camera;alignWithEntity(F)V", shift = At.Shift.AFTER)
-    )
-    private void autism$freecamCamera(DeltaTracker deltaTracker, CallbackInfo ci) {
+    @Inject(method = "setup", at = @At("TAIL"))
+    //? if >=1.21.11 {
+    private void autism$freecamCamera(net.minecraft.world.level.Level area, net.minecraft.world.entity.Entity entity, boolean thirdPerson, boolean thirdPersonReverse, float partialTicks, CallbackInfo ci) {
+    //?} else {
+    /*private void autism$freecamCamera(net.minecraft.world.level.BlockGetter area, net.minecraft.world.entity.Entity entity, boolean thirdPerson, boolean thirdPersonReverse, float partialTicks, CallbackInfo ci) {*/
+    //?}
         if (!PackFreecamState.isActive()) return;
-        float partialTicks = deltaTracker.getGameTimeDeltaPartialTick(true);
         detached = true;
         setPosition(new Vec3(PackFreecamState.getX(partialTicks), PackFreecamState.getY(partialTicks), PackFreecamState.getZ(partialTicks)));
         setRotation(PackFreecamState.getYaw(partialTicks), PackFreecamState.getPitch(partialTicks));

@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import autismclient.modules.AutismModule;
 import autismclient.util.AutismOverlayManager;
 
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import net.minecraft.client.input.CharacterEvent;
@@ -19,13 +20,13 @@ import net.minecraft.world.item.CreativeModeTab;
 
 @Mixin(CreativeModeInventoryScreen.class)
 public abstract class AutismCreativeScreenMixin {
-    @Shadow protected abstract void extractTabButton(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CreativeModeTab tab);
+    @Shadow protected abstract void renderTabButton(GuiGraphics graphics, int mouseX, int mouseY, CreativeModeTab tab);
 
     @org.spongepowered.asm.mixin.Unique
     private static final ThreadLocal<Boolean> autism$inSafeRecall = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     @Inject(method = "checkTabHovering", at = @At("HEAD"), cancellable = true, require = 0)
-    private void autism$blockCoveredTabHover(GuiGraphicsExtractor graphics, CreativeModeTab tab, int mouseX, int mouseY, CallbackInfoReturnable<Boolean> cir) {
+    private void autism$blockCoveredTabHover(GuiGraphics graphics, CreativeModeTab tab, int mouseX, int mouseY, CallbackInfoReturnable<Boolean> cir) {
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
         if (AutismOverlayManager.get().shouldBlockUnderlyingHover(mouseX, mouseY)) {
@@ -33,8 +34,8 @@ public abstract class AutismCreativeScreenMixin {
         }
     }
 
-    @Inject(method = "extractTabButton", at = @At("HEAD"), cancellable = true, require = 0)
-    private void autism$blockCoveredTabCursor(GuiGraphicsExtractor graphics, int mouseX, int mouseY, CreativeModeTab tab, CallbackInfo ci) {
+    @Inject(method = "renderTabButton", at = @At("HEAD"), cancellable = true, require = 0)
+    private void autism$blockCoveredTabCursor(GuiGraphics graphics, int mouseX, int mouseY, CreativeModeTab tab, CallbackInfo ci) {
         if (autism$inSafeRecall.get()) return;
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
@@ -42,7 +43,7 @@ public abstract class AutismCreativeScreenMixin {
 
         autism$inSafeRecall.set(Boolean.TRUE);
         try {
-            this.extractTabButton(graphics, AutismOverlayManager.HOVER_BLOCKED_MOUSE, AutismOverlayManager.HOVER_BLOCKED_MOUSE, tab);
+            this.renderTabButton(graphics, AutismOverlayManager.HOVER_BLOCKED_MOUSE, AutismOverlayManager.HOVER_BLOCKED_MOUSE, tab);
         } finally {
             autism$inSafeRecall.set(Boolean.FALSE);
         }

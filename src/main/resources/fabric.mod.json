@@ -36,9 +36,9 @@
     "autism.mixins.json"
   ],
   "depends": {
-    "java": ">=25",
+    "java": ">=21",
     "minecraft": "${mc_version}",
-    "fabricloader": ">=0.18.4",
+    "fabricloader": ">=0.16.0",
     "fabric-api": "*"
   }
 }

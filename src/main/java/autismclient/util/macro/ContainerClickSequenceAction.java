@@ -5,7 +5,7 @@ import autismclient.util.AutismSharedState;
 import java.util.ArrayList;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 
 public class ContainerClickSequenceAction implements MacroAction {
     public enum SlotSource { SINGLE, RANGE, LIST, CAPTURED_SEQUENCE }
@@ -27,7 +27,7 @@ public class ContainerClickSequenceAction implements MacroAction {
     @Override
     public void execute(Minecraft mc) {
         if (mc == null || mc.player == null || mc.gameMode == null || mc.player.containerMenu == null) return;
-        ContainerInput input = MacroStringList.enumValue(ContainerInput.class, containerInput, ContainerInput.PICKUP);
+        ClickType input = MacroStringList.enumValue(ClickType.class, containerInput, ClickType.PICKUP);
         int cid = switch (containerSource) {
             case CURRENT -> mc.player.containerMenu.containerId;
             case SAVED_GUI -> {
@@ -46,7 +46,7 @@ public class ContainerClickSequenceAction implements MacroAction {
                 int handlerSlot = containerSource == ContainerSource.CURRENT || containerSource == ContainerSource.PLAYER_INVENTORY
                     ? AutismInventoryHelper.toHandlerSlot(mc, visibleSlot)
                     : visibleSlot;
-                if (handlerSlot >= 0) mc.gameMode.handleContainerInput(cid, handlerSlot, buttonNum, input, mc.player);
+                if (handlerSlot >= 0) mc.gameMode.handleInventoryMouseClick(cid, handlerSlot, buttonNum, input, mc.player);
                 for (int t = 0; t < delayTicks; t++) {
                     try { MacroConditionRegistry.waitForNextTick().get(100, java.util.concurrent.TimeUnit.MILLISECONDS); }
                     catch (Exception ignored) {}

@@ -12,6 +12,7 @@ import autismclient.util.AutismQueueEditorOverlay;
 import autismclient.util.AutismUiScale;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.LecternScreen;
@@ -49,8 +50,9 @@ public abstract class AutismScreenMixin {
         autism$lecternInitialized = true;
     }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void autism$render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("TAIL"))
+    private void autism$render(GuiGraphics g, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        GuiGraphicsExtractor context = (GuiGraphicsExtractor)(Object) g;
         Screen screen = (Screen) (Object) this;
         if (screen instanceof AutismExternalButtonScreen externalButtonScreen) {
             externalButtonScreen.autism$renderExternalButtons(context, mouseX, mouseY, delta);
@@ -78,8 +80,9 @@ public abstract class AutismScreenMixin {
         }
     }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void autism$renderTopmostNotifications(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("TAIL"))
+    private void autism$renderTopmostNotifications(GuiGraphics g, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        GuiGraphicsExtractor context = (GuiGraphicsExtractor)(Object) g;
         if (!autism$isModuleActive() || !AutismNotifications.hasVisible()) return;
         context.nextStratum();
         AutismUiScale.pushOverlayScale(context);

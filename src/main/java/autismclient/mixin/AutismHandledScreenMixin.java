@@ -43,13 +43,14 @@ import autismclient.util.AutismCursorClickHelper;
 import org.lwjgl.glfw.GLFW;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -61,7 +62,7 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     @Shadow @Nullable protected Slot hoveredSlot;
     @Shadow protected int leftPos;
     @Shadow protected int topPos;
-    @Shadow protected abstract void slotClicked(Slot slot, int slotId, int button, ContainerInput actionType);
+    @Shadow protected abstract void slotClicked(Slot slot, int slotId, int button, ClickType actionType);
     @Unique private static final Minecraft MC = Minecraft.getInstance();
     @Unique private Slot autism$blockedFocusedSlot;
 
@@ -84,7 +85,7 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     @Unique private ItemStack autism$cursorClickBeforeSlot = ItemStack.EMPTY;
     @Unique private int autism$cursorClickBeforeSlotId = -1;
     @Unique private int autism$cursorClickBeforeButton = 0;
-    @Unique private ContainerInput autism$cursorClickBeforeInput = null;
+    @Unique private ClickType autism$cursorClickBeforeInput = null;
 
     protected AutismHandledScreenMixin(Component title) {
         super(title);
@@ -103,8 +104,8 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @ModifyArg(
-        method = "extractLabels",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;text(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;IIIZ)V"),
+        method = "renderLabels",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;drawString(Lnet/minecraft/client/gui/Font;Lnet/minecraft/network/chat/Component;III)I"),
         index = 1,
         require = 0
     )
@@ -207,14 +208,14 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
         addRenderableWidget(inventoryTweaksDumpButton);
 
         Screen screen = (Screen)(Object)this;
-        ScreenEvents.afterExtract(screen).register((scrn, drawContext, mouseX, mouseY, tickDelta) -> {
+        ScreenEvents.afterRender(screen).register((scrn, drawContext, mouseX, mouseY, tickDelta) -> {
             if (isAutismActive()) {
-                AutismOverlayManager.get().renderAll(drawContext, mouseX, mouseY, tickDelta);
-                AutismUiScale.pushOverlayScale(drawContext);
+                AutismOverlayManager.get().renderAll((net.minecraft.client.gui.GuiGraphicsExtractor)(Object) drawContext, mouseX, mouseY, tickDelta);
+                AutismUiScale.pushOverlayScale((net.minecraft.client.gui.GuiGraphicsExtractor)(Object) drawContext);
                 try {
-                    renderMacroCaptureBanner(drawContext);
+                    renderMacroCaptureBanner((net.minecraft.client.gui.GuiGraphicsExtractor)(Object) drawContext);
                 } finally {
-                    AutismUiScale.popOverlayScale(drawContext);
+                    AutismUiScale.popOverlayScale((net.minecraft.client.gui.GuiGraphicsExtractor)(Object) drawContext);
                 }
             }
         });
@@ -246,8 +247,8 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
         }
     }
 
-    @Inject(method = "extractRenderState", at = @At("HEAD"))
-    private void yang$blockCoveredSlotHover(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("HEAD"))
+    private void yang$blockCoveredSlotHover(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!isAutismActive()) return;
 
         if (AutismOverlayManager.get().shouldBlockUnderlyingHover(mouseX, mouseY)) {
@@ -276,8 +277,8 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
         }
     }
 
-    @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true, require = 0)
-    private void autism$blockCoveredHandledTooltip(GuiGraphicsExtractor context, int x, int y, CallbackInfo ci) {
+    @Inject(method = "renderTooltip", at = @At("HEAD"), cancellable = true, require = 0)
+    private void autism$blockCoveredHandledTooltip(GuiGraphics context, int x, int y, CallbackInfo ci) {
         if (!isAutismActive()) return;
 
         if (AutismOverlayManager.get().shouldBlockUnderlyingHover(x, y)) {
@@ -285,8 +286,8 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
         }
     }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    public void yang$render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "render", at = @At("TAIL"))
+    public void yang$render(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (autism$blockedFocusedSlot != null) {
             hoveredSlot = autism$blockedFocusedSlot;
             autism$blockedFocusedSlot = null;
@@ -585,7 +586,7 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "slotClicked", at = @At("HEAD"), require = 0)
-    private void autism$captureCursorClickOriginBefore(Slot slot, int slotId, int button, ContainerInput actionType, CallbackInfo ci) {
+    private void autism$captureCursorClickOriginBefore(Slot slot, int slotId, int button, ClickType actionType, CallbackInfo ci) {
         autism$cursorClickBeforeCarried = ItemStack.EMPTY;
         autism$cursorClickBeforeSlot = ItemStack.EMPTY;
         autism$cursorClickBeforeSlotId = slotId;
@@ -600,7 +601,7 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "slotClicked", at = @At("TAIL"), require = 0)
-    private void autism$captureCursorClickOriginAfter(Slot slot, int slotId, int button, ContainerInput actionType, CallbackInfo ci) {
+    private void autism$captureCursorClickOriginAfter(Slot slot, int slotId, int button, ClickType actionType, CallbackInfo ci) {
         if (MC.player == null || MC.player.containerMenu == null) return;
         if (slotId != autism$cursorClickBeforeSlotId || button != autism$cursorClickBeforeButton || actionType != autism$cursorClickBeforeInput) return;
         AutismCursorClickHelper.recordAfterContainerClick(
@@ -628,7 +629,7 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
                 && InventoryTweaksModule.shouldShiftDragMove()
                 && inventoryTweaksLastShiftDragSlot != hoveredSlot.index) {
             inventoryTweaksLastShiftDragSlot = hoveredSlot.index;
-            slotClicked(hoveredSlot, hoveredSlot.index, 0, ContainerInput.QUICK_MOVE);
+            slotClicked(hoveredSlot, hoveredSlot.index, 0, ClickType.QUICK_MOVE);
             cir.setReturnValue(true);
         }
     }

@@ -1,10 +1,8 @@
 package autismclient.util;
 
-import net.minecraft.client.gui.ActiveTextCollector;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.TextAlignment;
 import net.minecraft.client.gui.components.SplashRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -36,7 +34,11 @@ public final class AutismVanillaSplash {
         List<String> lines = pool(client);
         if (lines.isEmpty()) return null;
         String text = lines.get(RANDOM.nextInt(lines.size()));
+        //? if >=1.21.11 {
         return new SplashRenderer(Component.literal(text).setStyle(Style.EMPTY.withColor(YELLOW)));
+        //?} else {
+        /*return new SplashRenderer(text);*/
+        //?}
     }
 
     public static List<Component> components(Minecraft client) {
@@ -50,15 +52,7 @@ public final class AutismVanillaSplash {
         if (splash == null) return;
 
         int textWidth = font.width(splash);
-        ActiveTextCollector textRenderer = graphics.textRenderer();
-        float textPhase = 1.8F - Mth.abs(Mth.sin((float)(Util.getMillis() % 1000L) / 1000.0F * (float) (Math.PI * 2)) * 0.1F);
-        float textScale = textPhase * 100.0F / (textWidth + 32);
-        Matrix3x2f transform = new Matrix3x2f(textRenderer.defaultParameters().pose())
-            .translate(screenWidth / 2.0F + 123.0F, 69.0F)
-            .rotate((float) (-Math.PI / 9))
-            .scale(textScale);
-        ActiveTextCollector.Parameters renderParameters = textRenderer.defaultParameters().withOpacity(alpha).withPose(transform);
-        textRenderer.accept(TextAlignment.LEFT, -textWidth / 2, -8, renderParameters, splash);
+        graphics.drawString(font, splash, screenWidth / 2 + 110 - textWidth / 2, 60, 0xFFFFFF00);
     }
 
     private static Component panicSplash(Minecraft client) {

@@ -4,22 +4,22 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.HashedStack;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
-import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ClickType;
 
 public final class AutismPacketClick {
     private AutismPacketClick() {}
 
     public enum Mode {
-        LEFT_CLICK("Left Click", "Left", 0, ContainerInput.PICKUP),
-        RIGHT_CLICK("Right Click", "Right", 1, ContainerInput.PICKUP),
-        QUICK_MOVE("Quick Move", "QMove", 0, ContainerInput.QUICK_MOVE);
+        LEFT_CLICK("Left Click", "Left", 0, ClickType.PICKUP),
+        RIGHT_CLICK("Right Click", "Right", 1, ClickType.PICKUP),
+        QUICK_MOVE("Quick Move", "QMove", 0, ClickType.QUICK_MOVE);
 
         public final String displayName;
         public final String shortName;
         public final int button;
-        public final ContainerInput input;
+        public final ClickType input;
 
-        Mode(String displayName, String shortName, int button, ContainerInput input) {
+        Mode(String displayName, String shortName, int button, ClickType input) {
             this.displayName = displayName;
             this.shortName = shortName;
             this.button = button;
