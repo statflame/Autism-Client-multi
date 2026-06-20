@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import autismclient.util.AutismSharedState;
 import autismclient.util.AutismSignEditAccess;
 import net.minecraft.client.Minecraft;
@@ -34,6 +35,7 @@ public class SignEditAction implements MacroAction, WaitsForGui {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (mc == null || mc.getConnection() == null) return;
         BlockPos pos = resolvePos(mc);
         if (pos == null) return;

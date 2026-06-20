@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import autismclient.util.AutismClientMessaging;
 import autismclient.util.AutismBookPayloadBuilder;
 import autismclient.util.AutismInventoryHelper;
@@ -50,6 +51,7 @@ public class NbtBookAction implements MacroAction {
     public NbtBookAction() {}
 
     public boolean executeSingleBook(Minecraft mc, int bookIndex, int totalBooks) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc.player == null || mc.getConnection() == null) {
             AutismClientMessaging.sendPrefixed("§cNo player or network connection!");
             return false;
@@ -139,6 +141,7 @@ public class NbtBookAction implements MacroAction {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (executeSingleBook(mc, 0, 1)) afterSigning(mc);
     }
 

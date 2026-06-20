@@ -7,6 +7,11 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(KeyboardHandler.class)
 public interface AutismKeyboardHandlerAccessor {
+    //? if >=1.21.9 {
     @Invoker("keyPress")
     void autism$invokeKeyPress(long handle, int action, KeyEvent event);
+    //?} else {
+    /*@Invoker("keyPress")
+    void autism$invokeKeyPress(long handle, int key, int scancode, int action, int mods);
+    *///?}
 }

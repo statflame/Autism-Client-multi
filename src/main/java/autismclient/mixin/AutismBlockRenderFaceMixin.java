@@ -14,6 +14,7 @@ public class AutismBlockRenderFaceMixin {
     @Inject(method = "shouldRenderFace", at = @At("HEAD"), cancellable = true)
     private static void autism$xrayForceSelectedFaces(BlockState state, BlockState neighborState, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         if (!PackModuleRenderUtil.hasXrayRenderWork()) return;
+        if (state == null || state.isAir()) return;
         if (PackModuleRenderUtil.shouldForceXrayFace(state)) cir.setReturnValue(true);
     }
 }

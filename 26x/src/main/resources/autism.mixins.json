@@ -55,6 +55,7 @@
     "AutismChatScreenMixin",
     "AutismChatSuggestMixin",
     "AutismArmorSlotMixin",
+    "AutismResultSlotMixin",
     "AutismRecipeBookScreenMixin",
     "AutismCustomPayloadCodecMixin",
     "AutismUnknownCustomPayloadMixin",

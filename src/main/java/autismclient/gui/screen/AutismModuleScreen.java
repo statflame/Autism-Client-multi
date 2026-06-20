@@ -119,11 +119,24 @@ public class AutismModuleScreen extends Screen {
         }
     }
 
+    //? if >=1.21.9 {
     private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e); }
     private boolean autism$superKeyReleased(KeyEvent e) { return super.keyReleased(e); }
     private boolean autism$superCharTyped(CharacterEvent e) { return super.charTyped(e); }
+    //?} else {
+/*    private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e.key(), e.scancode(), e.modifiers()); }
+    private boolean autism$superKeyReleased(KeyEvent e) { return super.keyReleased(e.key(), e.scancode(), e.modifiers()); }
+    private boolean autism$superCharTyped(CharacterEvent e) { return super.charTyped((char) e.codepoint(), e.modifiers()); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (packetSelectorOverlay != null && packetSelectorOverlay.isVisible()) {
@@ -133,8 +146,14 @@ public class AutismModuleScreen extends Screen {
         return menu == null || menu.mouseClicked(mx, my, event.button());
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (packetSelectorOverlay != null && packetSelectorOverlay.isVisible() && packetSelectorOverlay.mouseReleased(mx, my, event.button())) return true;
@@ -142,8 +161,14 @@ public class AutismModuleScreen extends Screen {
         return menu == null || menu.mouseReleased(mx, my, event.button());
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (packetSelectorOverlay != null && packetSelectorOverlay.isVisible() && packetSelectorOverlay.mouseDragged(mx, my, event.button(), dx, dy)) return true;
@@ -160,8 +185,14 @@ public class AutismModuleScreen extends Screen {
         return menu == null || menu.mouseScrolled(mx, my, scrollY);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent input) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (packetSelectorOverlay != null && packetSelectorOverlay.isVisible() && packetSelectorOverlay.keyPressed(input.key(), input.scancode(), input.modifiers())) return true;
         if (menu != null && !menu.hasTopLayer() && AutismOverlayManager.get().handleKeyPressed(input.key(), input.scancode(), input.modifiers())) return true;
         if (menu != null && menu.keyPressed(input.key(), input.scancode(), input.modifiers())) return true;
@@ -169,14 +200,26 @@ public class AutismModuleScreen extends Screen {
         return autism$superKeyPressed(input);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyReleased(KeyEvent input) {
+    //?} else {
+    /*@Override
+    public boolean keyReleased(int autism$k, int autism$s, int autism$m) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (passMovementKey(input, false)) return false;
         return autism$superKeyReleased(input);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean charTyped(CharacterEvent input) {
+    //?} else {
+    /*@Override
+    public boolean charTyped(char autism$c, int autism$mods) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         char chr = (char) input.codepoint();
         if (packetSelectorOverlay != null && packetSelectorOverlay.isVisible() && packetSelectorOverlay.charTyped(chr, 0)) return true;
         if (menu != null && !menu.hasTopLayer() && AutismOverlayManager.get().handleCharTyped(chr, 0)) return true;
@@ -466,7 +509,10 @@ public class AutismModuleScreen extends Screen {
             minecraft.options.keySprint
         };
         for (KeyMapping key : movement) {
+            //? if >=1.21.9 {
             if (key != null && key.matches(input)) {
+            //?} else {
+            /*if (key != null && key.matches(input.key(), input.scancode())) {*///?}
                 key.setDown(down);
                 return true;
             }
@@ -555,4 +601,5 @@ public class AutismModuleScreen extends Screen {
         }
     }
 }
+
 

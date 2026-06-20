@@ -81,7 +81,9 @@ public class AutismWelcomeScreen extends Screen {
         return false;
     }
 
+    //? if >=1.21.9 {
     @Override
+    //?}
     protected boolean panoramaShouldSpin() {
         return true;
     }
@@ -102,7 +104,11 @@ public class AutismWelcomeScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
+        //? if >=1.21.6 {
         this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        //?} else {
+        /*autismclient.util.AutismPanoramaCompat.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        *///?}
 
         float uiMouseX = (float) AutismUiScale.toVirtual(mouseX);
         float uiMouseY = (float) AutismUiScale.toVirtual(mouseY);
@@ -161,8 +167,15 @@ public class AutismWelcomeScreen extends Screen {
         }
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         if (event.button() != 0) return false;
         float mx = (float) AutismUiScale.toVirtual(event.x());
         float my = (float) AutismUiScale.toVirtual(event.y());
@@ -357,4 +370,5 @@ public class AutismWelcomeScreen extends Screen {
         }
     }
 }
+
 

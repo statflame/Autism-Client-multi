@@ -82,6 +82,12 @@ public final class PackModuleRegistry {
 
     static void register(PackModule module) {
         if (module == null) return;
+        if (module.id() == null || module.id().isBlank()) {
+            throw new IllegalArgumentException("Built-in module id cannot be blank");
+        }
+        if (MODULES.containsKey(module.id())) {
+            throw new IllegalStateException("Duplicate built-in module id: " + module.id());
+        }
         MODULES.put(module.id(), module);
         invalidateCaches(true);
     }

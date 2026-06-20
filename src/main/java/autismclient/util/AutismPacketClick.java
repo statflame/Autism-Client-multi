@@ -59,14 +59,12 @@ public final class AutismPacketClick {
     ) {
         public ServerboundContainerClickPacket buildPacket() {
             Mode effectiveMode = mode == null ? Mode.LEFT_CLICK : mode;
-            return new ServerboundContainerClickPacket(
+            return autismclient.util.AutismPacketCompat.click(
                 containerId,
                 stateId,
                 (short) handlerSlot,
                 (byte) effectiveMode.button,
-                effectiveMode.input,
-                new Int2ObjectArrayMap<>(),
-                HashedStack.EMPTY
+                effectiveMode.input
             );
         }
 

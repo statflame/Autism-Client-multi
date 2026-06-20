@@ -632,7 +632,10 @@ public final class AutismPacketInspector {
             builder.line("Entity Type: " + formatEntityType(addEntity.getType()), AutismColors.successText());
             builder.line("Uuid: " + addEntity.getUUID(), AutismColors.textSecondary());
             builder.line("Pos: " + formatVec3(new Vec3(addEntity.getX(), addEntity.getY(), addEntity.getZ())), AutismColors.textPrimary());
+            //? if >=1.21.9 {
             builder.line("Movement: " + formatVec3(addEntity.getMovement()), AutismColors.textPrimary());
+            //?} else {
+            /*builder.line("Movement: " + formatVec3(new Vec3(addEntity.getXa(), addEntity.getYa(), addEntity.getZa())), AutismColors.textPrimary());*///?}
             builder.line("Rot: yaw=" + addEntity.getYRot() + ", pitch=" + addEntity.getXRot() + ", head=" + addEntity.getYHeadRot(),
                 AutismColors.textPrimary());
             builder.line("Data: " + addEntity.getData(), AutismColors.textSecondary());

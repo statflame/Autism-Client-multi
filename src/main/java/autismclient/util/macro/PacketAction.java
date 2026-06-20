@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import autismclient.util.AutismClipboardHelper;
 import autismclient.util.PacketRegenerator;
 import autismclient.util.AutismClientMessaging;
@@ -22,6 +23,7 @@ public class PacketAction implements MacroAction {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (mc.getConnection() == null) {
             AutismClientMessaging.sendPrefixed("§cNo network connection!");
             return;

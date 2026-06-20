@@ -4353,7 +4353,7 @@ public class AutismMacroEditorOverlay extends AutismOverlayBase {
       } else if (this.isStepPickerOpen()) {
          return this.handleStepPickerClick(mouseX, mouseY, button);
       } else {
-         MouseButtonEvent click = new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
+         MouseButtonEvent click = new MouseButtonEvent(mouseX, mouseY, new net.minecraft.client.input.MouseButtonInfo(button, 0));
          boolean fieldClicked = false;
          boolean stepListLocked = this.isStepListLockedForRun();
          if (!stepListLocked && this.nameField.mouseClicked(click, false)) {

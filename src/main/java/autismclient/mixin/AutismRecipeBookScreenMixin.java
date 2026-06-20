@@ -21,8 +21,14 @@ public abstract class AutismRecipeBookScreenMixin {
         return module != null && module.isActive();
     }
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$handleOverlayClick(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$handleOverlayClick(double autism$x, double autism$y, int autism$b, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubled = false;*/
+    //?}
         if (!autism$isActive()) return;
 
         AutismOverlayManager manager = AutismOverlayManager.get();
@@ -31,8 +37,13 @@ public abstract class AutismRecipeBookScreenMixin {
         }
     }
 
-    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$handleOverlayDrag(MouseButtonEvent click, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$handleOverlayDrag(double autism$x, double autism$y, int autism$b, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (!autism$isActive()) return;
 
         if (AutismOverlayManager.get().handleMouseDragged(click.x(), click.y(), click.button(), deltaX, deltaY)) {
@@ -40,8 +51,13 @@ public abstract class AutismRecipeBookScreenMixin {
         }
     }
 
-    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$handleOverlayKeys(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$handleOverlayKeys(int autism$k, int autism$s, int autism$m, CallbackInfoReturnable<Boolean> cir) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (!autism$isActive()) return;
 
         if (AutismOverlayManager.get().handleKeyPressed(input.key(), input.scancode(), input.modifiers())) {
@@ -49,8 +65,13 @@ public abstract class AutismRecipeBookScreenMixin {
         }
     }
 
-    @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$handleOverlayChars(CharacterEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$handleOverlayChars(char autism$c, int autism$mods, CallbackInfoReturnable<Boolean> cir) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         if (!autism$isActive()) return;
 
         if (AutismOverlayManager.get().handleCharTyped((char) input.codepoint(), 0)) {

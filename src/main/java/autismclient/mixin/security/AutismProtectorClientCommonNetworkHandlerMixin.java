@@ -1,6 +1,7 @@
 package autismclient.mixin.security;
 
 import autismclient.security.AutismProtectorPackStrip;
+import autismclient.security.AutismResourcePackTruthGuard;
 import net.minecraft.client.multiplayer.ClientCommonPacketListenerImpl;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPopPacket;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
@@ -24,5 +25,6 @@ public abstract class AutismProtectorClientCommonNetworkHandlerMixin {
     private void autism$onPackPop(ClientboundResourcePackPopPacket packet, CallbackInfo ci) {
         Optional<UUID> id = packet.id();
         AutismProtectorPackStrip.onPop(id.orElse(null));
+        AutismResourcePackTruthGuard.onPop(id.orElse(null));
     }
 }

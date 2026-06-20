@@ -3,7 +3,9 @@ package autismclient.util;
 import autismclient.gui.vanillaui.assets.UiAssets;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//? if >=1.21.9 {
 import net.minecraft.network.chat.FontDescription;
+//?}
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.Component;
@@ -13,7 +15,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class AutismText {
+    //? if >=1.21.9 {
     private static final Map<Identifier, FontDescription> FONT_CACHE = new ConcurrentHashMap<>();
+    //?}
 
     private AutismText() {
     }
@@ -98,7 +102,12 @@ public final class AutismText {
         };
     }
 
+    //? if >=1.21.9 {
     private static FontDescription fontSource(Identifier fontId) {
         return FONT_CACHE.computeIfAbsent(fontId, FontDescription.Resource::new);
     }
+    //?} else {
+    /*private static Identifier fontSource(Identifier fontId) {
+        return fontId;
+    }*///?}
 }

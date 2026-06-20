@@ -657,7 +657,7 @@ public class AutismMacroListOverlay extends AutismOverlayBase {
 
         AutismMacro pasted = AutismClipboardHelper.pasteMacroFromClipboard();
         if (pasted == null) {
-            AutismNotifications.error("Clipboard does not contain a valid macro.");
+            AutismNotifications.error("Macro import failed: " + AutismClipboardHelper.lastMacroPasteError);
             return true;
         }
 

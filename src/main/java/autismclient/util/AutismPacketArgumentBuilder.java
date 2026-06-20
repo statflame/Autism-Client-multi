@@ -42,7 +42,9 @@ import net.minecraft.network.protocol.game.ServerboundSelectBundleItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
 import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+//? if >=1.21.5 {
 import net.minecraft.network.protocol.game.ServerboundTestInstanceBlockActionPacket;
+//?}
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.network.protocol.login.ServerboundCustomQueryAnswerPacket;
@@ -381,9 +383,13 @@ public final class AutismPacketArgumentBuilder {
                 short slot = (short) intArg(args, "slotNum", "slot");
                 byte button = (byte) intArg(args, 0, "buttonNum", "button");
                 ClickType input = enumArg(ClickType.class, args, "containerInput", "input", "click");
+                //? if >=1.21.5 {
                 Int2ObjectMap<HashedStack> changed = parseHashedSlotMap(firstArg(args, "changedSlots", "changed"));
                 HashedStack carried = parseHashedStack(firstArg(args, "carriedItem", "carried"));
                 return Result.ok(new ServerboundContainerClickPacket(containerId, stateId, slot, button, input, changed, carried), "typed constructor");
+                //?} else {
+                /*return Result.ok(autismclient.util.AutismPacketCompat.click(containerId, stateId, slot, button, input), "typed constructor (empty changedSlots; hashed-slot payload unsupported pre-1.21.5)");
+                *///?}
             }
             if (packetClass == ServerboundContainerButtonClickPacket.class) {
                 requireOnly(args, "containerId", "id", "buttonId", "button");
@@ -449,6 +455,7 @@ public final class AutismPacketArgumentBuilder {
                     : null;
                 return Result.ok(new ServerboundSeenAdvancementsPacket(action, tab), "typed constructor");
             }
+            //? if >=1.21.5 {
             if (packetClass == ServerboundTestInstanceBlockActionPacket.class) {
                 requireOnly(args, "pos", "blockPos", "x", "y", "z", "action", "size", "rotation", "ignoreEntities", "ignore");
                 return Result.ok(new ServerboundTestInstanceBlockActionPacket(
@@ -460,6 +467,7 @@ public final class AutismPacketArgumentBuilder {
                     boolArg(args, false, "ignoreEntities", "ignore")
                 ), "typed constructor");
             }
+            //?}
             if (packetClass == ServerboundPlayerActionPacket.class) {
                 requireOnly(args, "action", "pos", "x", "y", "z", "direction", "sequence");
                 ServerboundPlayerActionPacket.Action action = enumArg(ServerboundPlayerActionPacket.Action.class, args, "action");
@@ -736,7 +744,9 @@ public final class AutismPacketArgumentBuilder {
         if (packetClass == ServerboundSetCreativeModeSlotPacket.class) return List.of("slot", "item");
         if (packetClass == ServerboundPlayerInputPacket.class) return List.of("forward", "backward", "left", "right", "jump", "shift", "sprint");
         if (packetClass == ServerboundInteractPacket.class) return List.of("entityId", "hand", "location", "secondary");
+        //? if >=1.21.5 {
         if (packetClass == ServerboundTestInstanceBlockActionPacket.class) return List.of("pos", "action", "size", "rotation", "ignore");
+        //?}
         if (packetClass == ServerboundChatCommandPacket.class) return List.of("command");
         if (packetClass == ServerboundChatPacket.class) return List.of("message", "time", "salt", "signature", "lastSeen");
         if (packetClass == ServerboundChatCommandSignedPacket.class) return List.of("command", "time", "salt", "signatures", "lastSeen");
@@ -796,7 +806,9 @@ public final class AutismPacketArgumentBuilder {
             if (packetClass == ServerboundPlayerActionPacket.class) return ServerboundPlayerActionPacket.Action.class;
             if (packetClass == ServerboundPlayerCommandPacket.class) return ServerboundPlayerCommandPacket.Action.class;
             if (packetClass == ServerboundSeenAdvancementsPacket.class) return ServerboundSeenAdvancementsPacket.Action.class;
+            //? if >=1.21.5 {
             if (packetClass == ServerboundTestInstanceBlockActionPacket.class) return ServerboundTestInstanceBlockActionPacket.Action.class;
+            //?}
         }
         if (field.equals("mode") && packetClass == ServerboundSetCommandBlockPacket.class) return CommandBlockEntity.Mode.class;
         if (field.equals("rotation")) return Rotation.class;

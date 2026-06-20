@@ -122,7 +122,10 @@ public final class ActionFieldRegistry {
 
         SCHEMAS.put(MacroActionType.XCARRY, ActionFieldSchema.builder()
                 .enumField  ("mode",         "Mode",  "PUT_IN", "TAKE_OUT", "DROP")
-                .enumField  ("transferMode", "Transfer", "FAST", "CLICK").showWhenEnum("mode", "PUT_IN")
+                .enumField  ("transferMode", "Transfer", "FAST", "CLICK", "SAFE_CLICK").showWhenEnum("mode", "PUT_IN")
+                .number     ("safeClickDelayTicks", "Safe Delay").range(0, 10).showWhenEnum("transferMode", "SAFE_CLICK")
+                .toggle     ("safeClickDelayAfterPickup", "After Pickup").showWhenEnum("transferMode", "SAFE_CLICK")
+                .toggle     ("safeClickDelayBeforeReturn", "Return Delay").showWhenEnum("transferMode", "SAFE_CLICK")
                 .stringList ("entries",      "Items").addLabel("Add Item").captureItemSlot()
                 .build());
 
@@ -557,6 +560,11 @@ public final class ActionFieldRegistry {
                 .enumField("scope", "Ends", "END_MARKER", "MACRO_PASS")
                 .stringList("packetNames", "Packets").addLabel("Add Packet").capturePacketName()
                 .toggle("flushOnDisable", "Flush").showWhenEnum("mode", "DELAY")
+                .build());
+
+        SCHEMAS.put(MacroActionType.END_PACKET_GATE, ActionFieldSchema.builder()
+                .text("gateId", "Gate ID")
+                .toggle("flushOnDisable", "Flush")
                 .build());
 
         SCHEMAS.put(MacroActionType.PACKET_BURST, ActionFieldSchema.builder()

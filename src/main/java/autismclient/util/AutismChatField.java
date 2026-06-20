@@ -1,328 +1,343 @@
 package autismclient.util;
 
-import autismclient.AutismClientAddon;
 import autismclient.commands.AutismCommands;
-import autismclient.gui.vanillaui.direct.DirectRenderContext;
 import autismclient.gui.vanillaui.components.CompactTextInput;
 import autismclient.gui.vanillaui.components.CompactTheme;
+import autismclient.gui.vanillaui.direct.DirectRenderContext;
 import autismclient.gui.vanillaui.direct.DirectViewport;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
-
+import autismclient.modules.PackHideState;
+import java.util.Collection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 public class AutismChatField {
-    private static final CompactTheme THEME = new CompactTheme();
+   private static final CompactTheme THEME = new CompactTheme();
+   private final Minecraft mc;
+   private final Font textRenderer;
+   private final CompactTextInput field = new CompactTextInput().setHorizontalPadding(3).setTextYOffset(1);
+   private int x;
+   private int y;
+   private int width;
+   private int height;
+   private boolean submitOnEnter;
+   private boolean multiline;
+   private boolean enterInsertsNewline;
+   private boolean spaceKeyInsertsSpace;
+   private Predicate<String> submitHandler;
+   private String placeholderText = "";
 
-    private final Minecraft mc;
-    private final Font textRenderer;
-    private final CompactTextInput field = new CompactTextInput()
-        .setHorizontalPadding(3)
-        .setTextYOffset(1);
+   public AutismChatField(Minecraft mc, Font textRenderer, int x, int y, int width, int height, boolean submitOnEnter) {
+      this.mc = mc;
+      this.textRenderer = textRenderer;
+      this.x = x;
+      this.y = y;
+      this.width = Math.max(1, width);
+      this.height = Math.max(1, height);
+      this.submitOnEnter = submitOnEnter;
+      this.field.setHistoryProvider(() -> (Collection<String>)(this.mc.gui != null ? this.mc.gui.getChat().getRecentChat() : List.of()));
+      this.syncBounds();
+   }
 
-    private int x;
-    private int y;
-    private int width;
-    private int height;
-    private boolean submitOnEnter;
-    private boolean multiline;
-    private boolean enterInsertsNewline;
-    private boolean spaceKeyInsertsSpace;
-    private Predicate<String> submitHandler;
-    private String placeholderText = "";
+   public void setSubmitOnEnter(boolean submitOnEnter) {
+      this.submitOnEnter = submitOnEnter;
+   }
 
-    public AutismChatField(Minecraft mc, Font textRenderer, int x, int y, int width, int height, boolean submitOnEnter) {
-        this.mc = mc;
-        this.textRenderer = textRenderer;
-        this.x = x;
-        this.y = y;
-        this.width = Math.max(1, width);
-        this.height = Math.max(1, height);
-        this.submitOnEnter = submitOnEnter;
-        field.setHistoryProvider(() -> this.mc.gui != null ? this.mc.gui.getChat().getRecentChat() : java.util.List.of());
-        syncBounds();
-    }
+   public void setSubmitHandler(Predicate<String> submitHandler) {
+      this.submitHandler = submitHandler;
+   }
 
-    public void setSubmitOnEnter(boolean submitOnEnter) {
-        this.submitOnEnter = submitOnEnter;
-    }
+   public void setChangedListener(Consumer<String> changedListener) {
+      this.field.setOnChange(changedListener);
+   }
 
-    public void setSubmitHandler(Predicate<String> submitHandler) {
-        this.submitHandler = submitHandler;
-    }
+   public void setDisplayTextProvider(Function<String, Component> displayTextProvider) {
+      this.field.setDisplayTextProvider(displayTextProvider);
+   }
 
-    public void setChangedListener(Consumer<String> changedListener) {
-        field.setOnChange(changedListener);
-    }
+   public void setMultiline(boolean multiline) {
+      this.multiline = multiline;
+      this.field.setMultiline(multiline);
+   }
 
-    public void setDisplayTextProvider(Function<String, Component> displayTextProvider) {
-        field.setDisplayTextProvider(displayTextProvider);
-    }
+   public void setEnterInsertsNewline(boolean enterInsertsNewline) {
+      this.enterInsertsNewline = enterInsertsNewline;
+   }
 
-    public void setMultiline(boolean multiline) {
-        this.multiline = multiline;
-        field.setMultiline(multiline);
-    }
+   public void setHoverEffectsEnabled(boolean hoverEffectsEnabled) {
+      this.field.setHoverEffectsEnabled(hoverEffectsEnabled);
+   }
 
-    public void setEnterInsertsNewline(boolean enterInsertsNewline) {
-        this.enterInsertsNewline = enterInsertsNewline;
-    }
+   public void setFocusEffectsEnabled(boolean focusEffectsEnabled) {
+      this.field.setFocusEffectsEnabled(focusEffectsEnabled);
+   }
 
-    public void setHoverEffectsEnabled(boolean hoverEffectsEnabled) {
-        field.setHoverEffectsEnabled(hoverEffectsEnabled);
-    }
+   public void setBackgroundColorOverride(int backgroundColorOverride) {
+      this.field.setBackgroundColorOverride(backgroundColorOverride);
+   }
 
-    public void setFocusEffectsEnabled(boolean focusEffectsEnabled) {
-        field.setFocusEffectsEnabled(focusEffectsEnabled);
-    }
+   public void setSpaceKeyInsertsSpace(boolean spaceKeyInsertsSpace) {
+      this.spaceKeyInsertsSpace = spaceKeyInsertsSpace;
+   }
 
-    public void setBackgroundColorOverride(int backgroundColorOverride) {
-        field.setBackgroundColorOverride(backgroundColorOverride);
-    }
+   public void setHistoryNavigationEnabled(boolean historyNavigationEnabled) {
+      this.field.setHistoryNavigationEnabled(historyNavigationEnabled);
+   }
 
-    public void setSpaceKeyInsertsSpace(boolean spaceKeyInsertsSpace) {
-        this.spaceKeyInsertsSpace = spaceKeyInsertsSpace;
-    }
+   public void setPlaceholder(Component placeholder) {
+      this.placeholderText = placeholder == null ? "" : AutismText.sanitizeUiLabel(placeholder.getString());
+      this.field.setPlaceholder(this.placeholderText);
+   }
 
-    public void setHistoryNavigationEnabled(boolean historyNavigationEnabled) {
-        field.setHistoryNavigationEnabled(historyNavigationEnabled);
-    }
+   public String getPlaceholderText() {
+      return this.placeholderText;
+   }
 
-    public void setPlaceholder(Component placeholder) {
-        placeholderText = placeholder == null ? "" : AutismText.sanitizeUiLabel(placeholder.getString());
-        field.setPlaceholder(placeholderText);
-    }
+   public void setDrawsBackground(boolean drawsBackground) {
+      this.field.setDrawBackground(drawsBackground);
+   }
 
-    public String getPlaceholderText() {
-        return placeholderText;
-    }
+   public void setEditable(boolean editable) {
+      this.field.setEditable(editable);
+   }
 
-    public void setDrawsBackground(boolean drawsBackground) {
-        field.setDrawBackground(drawsBackground);
-    }
+   public void setFilter(Predicate<String> filter) {
+      this.field.setFilter(filter);
+   }
 
-    public void setEditable(boolean editable) {
-        field.setEditable(editable);
-    }
-
-    public void setFilter(Predicate<String> filter) {
-        field.setFilter(filter);
-    }
-
-    public void setNumericOnly(boolean allowNegative) {
-        field.setFilter(next -> {
-            if (next == null || next.isEmpty()) return true;
+   public void setNumericOnly(boolean allowNegative) {
+      this.field.setFilter(next -> {
+         if (next != null && !next.isEmpty()) {
             for (int i = 0; i < next.length(); i++) {
-                char chr = next.charAt(i);
-                if (allowNegative && chr == '-' && i == 0) continue;
-                if (!Character.isDigit(chr)) return false;
+               char chr = next.charAt(i);
+               if ((!allowNegative || chr != '-' || i != 0) && !Character.isDigit(chr)) {
+                  return false;
+               }
             }
+
             return true;
-        });
-    }
+         } else {
+            return true;
+         }
+      });
+   }
 
-    public boolean isFocused() {
-        return field.isFocused();
-    }
+   public boolean isFocused() {
+      return this.field.isFocused();
+   }
 
-    public void setFocused(boolean focused) {
-        field.setFocused(focused);
-    }
+   public void setFocused(boolean focused) {
+      this.field.setFocused(focused);
+   }
 
-    public void setMaxLength(int maxLength) {
-        field.setMaxLength(maxLength);
-    }
+   public void setMaxLength(int maxLength) {
+      this.field.setMaxLength(maxLength);
+   }
 
-    public void setText(String text) {
-        field.setText(text);
-    }
+   public void setText(String text) {
+      this.field.setText(text);
+   }
 
-    public String getText() {
-        return field.text();
-    }
+   public String getText() {
+      return this.field.text();
+   }
 
-    public void write(String content) {
-        if (content == null || content.isEmpty() || !field.isFocused() || !field.isEditable()) return;
-        DirectRenderContext context = inputContext();
-        for (int i = 0; i < content.length(); i++) {
-            field.charTyped(context, content.charAt(i), 0);
-        }
-    }
+   public void write(String content) {
+      if (content != null && !content.isEmpty() && this.field.isFocused() && this.field.isEditable()) {
+         DirectRenderContext context = this.inputContext();
 
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return false;
-        syncBounds();
-        if (!contains(mouseX, mouseY)) {
-            field.setFocused(false);
+         for (int i = 0; i < content.length(); i++) {
+            this.field.charTyped(context, content.charAt(i), 0);
+         }
+      }
+   }
+
+   public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (button != 0) {
+         return false;
+      } else {
+         this.syncBounds();
+         if (!this.contains(mouseX, mouseY)) {
+            this.field.setFocused(false);
             return false;
-        }
-        return field.mouseClicked(inputContext(), (float) mouseX, (float) mouseY, button);
-    }
+         } else {
+            return this.field.mouseClicked(this.inputContext(), (float)mouseX, (float)mouseY, button);
+         }
+      }
+   }
 
-    public boolean mouseClicked(MouseButtonEvent click, boolean ignored) {
-        return mouseClicked(click.x(), click.y(), 0);
-    }
+   public boolean mouseClicked(MouseButtonEvent click, boolean ignored) {
+      return this.mouseClicked(click.x(), click.y(), 0);
+   }
 
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        syncBounds();
-        return field.mouseReleased(inputContext(), (float) mouseX, (float) mouseY, button);
-    }
+   public boolean mouseReleased(double mouseX, double mouseY, int button) {
+      this.syncBounds();
+      return this.field.mouseReleased(this.inputContext(), (float)mouseX, (float)mouseY, button);
+   }
 
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        syncBounds();
-        return field.mouseDragged(inputContext(), (float) mouseX, (float) mouseY, button, (float) deltaX, (float) deltaY);
-    }
+   public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+      this.syncBounds();
+      return this.field.mouseDragged(this.inputContext(), (float)mouseX, (float)mouseY, button, (float)deltaX, (float)deltaY);
+   }
 
-    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        syncBounds();
-        if (!contains(mouseX, mouseY)) return false;
-        return field.mouseScrolled(inputContext(), (float) mouseX, (float) mouseY, (float) amount);
-    }
+   public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+      this.syncBounds();
+      return !this.contains(mouseX, mouseY) ? false : this.field.mouseScrolled(this.inputContext(), (float)mouseX, (float)mouseY, (float)amount);
+   }
 
-    public boolean keyPressed(KeyEvent keyInput) {
-        if (!field.isFocused()) return false;
-
-        int key = keyInput.key();
-        if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
-            if (submitOnEnter) {
-                return handleSubmit();
+   public boolean keyPressed(KeyEvent keyInput) {
+      if (!this.field.isFocused()) {
+         return false;
+      } else {
+         int key = keyInput.key();
+         if (key != 257 && key != 335) {
+            if (this.spaceKeyInsertsSpace && key == 32) {
+               int mods = keyInput.modifiers();
+               if ((mods & 14) == 0) {
+                  return this.field.charTyped(this.inputContext(), ' ', mods);
+               }
             }
-            if (multiline && enterInsertsNewline) {
-                return field.keyPressed(inputContext(), key, keyInput.scancode(), keyInput.modifiers());
-            }
-            field.setFocused(false);
+
+            return this.field.keyPressed(this.inputContext(), key, keyInput.scancode(), keyInput.modifiers());
+         } else if (this.submitOnEnter) {
+            return this.handleSubmit();
+         } else if (this.multiline && this.enterInsertsNewline) {
+            return this.field.keyPressed(this.inputContext(), key, keyInput.scancode(), keyInput.modifiers());
+         } else {
+            this.field.setFocused(false);
             return true;
-        }
-        if (spaceKeyInsertsSpace && key == GLFW.GLFW_KEY_SPACE) {
-            int mods = keyInput.modifiers();
-            if ((mods & (GLFW.GLFW_MOD_CONTROL | GLFW.GLFW_MOD_ALT | GLFW.GLFW_MOD_SUPER)) == 0) {
-                return field.charTyped(inputContext(), ' ', mods);
-            }
-        }
+         }
+      }
+   }
 
-        return field.keyPressed(inputContext(), key, keyInput.scancode(), keyInput.modifiers());
-    }
+   public boolean charTyped(CharacterEvent charInput) {
+      return this.field.isFocused() && this.field.charTyped(this.inputContext(), (char)charInput.codepoint(), 0);
+   }
 
-    public boolean charTyped(CharacterEvent charInput) {
-        return field.isFocused() && field.charTyped(inputContext(), (char) charInput.codepoint(), 0);
-    }
+   public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+      this.syncBounds();
+      this.field.render(this.renderContext(context, mouseX, mouseY, delta));
+   }
 
-    public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        syncBounds();
-        field.render(renderContext(context, mouseX, mouseY, delta));
-    }
+   public int getX() {
+      return this.x;
+   }
 
-    public int getX() {
-        return x;
-    }
+   public void setX(int x) {
+      this.x = x;
+      this.syncBounds();
+   }
 
-    public void setX(int x) {
-        this.x = x;
-        syncBounds();
-    }
+   public int getY() {
+      return this.y;
+   }
 
-    public int getY() {
-        return y;
-    }
+   public void setY(int y) {
+      this.y = y;
+      this.syncBounds();
+   }
 
-    public void setY(int y) {
-        this.y = y;
-        syncBounds();
-    }
+   public int getWidth() {
+      return this.width;
+   }
 
-    public int getWidth() {
-        return width;
-    }
+   public void setWidth(int width) {
+      this.width = Math.max(1, width);
+      this.syncBounds();
+   }
 
-    public void setWidth(int width) {
-        this.width = Math.max(1, width);
-        syncBounds();
-    }
+   public int getHeight() {
+      return this.height;
+   }
 
-    public int getHeight() {
-        return height;
-    }
+   public void setHeight(int height) {
+      this.height = Math.max(1, height);
+      this.syncBounds();
+   }
 
-    public void setHeight(int height) {
-        this.height = Math.max(1, height);
-        syncBounds();
-    }
+   public void setSelectionEnd(int selectionEnd) {
+      this.field.setSelectionEnd(selectionEnd);
+   }
 
-    public void setSelectionEnd(int selectionEnd) {
-        field.setSelectionEnd(selectionEnd);
-    }
+   private void syncBounds() {
+      this.field.setBounds(this.x, this.y, this.width, this.height);
+   }
 
-    private void syncBounds() {
-        field.setBounds(x, y, width, height);
-    }
+   private boolean contains(double mouseX, double mouseY) {
+      return mouseX >= this.x && mouseX < this.x + this.width && mouseY >= this.y && mouseY < this.y + this.height;
+   }
 
-    private boolean contains(double mouseX, double mouseY) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
-    }
-
-    private boolean handleSubmit() {
-        String value = field.text().trim();
-        if (value.isEmpty()) return true;
-
-        boolean submitted = submitHandler != null ? submitHandler.test(value) : sendChat(value);
-        if (!submitted) return true;
-        if (AutismCommands.isBlockedPanicCommandMessage(value)) {
-            field.setText("");
-            field.setFocused(false);
+   private boolean handleSubmit() {
+      String value = this.field.text().trim();
+      if (value.isEmpty()) {
+         return true;
+      } else if (PackHideState.isHardLocked()) {
+         this.field.setText("");
+         this.field.setFocused(false);
+         return true;
+      } else {
+         boolean submitted = this.submitHandler != null ? this.submitHandler.test(value) : this.sendChat(value);
+         if (!submitted) {
             return true;
-        }
+         } else if (AutismCommands.isBlockedPanicCommandMessage(value)) {
+            this.field.setText("");
+            this.field.setFocused(false);
+            return true;
+         } else {
+            if (this.mc.gui != null) {
+               this.mc.gui.getChat().addRecentChat(value);
+            }
 
-        if (mc.gui != null) {
-            mc.gui.getChat().addRecentChat(value);
-        }
-        field.addHistoryEntry(value);
-        mc.commandHistory().addCommand(value);
-        field.setText("");
-        field.setFocused(false);
-        return true;
-    }
+            this.field.addHistoryEntry(value);
+            this.field.setText("");
+            this.field.setFocused(false);
+            return true;
+         }
+      }
+   }
 
-    private boolean sendChat(String message) {
-        if (AutismCommands.isAutismCommandMessage(message)) {
-            if (AutismCommands.isBlockedPanicCommandMessage(message)) return true;
+   private boolean sendChat(String message) {
+      if (PackHideState.isHardLocked()) {
+         return true;
+      } else if (AutismCommands.isAutismCommandMessage(message)) {
+         if (AutismCommands.isBlockedPanicCommandMessage(message)) {
+            return true;
+         } else {
             String body = AutismCommands.commandBody(message);
-            if (!body.isBlank()) AutismCommands.dispatch(body);
+            if (!body.isBlank()) {
+               AutismCommands.dispatch(body);
+            }
+
             return true;
-        }
-        if (mc.getConnection() == null) {
-            AutismClientAddon.LOG.warn("Failed to send Autism chat message because network handler was null.");
-            return false;
-        }
+         }
+      } else if (this.mc.getConnection() == null) {
+         autismclient.AutismClientAddon.LOG.warn("Failed to send Autism chat message because network handler was null.");
+         return false;
+      } else {
+         if (message.startsWith("/") && message.length() > 1) {
+            this.mc.getConnection().sendCommand(message.substring(1));
+         } else {
+            this.mc.getConnection().sendChat(message);
+         }
 
-        if (message.startsWith("/") && message.length() > 1) {
-            mc.getConnection().sendCommand(message.substring(1));
-        } else {
-            mc.getConnection().sendChat(message);
-        }
-        return true;
-    }
+         return true;
+      }
+   }
 
-    private DirectRenderContext inputContext() {
-        return new DirectRenderContext(null, textRenderer, DirectViewport.current(CompactTheme.DEFAULT_DENSITY), THEME, 0, 0, 0);
-    }
+   private DirectRenderContext inputContext() {
+      return new DirectRenderContext(null, this.textRenderer, DirectViewport.current(2.0F), THEME, 0.0F, 0.0F, 0.0F);
+   }
 
-    private DirectRenderContext renderContext(GuiGraphicsExtractor drawContext, int mouseX, int mouseY, float delta) {
-        return new DirectRenderContext(
-            drawContext,
-            textRenderer,
-            DirectViewport.current(CompactTheme.DEFAULT_DENSITY),
-            THEME,
-            mouseX,
-            mouseY,
-            delta
-        );
-    }
+   private DirectRenderContext renderContext(GuiGraphicsExtractor drawContext, int mouseX, int mouseY, float delta) {
+      return new DirectRenderContext(drawContext, this.textRenderer, DirectViewport.current(2.0F), THEME, mouseX, mouseY, delta);
+   }
 }
+

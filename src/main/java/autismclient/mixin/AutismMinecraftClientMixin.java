@@ -109,6 +109,7 @@ public class AutismMinecraftClientMixin {
         AutismWindowBranding.tick((Minecraft) (Object) this);
         AutismSharedState.get().onClientTickStart();
         AutismInputClicker.onClientTickStart();
+        if (PackHideState.isHardLocked()) { AutismInputClicker.clear(); return; }
         PackModuleMovementUtil.preMovementTick();
         if (autismclient.util.AutismContainerHold.hasExpiryWork()) autismclient.util.AutismContainerHold.tickExpiry();
         AutismModule autism = AutismModule.get();
@@ -181,6 +182,7 @@ public class AutismMinecraftClientMixin {
 
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void autism$onDoAttack(CallbackInfoReturnable<Boolean> cir) {
+        if (PackHideState.isHardLocked()) return;
         Minecraft client = (Minecraft) (Object) this;
 
         if (AutismSharedState.get().hasEntityCaptureCallback()) {
@@ -203,6 +205,7 @@ public class AutismMinecraftClientMixin {
 
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void autism$cancelUseForModules(CallbackInfo ci) {
+        if (PackHideState.isHardLocked()) return;
         Minecraft client = (Minecraft) (Object) this;
 
         if (AutismSharedState.get().hasEntityCaptureCallback()
@@ -225,6 +228,10 @@ public class AutismMinecraftClientMixin {
         AutismInputClicker.beforeHandleKeybinds();
         Minecraft client = (Minecraft) (Object) this;
         if (client.getWindow() == null) {
+            AutismInputClicker.afterHandleKeybinds();
+            return;
+        }
+        if (PackHideState.isHardLocked()) {
             AutismInputClicker.afterHandleKeybinds();
             return;
         }
@@ -264,6 +271,7 @@ public class AutismMinecraftClientMixin {
 
     @Inject(method = "pauseGame", at = @At("HEAD"), cancellable = true)
     private void autism$cancelLostFocusPause(boolean suppressPauseMenuIfWeReallyArePausing, CallbackInfo ci) {
+        if (PackHideState.isHardLocked()) return;
         Minecraft client = (Minecraft) (Object) this;
 
         if (AutismPayloadStudySession.finishFromEscape()) {
@@ -296,6 +304,7 @@ public class AutismMinecraftClientMixin {
 
     @Inject(method = "getTickTargetMillis", at = @At("RETURN"), cancellable = true)
     private void autism$applySpeedTimer(float defaultTickTargetMillis, CallbackInfoReturnable<Float> cir) {
+        if (PackHideState.isHardLocked()) return;
 
         if (((Minecraft) (Object) this).player == null) return;
         float multiplier = PackModuleMovementUtil.speedTimerMultiplier();

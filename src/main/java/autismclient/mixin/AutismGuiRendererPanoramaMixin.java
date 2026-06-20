@@ -1,5 +1,6 @@
 package autismclient.mixin;
 
+//? if >=1.21.6 {
 import autismclient.modules.PackHideState;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.client.renderer.CubeMap;
@@ -38,3 +39,8 @@ public abstract class AutismGuiRendererPanoramaMixin {
         autism$customCubeMap.close();
     }
 }
+//?} else {
+/*@org.spongepowered.asm.mixin.Mixin(net.minecraft.client.Minecraft.class)
+public abstract class AutismGuiRendererPanoramaMixin {
+}
+*///?}

@@ -133,12 +133,12 @@ public final class AutismDupeRadar {
         state = state.withBusy(true, false, "Refreshing DupeDB user...", null);
         CompletableFuture.runAsync(() -> {
             try {
-                String token = currentToken();
+                String token = ensureAccessToken();
                 if (token == null || token.isBlank()) {
                     publish(generation, state.withAuth(false, null).withBusy(false, false, "Login required.", "No DupeDB token saved."));
                     return;
                 }
-                String username = fetchUser(token);
+                String username = fetchUserAuthorized();
                 synchronized (CACHE_LOCK) {
                     cache.username = username;
                     cache.userUpdatedAt = System.currentTimeMillis();
@@ -289,7 +289,7 @@ public final class AutismDupeRadar {
 
     private static void runCheck(int generation, List<RadarPluginSnapshot> plugins, RadarServerSnapshot server, boolean forceRefresh) {
         try {
-            String token = currentToken();
+            String token = ensureAccessToken();
             if (token == null || token.isBlank()) {
                 publish(generation, state.withAuth(false, null).withBusy(false, false, "Login required.", "Log in to DupeDB before checking."));
                 return;
@@ -495,7 +495,7 @@ public final class AutismDupeRadar {
                 return List.copyOf(cache.pluginIndex);
             }
         }
-        String raw = httpGet(BASE_URL + "/api/plugins", token);
+        String raw = httpGetAuthorized(BASE_URL + "/api/plugins");
         List<String> names = parsePluginNames(JsonParser.parseString(raw));
         names = names.stream()
             .filter(name -> name != null && !name.isBlank())
@@ -521,7 +521,7 @@ public final class AutismDupeRadar {
         }
         String endpoint = BASE_URL + "/api/exploits/search?plugin=" + url(plugin)
             + "&status=" + EXPLOIT_SEARCH_STATUSES + "&limit=" + MAX_FINDINGS_PER_PLUGIN;
-        String raw = httpGet(endpoint, token);
+        String raw = httpGetAuthorized(endpoint);
         List<RadarFinding> findings = parseFindings(JsonParser.parseString(raw), plugin);
         synchronized (CACHE_LOCK) {
             CachedFindings cached = new CachedFindings();
@@ -558,7 +558,7 @@ public final class AutismDupeRadar {
         Map<String, RadarFinding> unique = new LinkedHashMap<>();
         for (String endpoint : endpoints) {
             try {
-                JsonElement response = JsonParser.parseString(httpGet(endpoint, token));
+                JsonElement response = JsonParser.parseString(httpGetAuthorized(endpoint));
                 mergeFindings(unique, parseServerFindings(response, identity));
                 if (endpoint.contains("/api/exploits/search")) {
                     mergeFindings(unique, fetchServerFindingDetails(token, response, identity));
@@ -602,7 +602,7 @@ public final class AutismDupeRadar {
             if (id == null || id.isBlank() || !looksLikeExploitId(id)) continue;
             if (fetched++ >= MAX_FINDINGS_PER_PLUGIN) break;
             try {
-                JsonElement detail = JsonParser.parseString(httpGet(BASE_URL + "/api/exploits/" + urlPath(id), token));
+                JsonElement detail = JsonParser.parseString(httpGetAuthorized(BASE_URL + "/api/exploits/" + urlPath(id)));
                 mergeFindings(unique, parseServerFindings(detail, identity));
             } catch (Exception ignored) {
             }
@@ -948,14 +948,56 @@ public final class AutismDupeRadar {
         return new TokenResponse(accessToken, firstString(object, "refresh_token", "refreshToken"));
     }
 
+    private static TokenResponse exchangeRefreshToken(String refreshToken) throws IOException {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new IOException("No refresh token saved.");
+        }
+        String body = "grant_type=refresh_token"
+            + "&client_id=" + url(CLIENT_ID)
+            + "&refresh_token=" + url(refreshToken);
+        String raw = httpPost(BASE_URL + "/api/oauth/token", body);
+        JsonObject object = JsonParser.parseString(raw).getAsJsonObject();
+        String accessToken = firstString(object, "access_token", "accessToken", "token");
+        if (accessToken == null || accessToken.isBlank()) throw new IOException("No refreshed access token returned.");
+        return new TokenResponse(accessToken, firstString(object, "refresh_token", "refreshToken"));
+    }
+
     private static String fetchUser(String token) throws IOException {
         String raw = httpGet(BASE_URL + "/api/oauth/userinfo", token);
+        return parseUser(raw);
+    }
+
+    private static String fetchUserAuthorized() throws IOException {
+        String raw = httpGetAuthorized(BASE_URL + "/api/oauth/userinfo");
+        return parseUser(raw);
+    }
+
+    private static String parseUser(String raw) throws IOException {
         JsonElement element = JsonParser.parseString(raw);
         if (element.isJsonObject()) {
             String user = firstString(element.getAsJsonObject(), "username", "name", "display_name", "email");
             if (user != null && !user.isBlank()) return user.trim();
         }
         return "DupeDB user";
+    }
+
+    private static String httpGetAuthorized(String url) throws IOException {
+        String token = ensureAccessToken();
+        if (token == null || token.isBlank()) {
+            throw new IOException("No DupeDB token saved.");
+        }
+        try {
+            return httpGet(url, token);
+        } catch (HttpStatusException e) {
+            if (!isAuthFailure(e.code()) || !refreshAccessToken()) {
+                throw e;
+            }
+            String refreshed = currentToken();
+            if (refreshed != null && !refreshed.isBlank() && !Objects.equals(refreshed, token)) {
+                return httpGet(url, refreshed);
+            }
+            throw e;
+        }
     }
 
     private static String httpGet(String url, String token) throws IOException {
@@ -998,7 +1040,7 @@ public final class AutismDupeRadar {
                 sb.append(buffer, 0, read);
             }
             if (code < 200 || code >= 300) {
-                throw new IOException("HTTP " + code + ": " + UiTextShortener.shorten(sb.toString(), 180));
+                throw new HttpStatusException(code, sb.toString());
             }
             return sb.toString();
         }
@@ -1051,6 +1093,59 @@ public final class AutismDupeRadar {
         synchronized (CACHE_LOCK) {
             return cache == null ? null : cache.accessToken;
         }
+    }
+
+    private static String ensureAccessToken() {
+        synchronized (CACHE_LOCK) {
+            if (cache != null && cache.accessToken != null && !cache.accessToken.isBlank()) {
+                return cache.accessToken;
+            }
+        }
+        return refreshAccessToken() ? currentToken() : null;
+    }
+
+    private static boolean refreshAccessToken() {
+        String refreshToken;
+        synchronized (CACHE_LOCK) {
+            refreshToken = cache == null ? null : cache.refreshToken;
+        }
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return false;
+        }
+        try {
+            TokenResponse token = exchangeRefreshToken(refreshToken);
+            synchronized (CACHE_LOCK) {
+                cache.accessToken = token.accessToken;
+                if (token.refreshToken != null && !token.refreshToken.isBlank()) {
+                    cache.refreshToken = token.refreshToken;
+                }
+                saveCacheLocked();
+            }
+            state = state.withAuth(true, cache.username);
+            return true;
+        } catch (Exception e) {
+            if (e instanceof HttpStatusException http && isAuthFailure(http.code())) {
+                clearSavedAuth("DupeDB session expired.");
+            }
+            return false;
+        }
+    }
+
+    private static void clearSavedAuth(String status) {
+        synchronized (CACHE_LOCK) {
+            if (cache != null) {
+                cache.accessToken = null;
+                cache.refreshToken = null;
+                cache.username = null;
+                cache.userUpdatedAt = 0L;
+                saveCacheLocked();
+            }
+        }
+        state = state.withAuth(false, null).withBusy(false, false, status == null ? "Login required." : status, null).withMatches(List.of(), 0, false);
+    }
+
+    private static boolean isAuthFailure(int code) {
+        return code == 401 || code == 403;
     }
 
     private static void publish(int generation, RadarState next) {
@@ -1405,6 +1500,19 @@ public final class AutismDupeRadar {
     }
 
     private record TokenResponse(String accessToken, String refreshToken) {
+    }
+
+    private static final class HttpStatusException extends IOException {
+        private final int code;
+
+        private HttpStatusException(int code, String body) {
+            super("HTTP " + code + ": " + UiTextShortener.shorten(body == null ? "" : body, 180));
+            this.code = code;
+        }
+
+        private int code() {
+            return this.code;
+        }
     }
 
     private static final class PluginMatch {

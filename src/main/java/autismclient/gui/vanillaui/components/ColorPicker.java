@@ -5,8 +5,10 @@ import autismclient.gui.vanillaui.UiContext;
 import autismclient.gui.vanillaui.UiRenderer;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
+//? if >=1.21.6 {
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.TextureFormat;
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.AbstractTexture;
@@ -529,7 +531,11 @@ public final class ColorPicker {
         BLUE
     }
 
+    //? if >=1.21.6 {
     private static final class GradientTexture extends AbstractTexture {
+    //?} else {
+    /*private static final class GradientTexture extends net.minecraft.client.renderer.texture.DynamicTexture {
+    *///?}
         private final Identifier id;
         private final NativeImage pixels;
         private final int width;
@@ -543,18 +549,38 @@ public final class ColorPicker {
         }
 
         private GradientTexture(Identifier id, String name, int width, int height) {
+            //? if >=1.21.11 {
             this.id = id;
             this.width = width;
             this.height = height;
             this.pixels = new NativeImage(width, height, true);
             this.texture = RenderSystem.getDevice().createTexture("AUTISM " + name, 5, TextureFormat.RGBA8, width, height, 1, 1);
-            //? if >=1.21.11 {
             this.sampler = RenderSystem.getSamplerCache().getRepeat(FilterMode.NEAREST);
-            //?} else {
-            /*this.texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.REPEAT);
-            this.texture.setTextureFilter(FilterMode.NEAREST, false);*/
-            //?}
             this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
+            //?} elif >=1.21.6 {
+            /*this.id = id;
+            this.width = width;
+            this.height = height;
+            this.pixels = new NativeImage(width, height, true);
+            this.texture = RenderSystem.getDevice().createTexture("AUTISM " + name, 5, TextureFormat.RGBA8, width, height, 1, 1);
+            this.texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.REPEAT);
+            this.texture.setTextureFilter(FilterMode.NEAREST, false);
+            this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
+            *///?} elif >=1.21.5 {
+            /*super(() -> "AUTISM " + name, new NativeImage(width, height, true));
+            this.id = id;
+            this.width = width;
+            this.height = height;
+            this.pixels = this.getPixels();
+            this.setFilter(false, false);
+            *///?} else {
+            /*super(new NativeImage(width, height, true));
+            this.id = id;
+            this.width = width;
+            this.height = height;
+            this.pixels = this.getPixels();
+            this.setFilter(false, false);
+            *///?}
         }
 
         private void writeHue() {
@@ -579,9 +605,11 @@ public final class ColorPicker {
             upload();
         }
 
+        //? if >=1.21.6 {
         private void upload() {
             RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.texture, pixels);
         }
+        //?}
 
         private void blit(UiContext context, UiBounds area) {
             context.graphics().blit(RenderPipelines.GUI_TEXTURED, id, area.x(), area.y(), 0.0F, 0.0F, area.width(), area.height(),
@@ -590,8 +618,12 @@ public final class ColorPicker {
 
         @Override
         public void close() {
+            //? if >=1.21.6 {
             pixels.close();
             super.close();
+            //?} else {
+            /*super.close();
+            *///?}
         }
     }
 }

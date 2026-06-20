@@ -55,7 +55,13 @@ public abstract class AutismCreativeScreenMixin {
     //?}
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$mouseClicked(double autism$x, double autism$y, int autism$b, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
 
@@ -65,7 +71,12 @@ public abstract class AutismCreativeScreenMixin {
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$mouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$mouseReleased(double autism$x, double autism$y, int autism$b, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
 
@@ -75,7 +86,12 @@ public abstract class AutismCreativeScreenMixin {
     }
 
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$mouseDragged(MouseButtonEvent event, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$mouseDragged(double autism$x, double autism$y, int autism$b, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
 
@@ -95,7 +111,12 @@ public abstract class AutismCreativeScreenMixin {
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$keyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$keyPressed(int autism$k, int autism$s, int autism$m, CallbackInfoReturnable<Boolean> cir) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
 
@@ -105,7 +126,12 @@ public abstract class AutismCreativeScreenMixin {
     }
 
     @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void autism$charTyped(CharacterEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void autism$charTyped(char autism$c, int autism$mods, CallbackInfoReturnable<Boolean> cir) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         AutismModule module = AutismModule.get();
         if (module == null || !module.isActive()) return;
 

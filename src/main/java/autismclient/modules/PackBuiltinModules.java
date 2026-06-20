@@ -87,7 +87,9 @@ import net.minecraft.world.item.component.BundleContents;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.item.component.ItemLore;
+//? if >=1.21.9 {
 import net.minecraft.world.item.component.TypedEntityData;
+//?}
 import net.minecraft.world.item.component.WritableBookContent;
 import net.minecraft.world.item.component.WrittenBookContent;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
@@ -3876,7 +3878,7 @@ public final class PackBuiltinModules {
             super("tracers", "Tracers", PackModuleCategory.RENDER, "Draws tracer lines to entities.");
             option(PackModuleOption.registryList(PackModuleOption.Type.ENTITY_TYPE_LIST, "entities", "Entities", "minecraft:player").description("Traced entities.").build());
             option(PackModuleOption.integer("max-distance", "Max Distance", 256, 0, 512, 16));
-            option(PackModuleOption.decimal("line-width", "Line Width", 1.0, 1.0, 4.0, 0.25).group("General").description("Tracer thickness."));
+            option(PackModuleOption.decimal("line-width", "Line Width", 1.0, 0.5, 4.0, 0.25).group("General").description("Tracer thickness."));
             option(PackModuleOption.color("players-color", "Players", 0xCCFFFFFF).group("Colors"));
             option(PackModuleOption.color("animals-color", "Animals", 0xCC74FF8F).group("Colors"));
             option(PackModuleOption.color("water-animals-color", "Water Animals", 0xCC66D9FF).group("Colors"));
@@ -4627,7 +4629,11 @@ public final class PackBuiltinModules {
             if (!name.isBlank()) stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
             List<Component> lore = editorLoreComponents();
             if (!lore.isEmpty()) stack.set(DataComponents.LORE, new ItemLore(lore));
+            //? if >=1.21.5 {
             if (bool("nbt-unbreakable")) stack.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
+            //?} else {
+            /*if (bool("nbt-unbreakable")) stack.set(DataComponents.UNBREAKABLE, new net.minecraft.world.item.component.Unbreakable(true));
+            *///?}
             String glint = choice("nbt-glint");
             if ("On".equals(glint)) stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
             else if ("Off".equals(glint)) stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, false);
@@ -4645,7 +4651,10 @@ public final class PackBuiltinModules {
             String embeddedCommand = normalizedCommand(value("nbt-command"));
             if (!embeddedCommand.isBlank() && isCommandBlockItem()) {
                 CompoundTag commandTag = commandBlockEntityTag(embeddedCommand);
+                //? if >=1.21.9 {
                 stack.set(DataComponents.BLOCK_ENTITY_DATA, TypedEntityData.of(BlockEntityType.COMMAND_BLOCK, commandTag));
+                //?} else {
+                /*stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(commandTag));*///?}
             }
             return stack;
         }

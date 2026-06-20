@@ -1,5 +1,5 @@
 [versions]
-mod-version = "2.5"
+mod-version = "2.6"
 
 fabric-loader = "0.19.3"
 

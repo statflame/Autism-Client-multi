@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
@@ -89,6 +90,7 @@ public final class AutismContainerTarget {
     }
 
     public boolean interact(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc == null || mc.getConnection() == null) return false;
 
         if (kind == Kind.BLOCK) {

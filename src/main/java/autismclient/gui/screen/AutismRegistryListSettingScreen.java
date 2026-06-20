@@ -236,8 +236,15 @@ public class AutismRegistryListSettingScreen extends Screen {
         hits.add(new Hit(HitType.CLOSE, close.x(), close.y(), close.width(), close.height(), ""));
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (event.button() != 0) return true;
@@ -272,15 +279,27 @@ public class AutismRegistryListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         availableScrollbarDragging = false;
         selectedScrollbarDragging = false;
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         int my = AutismUiScale.toVirtualInt(event.y());
         if (availableScrollbarDragging) {
             availableScroll = CompactScrollbar.scrollFromThumb(registryScrollbarMetrics(true), my, scrollbarGrabOffset);
@@ -310,8 +329,14 @@ public class AutismRegistryListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent input) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             onClose();
             return true;
@@ -324,8 +349,14 @@ public class AutismRegistryListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean charTyped(CharacterEvent input) {
+    //?} else {
+    /*@Override
+    public boolean charTyped(char autism$c, int autism$mods) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         char chr = (char) input.codepoint();
         if (searchFocused && chr >= 32 && chr != 127) {
             search += chr;
@@ -465,10 +496,12 @@ public class AutismRegistryListSettingScreen extends Screen {
 
     private Map<EntityType<?>, ItemStack> spawnEggIcons() {
         Map<EntityType<?>, ItemStack> out = new HashMap<>();
+        //? if >=1.21.9 {
         BuiltInRegistries.ITEM.forEach(item -> {
             var data = item.components().get(DataComponents.ENTITY_DATA);
             if (data != null) out.put(data.type(), AutismDisplayItemUtils.toStack(item));
         });
+        //?}
         return out;
     }
 
@@ -808,4 +841,5 @@ public class AutismRegistryListSettingScreen extends Screen {
         CLOSE
     }
 }
+
 

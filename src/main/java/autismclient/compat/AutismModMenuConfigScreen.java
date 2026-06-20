@@ -138,22 +138,42 @@ public class AutismModMenuConfigScreen extends Screen {
         refreshKeybindLabels();
     }
 
+    //? if >=1.21.9 {
+    private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e); }
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
+    //?} else {
+/*    private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e.key(), e.scancode(), e.modifiers()); }
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e.x(), e.y(), e.button()); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent event) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent event = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (capturing >= 0) {
             applyCapture(event.key() == GLFW.GLFW_KEY_ESCAPE ? -1 : event.key());
             return true;
         }
-        return super.keyPressed(event);
+        return autism$superKeyPressed(event);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubled = false;*/
+    //?}
         if (capturing >= 0) {
             applyCapture(AutismBindUtil.encodeMouseButton(event.button()));
             return true;
         }
-        return super.mouseClicked(event, doubled);
+        return autism$superMouseClicked(event, doubled);
     }
 
     @Override
@@ -168,3 +188,4 @@ public class AutismModMenuConfigScreen extends Screen {
         this.minecraft.setScreen(parent);
     }
 }
+

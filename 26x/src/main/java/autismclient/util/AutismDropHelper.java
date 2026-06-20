@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -10,6 +11,7 @@ public final class AutismDropHelper {
     }
 
     public static int dropFromHandlerSlot(Minecraft mc, int handlerSlotId, int count) {
+        if (PackHideState.isHardLocked()) return 0;
         if (mc == null || mc.player == null || mc.gameMode == null) return 0;
         AbstractContainerMenu handler = mc.player.containerMenu;
         if (handler == null || handlerSlotId < 0 || handlerSlotId >= handler.slots.size()) return 0;
@@ -33,6 +35,7 @@ public final class AutismDropHelper {
     }
 
     public static int dropFromInventorySlot(Minecraft mc, int inventorySlotId, int count) {
+        if (PackHideState.isHardLocked()) return 0;
         if (mc == null || mc.player == null) return 0;
         if (inventorySlotId < 0 || inventorySlotId >= 36) return 0;
         int handlerSlotId = inventorySlotId >= 0 && inventorySlotId <= 8 ? 36 + inventorySlotId : inventorySlotId;

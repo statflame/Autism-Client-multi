@@ -15,7 +15,10 @@ import java.util.Optional;
 import java.util.Objects;
 
 public class AutismAccount {
+    //? if >=1.21.9 {
     private static final Environment ALTENING_ENVIRONMENT = new Environment("http://sessionserver.thealtening.com", "http://authserver.thealtening.com", "https://api.mojang.com", "The Altening");
+    //?} else {
+    /*private static final Environment ALTENING_ENVIRONMENT = new Environment("http://sessionserver.thealtening.com", "http://authserver.thealtening.com", "The Altening");*///?}
     private static final String ALTENING_PASSWORD = "Meteor on Crack!";
 
     public AutismAccountType type = AutismAccountType.Cracked;
@@ -54,7 +57,10 @@ public class AutismAccount {
         if ((username == null || username.isBlank()) && !fetchInfo()) return false;
         return switch (type) {
             case Cracked -> {
+                //? if >=1.21.9 {
                 boolean ok = AutismAccountSessionSwitcher.setSession(new User(username, UUIDUtil.createOfflinePlayerUUID(username), "", Optional.empty(), Optional.empty()));
+                //?} else {
+                /*boolean ok = AutismAccountSessionSwitcher.setSession(new User(username, UUIDUtil.createOfflinePlayerUUID(username), "", Optional.empty(), Optional.empty(), User.Type.LEGACY));*///?}
                 if (!ok) lastError = AutismAccountSessionSwitcher.lastError();
                 yield ok;
             }
@@ -63,7 +69,10 @@ public class AutismAccount {
                     lastError = "missing token or uuid";
                     yield false;
                 }
+                //? if >=1.21.9 {
                 boolean ok = AutismAccountSessionSwitcher.setSession(new User(username, UndashedUuid.fromStringLenient(uuid), token, Optional.empty(), Optional.empty()));
+                //?} else {
+                /*boolean ok = AutismAccountSessionSwitcher.setSession(new User(username, UndashedUuid.fromStringLenient(uuid), token, Optional.empty(), Optional.empty(), User.Type.LEGACY));*///?}
                 if (!ok) lastError = AutismAccountSessionSwitcher.lastError();
                 yield ok;
             }
@@ -126,8 +135,12 @@ public class AutismAccount {
         try {
             WaybackAuthLib auth = createTheAlteningAuth();
             auth.logIn();
+            //? if >=1.21.9 {
             username = auth.getCurrentProfile().name();
             uuid = auth.getCurrentProfile().id().toString();
+            //?} else {
+            /*username = auth.getCurrentProfile().getName();
+            uuid = auth.getCurrentProfile().getId().toString();*///?}
             alteningAuth = auth;
             alteningAuthToken = token;
             return true;
@@ -157,12 +170,22 @@ public class AutismAccount {
                 alteningAuth = auth;
                 alteningAuthToken = token;
             }
+            //? if >=1.21.9 {
             username = auth.getCurrentProfile().name();
             uuid = auth.getCurrentProfile().id().toString();
+            //?} else {
+            /*username = auth.getCurrentProfile().getName();
+            uuid = auth.getCurrentProfile().getId().toString();*///?}
+            //? if >=1.21.9 {
             boolean ok = AutismAccountSessionSwitcher.setSession(
                 new User(auth.getCurrentProfile().name(), auth.getCurrentProfile().id(), auth.getAccessToken(), Optional.empty(), Optional.empty()),
                 new YggdrasilAuthenticationService(Minecraft.getInstance().getProxy(), ALTENING_ENVIRONMENT)
             );
+            //?} else {
+            /*boolean ok = AutismAccountSessionSwitcher.setSession(
+                new User(auth.getCurrentProfile().getName(), auth.getCurrentProfile().getId(), auth.getAccessToken(), Optional.empty(), Optional.empty(), User.Type.LEGACY),
+                new YggdrasilAuthenticationService(Minecraft.getInstance().getProxy(), ALTENING_ENVIRONMENT)
+            );*///?}
             if (!ok) lastError = AutismAccountSessionSwitcher.lastError();
             return ok;
         } catch (Exception e) {

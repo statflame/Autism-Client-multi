@@ -50,6 +50,9 @@ public class AutismLoadingOverlay extends LoadingOverlay {
 
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float a) {
+        //? if <1.21.9 {
+        /*this.tick();
+        *///?}
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
@@ -82,6 +85,8 @@ public class AutismLoadingOverlay extends LoadingOverlay {
             UiRenderer.rect(graphics, UiBounds.of(0, 0, width, height), replaceAlpha(BG_COLOR, alpha));
             logoAlpha = Mth.clamp(fadeInAnim, 0.0F, 1.0F);
         } else {
+            graphics.nextStratum();
+            UiRenderer.rect(graphics, UiBounds.of(0, 0, width, height), replaceAlpha(BG_COLOR, 255));
             logoAlpha = 1.0F;
         }
 
@@ -105,7 +110,10 @@ public class AutismLoadingOverlay extends LoadingOverlay {
         net.minecraft.client.gui.screens.Screen screen = this.autism$minecraft.screen;
         if (screen == null) return;
         try {
+            //? if >=1.21.9 {
             screen.renderWithTooltipAndSubtitles((GuiGraphics)(Object) graphics, mouseX, mouseY, a);
+            //?} else {
+            /*screen.render((GuiGraphics)(Object) graphics, mouseX, mouseY, a);*///?}
         } catch (Exception ignored) {
 
         }
@@ -170,7 +178,9 @@ public class AutismLoadingOverlay extends LoadingOverlay {
         return color & 0x00FFFFFF | (alpha << 24);
     }
 
+    //? if >=1.21.9 {
     @Override
+    //?}
     public void tick() {
         if (this.autism$fadeOutStart == -1L && this.autism$reload.isDone() && this.autism$isReadyToFadeOut()) {
             try {

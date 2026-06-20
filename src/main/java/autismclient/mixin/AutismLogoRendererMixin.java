@@ -41,7 +41,7 @@ public class AutismLogoRendererMixin {
         int logoX = width / 2 - drawWidth / 2;
         int logoY = heightOffset + PACKUTIL_LOGO_Y_OFFSET;
 
-        graphics.blit(
+        ((net.minecraft.client.gui.GuiGraphicsExtractor) (Object) graphics).blit(
             RenderPipelines.GUI_TEXTURED,
             PACKUTIL_LOGO,
             logoX,

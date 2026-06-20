@@ -31,6 +31,14 @@ public final class PackHideState {
         return silentOverride || isActive();
     }
 
+    public static boolean isHardLocked() {
+        return isActive();
+    }
+
+    public static boolean shouldSuppressClientOutput() {
+        return silentOverride || isHardLocked();
+    }
+
     public static boolean isHideModule(PackModule module) {
         return module != null && HIDE_ID.equals(module.id());
     }
@@ -47,6 +55,7 @@ public final class PackHideState {
 
     public static void enable(PackModule hideModule) {
         withSilence(() -> {
+            enterHardLockCleanup();
             AutismClientMessaging.clearClientMessages();
             AutismConfig config = AutismConfig.getGlobal();
             Set<String> enabled = new LinkedHashSet<>();
@@ -97,6 +106,7 @@ public final class PackHideState {
     public static void enforceStartupHidden() {
         if (!isActive()) return;
         withSilence(() -> {
+            enterHardLockCleanup();
             stopRuntimeWork();
             for (PackModule module : PackModuleRegistry.all()) {
                 if (module == null || isHideModule(module)) continue;
@@ -110,11 +120,22 @@ public final class PackHideState {
         });
     }
 
+    private static void enterHardLockCleanup() {
+        stopRuntimeWork();
+        autismclient.util.AutismNotifications.clear();
+        autismclient.util.AutismOverlayManager.get().hideAllInteractiveOverlays();
+        autismclient.util.AutismPayloadStudySession.stop();
+        autismclient.util.AutismPayloadChannelSubscriptionManager.clear();
+        AutismClientMessaging.clearClientMessages();
+    }
+
     public static void stopRuntimeWork() {
         PackModuleRegistry.clearKeyStates();
         AutismInputClicker.clear();
         AutismLANSync.getInstance().stopSilently();
         if (MacroExecutor.isRunning()) MacroExecutor.stop();
+        autismclient.util.AutismContainerHold.clearAll();
+        autismclient.util.macro.PacketGateManager.clearAll();
         AutismSharedState shared = AutismSharedState.get();
         shared.setSendGuiPackets(true);
         shared.setDelayGuiPackets(false);

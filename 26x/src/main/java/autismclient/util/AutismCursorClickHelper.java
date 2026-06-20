@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import autismclient.util.macro.ItemTarget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -20,6 +21,7 @@ public final class AutismCursorClickHelper {
     }
 
     public static boolean click(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return false;
         return click(mc, null, 1);
     }
 
@@ -54,6 +56,7 @@ public final class AutismCursorClickHelper {
     }
 
     private static boolean clickNow(Minecraft mc, ItemTarget carriedGuard, int times) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc == null || mc.player == null || mc.gameMode == null || mc.getConnection() == null) return false;
         AbstractContainerMenu handler = mc.player.containerMenu;
         if (handler == null) return false;

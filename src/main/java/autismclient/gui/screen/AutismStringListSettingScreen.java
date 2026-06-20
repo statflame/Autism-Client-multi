@@ -191,8 +191,15 @@ public class AutismStringListSettingScreen extends Screen {
         hits.add(new Hit(HitType.CLOSE, close.x(), close.y(), close.width(), close.height(), -1));
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (event.button() != 0) return true;
@@ -250,8 +257,14 @@ public class AutismStringListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         scrollbarDragging = false;
@@ -260,8 +273,14 @@ public class AutismStringListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         int my = AutismUiScale.toVirtualInt(event.y());
         int mx = AutismUiScale.toVirtualInt(event.x());
         if (entryField != null && entryField.mouseDragged(mx, my, event.button(), dx, dy)) return true;
@@ -271,8 +290,14 @@ public class AutismStringListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent input) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         ensureFields();
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             if (editingIndex >= 0) {
@@ -299,8 +324,14 @@ public class AutismStringListSettingScreen extends Screen {
         return true;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean charTyped(CharacterEvent input) {
+    //?} else {
+    /*@Override
+    public boolean charTyped(char autism$c, int autism$mods) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         ensureFields();
         if (entryField.charTyped(input)) return true;
         if (searchField.charTyped(input)) return true;
@@ -406,16 +437,24 @@ public class AutismStringListSettingScreen extends Screen {
         String query = playerSuggestionQuery(entryText()).toLowerCase(Locale.ROOT);
         List<String> names = new ArrayList<>();
         for (net.minecraft.client.multiplayer.PlayerInfo info : minecraft.getConnection().getOnlinePlayers()) {
+            //? if >=1.21.9 {
             if (info == null || info.getProfile() == null || info.getProfile().name() == null) continue;
             String name = info.getProfile().name();
+            //?} else {
+            /*if (info == null || info.getProfile() == null || info.getProfile().getName() == null) continue;
+            String name = info.getProfile().getName();*///?}
             if (!isPlayerSuggestionName(name)) continue;
             if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).startsWith(query)) continue;
             if (!names.contains(name)) names.add(name);
         }
         if (minecraft.level != null) {
             for (var player : minecraft.level.players()) {
+                //? if >=1.21.9 {
                 if (player == null || player.getGameProfile() == null || player.getGameProfile().name() == null) continue;
                 String name = player.getGameProfile().name();
+                //?} else {
+                /*if (player == null || player.getGameProfile() == null || player.getGameProfile().getName() == null) continue;
+                String name = player.getGameProfile().getName();*///?}
                 if (!isPlayerSuggestionName(name)) continue;
                 if (!query.isEmpty() && !name.toLowerCase(Locale.ROOT).startsWith(query)) continue;
                 if (!names.contains(name)) names.add(name);
@@ -634,4 +673,5 @@ public class AutismStringListSettingScreen extends Screen {
         CLOSE
     }
 }
+
 

@@ -70,9 +70,16 @@ public class AutismPauseScreen extends Screen {
         }
 
         y += 24;
+        //? if >=1.21.6 {
         this.addRenderableWidget(Button.builder(CommonComponents.disconnectButtonLabel(this.minecraft.isLocalServer()), b -> {
+        //?} else {
+        /*this.addRenderableWidget(Button.builder(net.minecraft.network.chat.Component.translatable(this.minecraft.isLocalServer() ? "menu.returnToMenu" : "menu.disconnect"), b -> {
+        *///?}
             b.active = false;
+            //? if >=1.21.9 {
             this.minecraft.disconnectFromWorld(ClientLevel.DEFAULT_QUIT_MESSAGE);
+            //?} else {
+            /*if (this.minecraft.getConnection() != null) this.minecraft.getConnection().getConnection().disconnect(net.minecraft.network.chat.Component.translatable("disconnect.quitting"));*///?}
         }).bounds(cx - 102, y, 204, 20).build());
     }
 

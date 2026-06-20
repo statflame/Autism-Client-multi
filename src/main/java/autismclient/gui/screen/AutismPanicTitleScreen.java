@@ -95,7 +95,9 @@ public final class AutismPanicTitleScreen extends Screen {
         return false;
     }
 
+    //? if >=1.21.9 {
     @Override
+    //?}
     protected boolean panoramaShouldSpin() {
         return true;
     }
@@ -107,7 +109,11 @@ public final class AutismPanicTitleScreen extends Screen {
     @Override
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
+        //? if >=1.21.6 {
         this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        //?} else {
+        /*autismclient.util.AutismPanoramaCompat.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        *///?}
 
         super.render(g, mouseX, mouseY, delta);
         this.vanillaLogo.renderLogo((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, 1.0F);
@@ -116,7 +122,11 @@ public final class AutismPanicTitleScreen extends Screen {
             this.vanillaSplashChosen = true;
         }
         if (this.vanillaSplash != null && !this.minecraft.options.hideSplashTexts().get()) {
+            //? if >=1.21.6 {
             this.vanillaSplash.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.font, 1.0F);
+            //?} else {
+            /*this.vanillaSplash.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.font, -1);
+            *///?}
         }
         String version = "Minecraft " + SharedConstants.getCurrentVersion().name();
         graphics.text(this.font, version, 2, this.height - 10, ARGB.white(1.0F));

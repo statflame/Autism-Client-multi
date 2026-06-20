@@ -418,7 +418,13 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$mouseClicked(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$mouseClicked(double autism$x, double autism$y, int autism$b, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubled = false;*/
+    //?}
         if (!isAutismActive()) return;
 
         double mouseX = click.x();
@@ -519,7 +525,12 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$keyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$keyPressed(int autism$k, int autism$s, int autism$m, CallbackInfoReturnable<Boolean> cir) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (!isAutismActive()) return;
 
         boolean inventoryKey = MC != null && MC.options != null && MC.options.keyInventory.matches(input);
@@ -566,7 +577,12 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "keyReleased", at = @At("HEAD"), cancellable = true, require = 0)
+    //? if >=1.21.9 {
     private void yang$keyReleased(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$keyReleased(int autism$k, int autism$s, int autism$m, CallbackInfoReturnable<Boolean> cir) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (!isAutismActive()) return;
 
         if (AutismInventoryMoveHelper.handleKeyEvent(input, false)) {
@@ -575,7 +591,12 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$mouseReleased(MouseButtonEvent click, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$mouseReleased(double autism$x, double autism$y, int autism$b, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (!isAutismActive()) return;
         inventoryTweaksLastShiftDragSlot = -1;
 
@@ -616,7 +637,12 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$mouseDragged(MouseButtonEvent click, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$mouseDragged(double autism$x, double autism$y, int autism$b, double deltaX, double deltaY, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (!isAutismActive()) return;
 
         if (AutismOverlayManager.get().handleMouseDragged(click.x(), click.y(), click.button(), deltaX, deltaY)) {
@@ -645,13 +671,25 @@ public abstract class AutismHandledScreenMixin<T extends AbstractContainerMenu> 
     }
 
     @Override
+    //? if >=1.21.9 {
     public boolean charTyped(net.minecraft.client.input.CharacterEvent input) {
-        if (!isAutismActive()) return super.charTyped(input);
+    //?} else {
+    /*public boolean charTyped(char autism$c, int autism$mods) {
+        net.minecraft.client.input.CharacterEvent input = new net.minecraft.client.input.CharacterEvent(autism$c, autism$mods);*///?}
+        if (!isAutismActive()) return autism$superCharTyped(input);
 
         if (AutismOverlayManager.get().handleCharTyped((char) input.codepoint(), 0)) {
             return true;
         }
 
+        return autism$superCharTyped(input);
+    }
+
+    @Unique
+    private boolean autism$superCharTyped(net.minecraft.client.input.CharacterEvent input) {
+        //? if >=1.21.9 {
         return super.charTyped(input);
+        //?} else {
+        /*return super.charTyped((char) input.codepoint(), input.modifiers());*///?}
     }
 }

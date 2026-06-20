@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import autismclient.util.AutismClientMessaging;
 import autismclient.util.AutismPayloadJsonSupport;
 import autismclient.util.AutismPayloadScriptExecutor;
@@ -30,6 +31,7 @@ public class PayloadAction implements MacroAction {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (!enabled) return;
         if (mc == null || mc.getConnection() == null) {
             AutismClientMessaging.sendPrefixed("§cCannot send payload while disconnected.");

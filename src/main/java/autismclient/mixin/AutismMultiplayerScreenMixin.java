@@ -49,7 +49,7 @@ public abstract class AutismMultiplayerScreenMixin extends Screen implements Aut
         super(title);
     }
 
-    @Inject(method = "repositionElements", at = @At("TAIL"))
+    @Inject(method = "repositionElements", at = @At("TAIL"), require = 0)
     private void autism$repositionElements(CallbackInfo ci) {
         autism$layoutButtons();
     }

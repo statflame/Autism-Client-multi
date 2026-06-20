@@ -36,7 +36,9 @@ import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.player.PlayerModel;
+//? if >=1.21.9 {
 import net.minecraft.client.renderer.PlayerSkinRenderCache;
+//?}
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.core.UUIDUtil;
@@ -605,7 +607,10 @@ public class AutismAccountsScreen extends Screen {
         int scaledX1 = Math.round(x1 * drawScale);
         int scaledY1 = Math.round(y1 * drawScale);
         float scale = 0.97F * Math.max(1, scaledY1 - scaledY0) / 2.125F;
+        //? if >=1.21.9 {
         graphics.skin(model, skin.body().texturePath(), scale, previewRotationX, currentPreviewRotationY(), -1.0625F, scaledX0, scaledY0, scaledX1, scaledY1);
+        //?} else {
+        /*graphics.skin(model, skin.texture(), scale, previewRotationX, currentPreviewRotationY(), -1.0625F, scaledX0, scaledY0, scaledX1, scaledY1);*///?}
     }
 
     private float currentPreviewRotationY() {
@@ -614,23 +619,42 @@ public class AutismAccountsScreen extends Screen {
     }
 
     private void drawHead(GuiGraphicsExtractor graphics, PlayerSkin skin, int x, int y, int size) {
+        //? if >=1.21.9 {
         Identifier texture = skin.body().texturePath();
+        //?} else {
+        /*Identifier texture = skin.texture();*///?}
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 8, 8, size, size, 8, 8, 64, 64);
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture, x, y, 40, 8, size, size, 8, 8, 64, 64);
     }
 
     private boolean autism$superMouseClicked(double x, double y, int button, boolean doubleClick) {
-        return super.mouseClicked(new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0)), doubleClick);
+        return autism$superMouseClicked(new MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(button, 0)), doubleClick);
     }
     private boolean autism$superMouseReleased(double x, double y, int button) {
-        return super.mouseReleased(new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0)));
+        return autism$superMouseReleased(new MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(button, 0)));
     }
     private boolean autism$superMouseDragged(double x, double y, int button, double dx, double dy) {
-        return super.mouseDragged(new MouseButtonEvent(x, y, new MouseButtonInfo(button, 0)), AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
+        return autism$superMouseDragged(new MouseButtonEvent(x, y, new net.minecraft.client.input.MouseButtonInfo(button, 0)), AutismUiScale.toVirtual(dx), AutismUiScale.toVirtual(dy));
     }
 
+    //? if >=1.21.9 {
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
+    //?} else {
+/*    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e.x(), e.y(), e.button(), dx, dy); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         double vx = AutismUiScale.toVirtual(event.x());
         double vy = AutismUiScale.toVirtual(event.y());
         int vb = event.button();
@@ -678,8 +702,14 @@ public class AutismAccountsScreen extends Screen {
         rebuildButtons();
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         double vx = AutismUiScale.toVirtual(event.x());
         double vy = AutismUiScale.toVirtual(event.y());
         int vb = event.button();
@@ -695,8 +725,14 @@ public class AutismAccountsScreen extends Screen {
         return autism$superMouseReleased(vx, vy, vb);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         double vx = AutismUiScale.toVirtual(event.x());
         double vy = AutismUiScale.toVirtual(event.y());
         int vb = event.button();
@@ -757,6 +793,7 @@ public class AutismAccountsScreen extends Screen {
         if (account != null && account.type == AutismAccountType.Cracked && !name.isBlank() && this.minecraft != null) {
             UUID offlineId = UUIDUtil.createOfflinePlayerUUID(name);
             PlayerSkin defaultSkin = DefaultPlayerSkin.get(offlineId);
+            //? if >=1.21.9 {
             try {
                 CompletableFuture<Optional<PlayerSkin>> future = CompletableFuture.supplyAsync(
                     () -> resolveCrackedSkinProfile(name),
@@ -772,11 +809,14 @@ public class AutismAccountsScreen extends Screen {
             } catch (Exception ignored) {
                 return new SkinLookup(() -> defaultSkin, CompletableFuture.completedFuture(Optional.empty()), defaultSkin);
             }
+            //?} else {
+            /*return new SkinLookup(() -> defaultSkin, CompletableFuture.completedFuture(Optional.empty()), defaultSkin);*///?}
         }
 
         if (account != null && !name.isBlank() && this.minecraft != null && isDefaultAccount(account)) {
             UUID offlineId = UUIDUtil.createOfflinePlayerUUID(name);
             PlayerSkin defaultSkin = DefaultPlayerSkin.get(id == null ? offlineId : id);
+            //? if >=1.21.9 {
             ResolvableProfile profile = id == null ? ResolvableProfile.createUnresolved(name) : ResolvableProfile.createUnresolved(id);
             try {
                 PlayerSkinRenderCache.RenderInfo defaultInfo = this.minecraft.playerSkinRenderCache().getOrDefault(profile);
@@ -793,6 +833,8 @@ public class AutismAccountsScreen extends Screen {
             } catch (Exception ignored) {
                 return new SkinLookup(() -> defaultSkin, CompletableFuture.completedFuture(Optional.empty()), defaultSkin);
             }
+            //?} else {
+            /*return new SkinLookup(() -> defaultSkin, CompletableFuture.completedFuture(Optional.empty()), defaultSkin);*///?}
         }
 
         if (id == null) {
@@ -801,6 +843,7 @@ public class AutismAccountsScreen extends Screen {
             return new SkinLookup(() -> fallback, CompletableFuture.completedFuture(Optional.empty()), fallback);
         }
 
+        //? if >=1.21.9 {
         try {
             PlayerSkin fallback = DefaultPlayerSkin.get(id);
             CompletableFuture<Optional<PlayerSkin>> future = CompletableFuture.supplyAsync(
@@ -818,6 +861,9 @@ public class AutismAccountsScreen extends Screen {
             PlayerSkin fallback = DefaultPlayerSkin.get(id);
             return new SkinLookup(() -> fallback, CompletableFuture.completedFuture(Optional.empty()), fallback);
         }
+        //?} else {
+        /*PlayerSkin fallback = DefaultPlayerSkin.get(id);
+        return new SkinLookup(() -> fallback, CompletableFuture.completedFuture(Optional.empty()), fallback);*///?}
     }
 
     private PlayerSkin fallbackSkin(AutismAccount account) {
@@ -830,6 +876,7 @@ public class AutismAccountsScreen extends Screen {
     private Optional<GameProfile> resolveCrackedSkinProfile(String name) {
         String username = safeTrim(name);
         if (!isValidMinecraftUsername(username) || this.minecraft == null) return Optional.empty();
+        //? if >=1.21.9 {
         try {
             Optional<GameProfile> resolved = this.minecraft.services().profileResolver().fetchByName(username);
             if (resolved.isPresent() && resolved.get().properties().containsKey(TEXTURES_PROPERTY)) {
@@ -839,6 +886,7 @@ public class AutismAccountsScreen extends Screen {
             if (withTextures.isPresent()) return withTextures;
         } catch (Exception ignored) {
         }
+        //?}
         return fetchMojangProfileByName(username);
     }
 
@@ -856,10 +904,17 @@ public class AutismAccountsScreen extends Screen {
     }
 
     private Optional<GameProfile> withMojangTextures(GameProfile profile) {
+        //? if >=1.21.9 {
         if (profile == null || profile.id() == null) return Optional.empty();
         if (profile.properties().containsKey(TEXTURES_PROPERTY)) return Optional.of(profile);
+        //?} else {
+        /*if (profile == null || profile.getId() == null) return Optional.empty();
+        if (profile.getProperties().containsKey(TEXTURES_PROPERTY)) return Optional.of(profile);*///?}
         try {
+            //? if >=1.21.9 {
             String id = UndashedUuid.toString(profile.id());
+            //?} else {
+            /*String id = UndashedUuid.toString(profile.getId());*///?}
             JsonObject textureProfile = AutismHttp.getJson("https://sessionserver.mojang.com/session/minecraft/profile/" + id + "?unsigned=false", null);
             if (textureProfile == null || !textureProfile.has("properties") || !textureProfile.get("properties").isJsonArray()) return Optional.empty();
             JsonArray properties = textureProfile.getAsJsonArray("properties");
@@ -871,8 +926,12 @@ public class AutismAccountsScreen extends Screen {
                 String signature = jsonString(property, "signature");
                 if (!TEXTURES_PROPERTY.equals(propertyName) || value.isBlank() || signature.isBlank()) continue;
                 String resolvedName = jsonString(textureProfile, "name");
+                //? if >=1.21.9 {
                 GameProfile texturedProfile = new GameProfile(profile.id(), resolvedName.isBlank() ? profile.name() : resolvedName);
                 texturedProfile.properties().put(TEXTURES_PROPERTY, new Property(TEXTURES_PROPERTY, value, signature));
+                //?} else {
+                /*GameProfile texturedProfile = new GameProfile(profile.getId(), resolvedName.isBlank() ? profile.getName() : resolvedName);
+                texturedProfile.getProperties().put(TEXTURES_PROPERTY, new Property(TEXTURES_PROPERTY, value, signature));*///?}
                 return Optional.of(texturedProfile);
             }
         } catch (Exception ignored) {
@@ -1181,7 +1240,7 @@ public class AutismAccountsScreen extends Screen {
     }
 
     private static MouseButtonEvent virtualEvent(MouseButtonEvent event) {
-        return new MouseButtonEvent(AutismUiScale.toVirtual(event.x()), AutismUiScale.toVirtual(event.y()), new MouseButtonInfo(event.button(), 0));
+        return new MouseButtonEvent(AutismUiScale.toVirtual(event.x()), AutismUiScale.toVirtual(event.y()), new net.minecraft.client.input.MouseButtonInfo(event.button(), 0));
     }
 
     private String inputLabel() {
@@ -1234,3 +1293,4 @@ public class AutismAccountsScreen extends Screen {
         }
     }
 }
+

@@ -3,7 +3,9 @@ package autismclient.util;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import net.minecraft.network.ProtocolInfo;
+//? if >=1.21.5 {
 import net.minecraft.network.ProtocolInfo.DetailsProvider;
+//?}
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketType;
 import net.minecraft.network.protocol.configuration.ConfigurationProtocols;
@@ -106,6 +108,7 @@ public final class AutismPacketCapture {
     }
 
     private static Map<String, Integer> buildPacketIdTable(String phase, String flow) {
+        //? if >=1.21.5 {
         DetailsProvider provider = detailsProvider(phase, flow);
         if (provider == null) return Map.of();
         Map<String, Integer> ids = new HashMap<>();
@@ -117,8 +120,12 @@ public final class AutismPacketCapture {
         } catch (Throwable ignored) {
         }
         return ids.isEmpty() ? Map.of() : Map.copyOf(ids);
+        //?} else {
+        /*return Map.of();
+        *///?}
     }
 
+    //? if >=1.21.5 {
     private static DetailsProvider detailsProvider(String phase, String flow) {
         boolean c2s = "C2S".equals(flow);
         if ("CONFIGURATION".equals(phase)) {
@@ -129,6 +136,7 @@ public final class AutismPacketCapture {
         }
         return null;
     }
+    //?}
 
     private static String normalizePhase(String protocolPhase) {
         if (protocolPhase == null || protocolPhase.isBlank()) return "";

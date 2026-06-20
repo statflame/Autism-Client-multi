@@ -1,7 +1,15 @@
 package autismclient.util;
 
+import autismclient.modules.AutismModule;
+import autismclient.modules.PackHideState;
+import autismclient.util.macro.CraftAction;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -10,1953 +18,2123 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.Map.Entry;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import autismclient.AutismClientAddon;
-import autismclient.modules.AutismModule;
-import autismclient.util.macro.CraftAction;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 
 public final class AutismSharedState {
-    private static final AutismSharedState INSTANCE = new AutismSharedState();
+   private static final AutismSharedState INSTANCE = new AutismSharedState();
+   private volatile boolean sendGuiPackets = true;
+   private volatile boolean delayGuiPackets;
+   private volatile boolean allowSignEditing = true;
+   private volatile boolean allowBookUpdate = true;
+   private volatile boolean bypassResourcePack;
+   private volatile boolean resourcePackForceDeny;
+   private volatile boolean xCarryActive;
+   private volatile boolean xCarryForced;
+   private volatile boolean xCarryArmorBypass;
+   private volatile Set<Integer> xCarryForcedSlotMask = Collections.emptySet();
+   private volatile boolean xCarryForcedCarryCursor;
+   private volatile BlockPos lastInteractedBlockPos = null;
+   private volatile AutismContainerTarget lastContainerTarget = null;
+   private volatile boolean useCustomPackets = false;
+   private Set<Class<? extends Packet<?>>> c2sPackets = new HashSet<>();
+   private Set<Class<? extends Packet<?>>> s2cPackets = new HashSet<>();
+   private final List<AutismSharedState.QueuedPacket> delayedPackets = new CopyOnWriteArrayList<>();
+   private volatile boolean staggeredPacketSend = false;
+   private volatile int staggeredSendDelay = 1;
+   private final List<AutismSharedState.QueuedPacket> staggeredQueue = new CopyOnWriteArrayList<>();
+   private final List<AutismSharedState.QueuedPacket> staggeredDisplayQueue = new CopyOnWriteArrayList<>();
+   private final List<AutismSharedState.QueuedPacket> lastFlushedQueue = new CopyOnWriteArrayList<>();
+   private final AtomicInteger queueRenderRevision = new AtomicInteger();
+   private int staggeredTickCounter = 0;
+   private ClientPacketListener staggeredNetworkHandler = null;
+   private int staggeredTotal = 0;
+   private boolean activeSendUsesExplicitDelays = false;
+   private static final int REPORT_RING_SIZE = 32;
+   private final Deque<AutismSharedState.ReportSample> reportRing = new ArrayDeque<>(32);
+   private volatile AutismSharedState.DelayMode delayMode = AutismSharedState.DelayMode.TICKS;
+   private AutismSharedState.DelayMode staggeredDelayMode = AutismSharedState.DelayMode.TICKS;
+   private long flushStartNanos = 0L;
+   private int flushStartClientTick = 0;
+   private long activeCaptureLastNanos = -1L;
+   private int activeCaptureLastClientTick = -1;
+   private int activeCaptureTailDelay = 0;
+   private String pendingQueueCompletionMessage = null;
+   private Screen storedScreen;
+   private AbstractContainerMenu storedAbstractContainerMenu;
+   private boolean isFlushing = false;
+   private boolean fabricatorOverlayVisible = false;
+   private int fabricatorOverlayX = 500;
+   private int fabricatorOverlayY = 5;
+   private String fabricatorSlotValue = "0";
+   private String fabricatorItemNameValue = "";
+   private String fabricatorTimesValue = "1";
+   private int fabricatorActionIndex = 0;
+   private int fabricatorButtonIndex = 0;
+   private boolean fabricatorDropWholeStack = false;
+   private boolean fabricatorCraftUseMaxAmount = false;
+   private String fabricatorCraftSearchValue = "";
+   private int fabricatorCraftSelectedRecipeId = -1;
+   private String fabricatorCraftSelectedRecipeKey = "";
+   private int fabricatorCraftScrollOffset = 0;
+   private final List<CraftAction.CraftEntry> fabricatorCraftPlanEntries = new ArrayList<>();
+   private int fabricatorCraftPlanSelectedIndex = -1;
+   private int fabricatorCraftPlanScrollOffset = 0;
+   private boolean lanSyncOverlayVisible = false;
+   private int lanSyncOverlayX = 500;
+   private int lanSyncOverlayY = 5;
+   private int lanSyncOverlayActiveTab = 0;
+   private int lanSyncOverlayScrollOffset = 0;
+   private boolean lanSyncOverlayPerUserMode = false;
+   private String lanSyncOverlaySelectedMacroName = "";
+   private String lanSyncOverlayExpandedExecutePeer = "";
+   private String lanSyncOverlaySelectedPeer = "";
+   private boolean macroListOverlayVisible = false;
+   private int macroListOverlayX = 500;
+   private int macroListOverlayY = 250;
+   private int macroListOverlayScrollOffset = 0;
+   private String macroListOverlaySearch = "";
+   private boolean queueEditorOverlayVisible = false;
+   private int queueEditorOverlayX = 100;
+   private int queueEditorOverlayY = 100;
+   private int serverInfoOverlayActiveTab = 0;
+   private int serverInfoOverlayPluginScrollOffset = 0;
+   private String serverInfoOverlaySelectedPlugin = "";
+   private String serverInfoOverlayStateAddress = "";
+   private volatile String realServerVersion = "";
+   private volatile String realServerVersionAddress = "";
+   private int serverInfoOverlayProbeDelayMs = 50;
+   private int serverInfoOverlayInfoWidth = 252;
+   private int serverInfoOverlayInfoHeight = 258;
+   private int serverInfoOverlayPluginWidth = 280;
+   private int serverInfoOverlayPluginHeight = 280;
+   private boolean macroEditorVisible = false;
+   private AutismMacro editingMacro = null;
+   private int macroEditorPanelX = 400;
+   private int macroEditorPanelY = 100;
+   private boolean blockSelectorVisible = false;
+   private volatile boolean gbreakCaptureMode = false;
+   private volatile int gbreakPacketCount = 0;
+   private Runnable gbreakCallback = null;
+   private final List<AutismSharedState.QueuedPacket> gbreakCapturedPackets = new ArrayList<>();
+   private volatile boolean captureMode = false;
+   private volatile long lastCaptureNanos = -1L;
+   private volatile int lastCaptureClientTick = -1;
+   private volatile int clientTickCounter = 0;
+   private volatile double serverMsPerTick = 50.0;
+   private volatile long lastTimeSyncMs = -1L;
+   private final Map<String, AutismWindowLayout> windowLayouts = new HashMap<>();
+   private final Map<String, AutismSharedState.ServerPluginScan> serverPluginScans = new HashMap<>();
+   private final List<String> overlayOrder = new ArrayList<>();
+   private String focusedOverlayId = "";
+   private volatile boolean suppressNextContainerClosePacket = false;
+   private volatile boolean suppressNextSignUpdatePacket = false;
+   private volatile boolean suppressNextBookEditPacket = false;
+   private volatile boolean forceNextSignUpdatePacket = false;
+   private volatile boolean forceNextBookEditPacket = false;
+   private volatile Consumer<BlockPos> blockCaptureCallback = null;
+   private volatile BiConsumer<BlockPos, Direction> directionalBlockCaptureCallback = null;
+   private volatile Runnable attackCaptureCallback = null;
+   private volatile Runnable captureCancelCallback = null;
+   private volatile Consumer<String> entityCaptureCallback = null;
+   private volatile boolean entityCaptureSpecific = false;
+   private volatile boolean placeCaptureActive = false;
 
-    private volatile boolean sendGuiPackets = true;
-    private volatile boolean delayGuiPackets;
-    private volatile boolean allowSignEditing = true;
-    private volatile boolean allowBookUpdate = true;
-    private volatile boolean bypassResourcePack;
-    private volatile boolean resourcePackForceDeny;
-    private volatile boolean xCarryActive;
-    private volatile boolean xCarryForced;
-    private volatile boolean xCarryArmorBypass;
-    private volatile Set<Integer> xCarryForcedSlotMask = Collections.emptySet();
-    private volatile boolean xCarryForcedCarryCursor;
-    private volatile BlockPos lastInteractedBlockPos = null;
-    private volatile AutismContainerTarget lastContainerTarget = null;
-    private volatile boolean useCustomPackets = false;
-    private Set<Class<? extends Packet<?>>> c2sPackets = new HashSet<>();
-    private Set<Class<? extends Packet<?>>> s2cPackets = new HashSet<>();
+   public synchronized void pushReport(AutismSharedState.ReportSample sample) {
+      if (sample != null) {
+         this.reportRing.addFirst(sample);
 
-    private final List<QueuedPacket> delayedPackets = new CopyOnWriteArrayList<>();
+         while (this.reportRing.size() > 32) {
+            this.reportRing.removeLast();
+         }
+      }
+   }
 
-    private volatile boolean staggeredPacketSend = false;
-    private volatile int staggeredSendDelay = 1;
-    private final List<QueuedPacket> staggeredQueue = new CopyOnWriteArrayList<>();
-    private final List<QueuedPacket> staggeredDisplayQueue = new CopyOnWriteArrayList<>();
-    private final List<QueuedPacket> lastFlushedQueue = new CopyOnWriteArrayList<>();
-    private final AtomicInteger queueRenderRevision = new AtomicInteger();
-    private int staggeredTickCounter = 0;
-    private ClientPacketListener staggeredNetworkHandler = null;
-    private int staggeredTotal = 0;
-    private boolean activeSendUsesExplicitDelays = false;
+   public synchronized AutismSharedState.ReportSample getLatestReport(String label) {
+      if (label == null) {
+         return this.reportRing.isEmpty() ? null : this.reportRing.peekFirst();
+      } else {
+         for (AutismSharedState.ReportSample s : this.reportRing) {
+            if (label.equals(s.label)) {
+               return s;
+            }
+         }
 
-    public enum DelayMode { TICKS, MS }
-    public enum ReplayMode { REGENERATE, EXACT }
+         return null;
+      }
+   }
 
-    public static final class ReportSample {
-        public final String label;
-        public final long deltaMs;
-        public final String startEvent;
-        public final String endEvent;
-        public final long capturedAtMs;
-        public ReportSample(String label, long deltaMs, String startEvent, String endEvent, long capturedAtMs) {
-            this.label = label == null ? "" : label;
-            this.deltaMs = deltaMs;
-            this.startEvent = startEvent == null ? "" : startEvent;
-            this.endEvent = endEvent == null ? "" : endEvent;
-            this.capturedAtMs = capturedAtMs;
-        }
-    }
-    private static final int REPORT_RING_SIZE = 32;
-    private final java.util.Deque<ReportSample> reportRing = new java.util.ArrayDeque<>(REPORT_RING_SIZE);
+   public synchronized List<AutismSharedState.ReportSample> getRecentReports(int n) {
+      List<AutismSharedState.ReportSample> out = new ArrayList<>(Math.min(n, this.reportRing.size()));
+      int i = 0;
 
-    public synchronized void pushReport(ReportSample sample) {
-        if (sample == null) return;
-        reportRing.addFirst(sample);
-        while (reportRing.size() > REPORT_RING_SIZE) reportRing.removeLast();
-    }
+      for (AutismSharedState.ReportSample s : this.reportRing) {
+         if (i++ >= n) {
+            break;
+         }
 
-    public synchronized ReportSample getLatestReport(String label) {
-        if (label == null) return reportRing.isEmpty() ? null : reportRing.peekFirst();
-        for (ReportSample s : reportRing) {
-            if (label.equals(s.label)) return s;
-        }
-        return null;
-    }
+         out.add(s);
+      }
 
-    public synchronized java.util.List<ReportSample> getRecentReports(int n) {
-        java.util.List<ReportSample> out = new java.util.ArrayList<>(Math.min(n, reportRing.size()));
-        int i = 0;
-        for (ReportSample s : reportRing) {
-            if (i++ >= n) break;
-            out.add(s);
-        }
-        return out;
-    }
-    private volatile DelayMode delayMode = DelayMode.TICKS;
-    private DelayMode staggeredDelayMode = DelayMode.TICKS;
-    private long flushStartNanos = 0;
-    private int flushStartClientTick = 0;
-    private long activeCaptureLastNanos = -1;
-    private int activeCaptureLastClientTick = -1;
-    private int activeCaptureTailDelay = 0;
-    private String pendingQueueCompletionMessage = null;
+      return out;
+   }
 
-    private Screen storedScreen;
-    private AbstractContainerMenu storedAbstractContainerMenu;
-    private boolean isFlushing = false;
+   private AutismSharedState() {
+   }
 
-    private boolean fabricatorOverlayVisible = false;
-    private int fabricatorOverlayX = 500;
-    private int fabricatorOverlayY = 5;
+   public static synchronized AutismSharedState get() {
+      return INSTANCE;
+   }
 
-    private String fabricatorSlotValue = "0";
-    private String fabricatorItemNameValue = "";
-    private String fabricatorTimesValue = "1";
-    private int fabricatorActionIndex = 0;
-    private int fabricatorButtonIndex = 0;
-    private boolean fabricatorDropWholeStack = false;
-    private boolean fabricatorCraftUseMaxAmount = false;
-    private String fabricatorCraftSearchValue = "";
-    private int fabricatorCraftSelectedRecipeId = -1;
-    private String fabricatorCraftSelectedRecipeKey = "";
-    private int fabricatorCraftScrollOffset = 0;
-    private final List<CraftAction.CraftEntry> fabricatorCraftPlanEntries = new ArrayList<>();
-    private int fabricatorCraftPlanSelectedIndex = -1;
-    private int fabricatorCraftPlanScrollOffset = 0;
+   public boolean isMacroEditorVisible() {
+      return this.macroEditorVisible;
+   }
 
-    private boolean lanSyncOverlayVisible = false;
-    private int lanSyncOverlayX = 500;
-    private int lanSyncOverlayY = 5;
-    private int lanSyncOverlayActiveTab = 0;
-    private int lanSyncOverlayScrollOffset = 0;
-    private boolean lanSyncOverlayPerUserMode = false;
-    private String lanSyncOverlaySelectedMacroName = "";
-    private String lanSyncOverlayExpandedExecutePeer = "";
-    private String lanSyncOverlaySelectedPeer = "";
-    private boolean macroListOverlayVisible = false;
-    private int macroListOverlayX = 500;
-    private int macroListOverlayY = 250;
-    private int macroListOverlayScrollOffset = 0;
-    private String macroListOverlaySearch = "";
-    private boolean queueEditorOverlayVisible = false;
-    private int queueEditorOverlayX = 100;
-    private int queueEditorOverlayY = 100;
-    private int serverInfoOverlayActiveTab = 0;
-    private int serverInfoOverlayPluginScrollOffset = 0;
-    private String serverInfoOverlaySelectedPlugin = "";
-    private String serverInfoOverlayStateAddress = "";
-    private volatile String realServerVersion = "";
-    private volatile String realServerVersionAddress = "";
-    private int serverInfoOverlayProbeDelayMs = 50;
-    private int serverInfoOverlayInfoWidth = 252;
-    private int serverInfoOverlayInfoHeight = 258;
-    private int serverInfoOverlayPluginWidth = 280;
-    private int serverInfoOverlayPluginHeight = 280;
+   public void setMacroEditorVisible(boolean visible) {
+      this.macroEditorVisible = visible;
+   }
 
-    private boolean macroEditorVisible = false;
-    private AutismMacro editingMacro = null;
-    private int macroEditorPanelX = 400;
-    private int macroEditorPanelY = 100;
+   public AutismMacro getEditingMacro() {
+      return this.editingMacro;
+   }
 
-    private boolean blockSelectorVisible = false;
+   public void setEditingMacro(AutismMacro macro) {
+      this.editingMacro = macro;
+   }
 
-    private volatile boolean gbreakCaptureMode = false;
-    private volatile int gbreakPacketCount = 0;
-    private Runnable gbreakCallback = null;
-    private final List<QueuedPacket> gbreakCapturedPackets = new ArrayList<>();
+   public int getMacroEditorPanelX() {
+      return this.macroEditorPanelX;
+   }
 
-    private volatile boolean captureMode = false;
-    private volatile long lastCaptureNanos = -1;
-    private volatile int lastCaptureClientTick = -1;
-    private volatile int clientTickCounter = 0;
+   public void setMacroEditorPanelX(int x) {
+      this.macroEditorPanelX = x;
+   }
 
-    private volatile double serverMsPerTick = 50.0;
-    private volatile long lastTimeSyncMs = -1;
-    private final Map<String, AutismWindowLayout> windowLayouts = new HashMap<>();
-    private final Map<String, ServerPluginScan> serverPluginScans = new HashMap<>();
-    private final List<String> overlayOrder = new ArrayList<>();
-    private String focusedOverlayId = "";
+   public int getMacroEditorPanelY() {
+      return this.macroEditorPanelY;
+   }
 
-    private AutismSharedState() {}
+   public void setMacroEditorPanelY(int y) {
+      this.macroEditorPanelY = y;
+   }
 
-    public static synchronized AutismSharedState get() {
-        return INSTANCE;
-    }
+   public synchronized AutismWindowLayout getWindowLayout(String id) {
+      AutismWindowLayout layout = this.windowLayouts.get(id);
+      return layout == null ? null : new AutismWindowLayout(layout.x, layout.y, layout.width, layout.height, layout.visible, layout.collapsed);
+   }
 
-    public boolean isMacroEditorVisible() { return macroEditorVisible; }
-    public void setMacroEditorVisible(boolean visible) { this.macroEditorVisible = visible; }
+   public synchronized void setWindowLayout(String id, AutismWindowLayout layout) {
+      if (id != null && !id.isEmpty() && layout != null) {
+         this.windowLayouts.put(id, new AutismWindowLayout(layout.x, layout.y, layout.width, layout.height, layout.visible, layout.collapsed));
+      }
+   }
 
-    public AutismMacro getEditingMacro() { return editingMacro; }
-    public void setEditingMacro(AutismMacro macro) { this.editingMacro = macro; }
+   public synchronized List<String> getOverlayOrder() {
+      return new ArrayList<>(this.overlayOrder);
+   }
 
-    public int getMacroEditorPanelX() { return macroEditorPanelX; }
-    public void setMacroEditorPanelX(int x) { this.macroEditorPanelX = x; }
-    public int getMacroEditorPanelY() { return macroEditorPanelY; }
-    public void setMacroEditorPanelY(int y) { this.macroEditorPanelY = y; }
+   public synchronized void setOverlayOrder(List<String> order) {
+      this.overlayOrder.clear();
+      if (order != null) {
+         for (String id : order) {
+            if (id != null && !id.isEmpty() && !this.overlayOrder.contains(id)) {
+               this.overlayOrder.add(id);
+            }
+         }
+      }
+   }
 
-    public synchronized AutismWindowLayout getWindowLayout(String id) {
-        AutismWindowLayout layout = windowLayouts.get(id);
-        if (layout == null) return null;
-        return new AutismWindowLayout(layout.x, layout.y, layout.width, layout.height, layout.visible, layout.collapsed);
-    }
+   public synchronized String getFocusedOverlayId() {
+      return this.focusedOverlayId == null ? "" : this.focusedOverlayId;
+   }
 
-    public synchronized void setWindowLayout(String id, AutismWindowLayout layout) {
-        if (id == null || id.isEmpty() || layout == null) return;
-        windowLayouts.put(id, new AutismWindowLayout(layout.x, layout.y, layout.width, layout.height, layout.visible, layout.collapsed));
-    }
+   public synchronized void setFocusedOverlayId(String overlayId) {
+      this.focusedOverlayId = overlayId == null ? "" : overlayId.trim();
+   }
 
-    public synchronized List<String> getOverlayOrder() {
-        return new ArrayList<>(overlayOrder);
-    }
+   public synchronized AutismSharedState.ServerPluginScan getServerPluginScan(String address) {
+      return this.getServerPluginScan(address, "");
+   }
 
-    public synchronized void setOverlayOrder(List<String> order) {
-        overlayOrder.clear();
-        if (order == null) return;
-        for (String id : order) {
-            if (id == null || id.isEmpty() || overlayOrder.contains(id)) continue;
-            overlayOrder.add(id);
-        }
-    }
+   public synchronized AutismSharedState.ServerPluginScan getServerPluginScan(String address, String contextSignature) {
+      String key = buildServerPluginScanKey(address, contextSignature);
+      if (key.isEmpty()) {
+         return null;
+      } else {
+         AutismSharedState.ServerPluginScan scan = this.serverPluginScans.get(key);
+         return scan == null ? null : scan.copy();
+      }
+   }
 
-    public synchronized String getFocusedOverlayId() {
-        return focusedOverlayId == null ? "" : focusedOverlayId;
-    }
+   public synchronized void setServerPluginScan(String address, List<String> plugins, Map<String, List<String>> pluginCommands) {
+      this.setServerPluginScan(address, "", plugins, pluginCommands, Map.of());
+   }
 
-    public synchronized void setFocusedOverlayId(String overlayId) {
-        focusedOverlayId = overlayId == null ? "" : overlayId.trim();
-    }
+   public synchronized void setServerPluginScan(String address, String contextSignature, List<String> plugins, Map<String, List<String>> pluginCommands) {
+      this.setServerPluginScan(address, contextSignature, plugins, pluginCommands, Map.of());
+   }
 
-    public synchronized ServerPluginScan getServerPluginScan(String address) {
-        return getServerPluginScan(address, "");
-    }
+   public synchronized void setServerPluginScan(
+      String address, String contextSignature, List<String> plugins, Map<String, List<String>> pluginCommands, Map<String, String> pluginEvidence
+   ) {
+      String normalizedAddress = normalizeServerAddress(address);
+      String normalizedContext = normalizeServerPluginContext(contextSignature);
+      String key = buildServerPluginScanKey(normalizedAddress, normalizedContext);
+      if (!key.isEmpty()) {
+         this.serverPluginScans.put(key, new AutismSharedState.ServerPluginScan(normalizedAddress, normalizedContext, plugins, pluginCommands, pluginEvidence));
+      }
+   }
 
-    public synchronized ServerPluginScan getServerPluginScan(String address, String contextSignature) {
-        String key = buildServerPluginScanKey(address, contextSignature);
-        if (key.isEmpty()) return null;
-        ServerPluginScan scan = serverPluginScans.get(key);
-        return scan == null ? null : scan.copy();
-    }
+   public synchronized void clearServerPluginScan(String address) {
+      String normalized = normalizeServerAddress(address);
+      if (!normalized.isEmpty()) {
+         this.serverPluginScans.keySet().removeIf(key -> key.equals(normalized) || key.startsWith(normalized + "|"));
+      }
+   }
 
-    public synchronized void setServerPluginScan(String address, List<String> plugins, Map<String, List<String>> pluginCommands) {
-        setServerPluginScan(address, "", plugins, pluginCommands, Map.of());
-    }
+   private static String normalizeServerAddress(String address) {
+      return address == null ? "" : address.trim().toLowerCase(Locale.ROOT);
+   }
 
-    public synchronized void setServerPluginScan(String address, String contextSignature, List<String> plugins, Map<String, List<String>> pluginCommands) {
-        setServerPluginScan(address, contextSignature, plugins, pluginCommands, Map.of());
-    }
+   private static String normalizeServerPluginContext(String contextSignature) {
+      return contextSignature == null ? "" : contextSignature.trim().toLowerCase(Locale.ROOT);
+   }
 
-    public synchronized void setServerPluginScan(String address, String contextSignature, List<String> plugins, Map<String, List<String>> pluginCommands, Map<String, String> pluginEvidence) {
-        String normalizedAddress = normalizeServerAddress(address);
-        String normalizedContext = normalizeServerPluginContext(contextSignature);
-        String key = buildServerPluginScanKey(normalizedAddress, normalizedContext);
-        if (key.isEmpty()) return;
-        serverPluginScans.put(key, new ServerPluginScan(normalizedAddress, normalizedContext, plugins, pluginCommands, pluginEvidence));
-    }
+   private static String buildServerPluginScanKey(String address, String contextSignature) {
+      String normalizedAddress = normalizeServerAddress(address);
+      if (normalizedAddress.isEmpty()) {
+         return "";
+      } else {
+         String normalizedContext = normalizeServerPluginContext(contextSignature);
+         return normalizedContext.isEmpty() ? normalizedAddress + "|default" : normalizedAddress + "|" + normalizedContext;
+      }
+   }
 
-    public synchronized void clearServerPluginScan(String address) {
-        String normalized = normalizeServerAddress(address);
-        if (normalized.isEmpty()) return;
-        serverPluginScans.keySet().removeIf(key -> key.equals(normalized) || key.startsWith(normalized + "|"));
-    }
+   public boolean isBlockSelectorVisible() {
+      return this.blockSelectorVisible;
+   }
 
-    private static String normalizeServerAddress(String address) {
-        return address == null ? "" : address.trim().toLowerCase(Locale.ROOT);
-    }
+   public void setBlockSelectorVisible(boolean visible) {
+      this.blockSelectorVisible = visible;
+   }
 
-    private static String normalizeServerPluginContext(String contextSignature) {
-        return contextSignature == null ? "" : contextSignature.trim().toLowerCase(Locale.ROOT);
-    }
+   public boolean shouldSendGuiPackets() {
+      return this.sendGuiPackets;
+   }
 
-    private static String buildServerPluginScanKey(String address, String contextSignature) {
-        String normalizedAddress = normalizeServerAddress(address);
-        if (normalizedAddress.isEmpty()) return "";
-        String normalizedContext = normalizeServerPluginContext(contextSignature);
-        return normalizedContext.isEmpty() ? normalizedAddress + "|default" : normalizedAddress + "|" + normalizedContext;
-    }
+   public void setSendGuiPackets(boolean value) {
+      this.sendGuiPackets = value;
+   }
 
-    public boolean isBlockSelectorVisible() { return blockSelectorVisible; }
-    public void setBlockSelectorVisible(boolean visible) { this.blockSelectorVisible = visible; }
+   public boolean shouldDelayGuiPackets() {
+      return this.delayGuiPackets;
+   }
 
-    public boolean shouldSendGuiPackets() {
-        return sendGuiPackets;
-    }
+   public void setDelayGuiPackets(boolean value) {
+      if (!value || !PackHideState.isHardLocked()) {
+         this.delayGuiPackets = value;
+      }
+   }
 
-    public void setSendGuiPackets(boolean value) {
-        this.sendGuiPackets = value;
-    }
+   public boolean isXCarryActive() {
+      return this.xCarryActive;
+   }
 
-    public boolean shouldDelayGuiPackets() {
-        return delayGuiPackets;
-    }
+   public void setXCarryActive(boolean value) {
+      this.xCarryActive = value;
+   }
 
-    public void setDelayGuiPackets(boolean value) {
-        this.delayGuiPackets = value;
-    }
+   public boolean isXCarryForced() {
+      return this.xCarryForced;
+   }
 
-    public boolean isXCarryActive() {
-        return xCarryActive;
-    }
-
-    public void setXCarryActive(boolean value) {
-        this.xCarryActive = value;
-    }
-
-    public boolean isXCarryForced() {
-        return xCarryForced;
-    }
-
-    public void setXCarryForced(boolean value) {
-        if (value
-                && (this.xCarryForcedSlotMask == null || this.xCarryForcedSlotMask.isEmpty())
-                && !this.xCarryForcedCarryCursor) {
-
-            return;
-        }
-        this.xCarryForced = value;
-        if (!value) {
+   public void setXCarryForced(boolean value) {
+      if (!value || this.xCarryForcedSlotMask != null && !this.xCarryForcedSlotMask.isEmpty() || this.xCarryForcedCarryCursor) {
+         this.xCarryForced = value;
+         if (!value) {
             this.xCarryForcedSlotMask = Collections.emptySet();
             this.xCarryForcedCarryCursor = false;
-        }
-    }
+         }
+      }
+   }
 
-    public Set<Integer> getXCarryForcedSlotMask() {
-        return xCarryForcedSlotMask;
-    }
+   public Set<Integer> getXCarryForcedSlotMask() {
+      return this.xCarryForcedSlotMask;
+   }
 
-    public boolean isXCarryForcedCarryCursor() {
-        return xCarryForcedCarryCursor;
-    }
+   public boolean isXCarryForcedCarryCursor() {
+      return this.xCarryForcedCarryCursor;
+   }
 
-    public void setXCarryForcedTargets(Set<Integer> slotMask, boolean carryCursor) {
-        LinkedHashSet<Integer> copy = new LinkedHashSet<>();
-        if (slotMask != null) {
-            for (Integer slot : slotMask) {
-                if (slot != null && slot >= 0) copy.add(slot);
+   public void setXCarryForcedTargets(Set<Integer> slotMask, boolean carryCursor) {
+      LinkedHashSet<Integer> copy = new LinkedHashSet<>();
+      if (slotMask != null) {
+         for (Integer slot : slotMask) {
+            if (slot != null && slot >= 0) {
+               copy.add(slot);
             }
-        }
-        this.xCarryForcedSlotMask = Collections.unmodifiableSet(copy);
-        this.xCarryForcedCarryCursor = carryCursor;
-    }
+         }
+      }
 
-    public void mergeXCarryForcedTargets(Set<Integer> slotMask, boolean carryCursor) {
-        LinkedHashSet<Integer> merged = new LinkedHashSet<>();
-        if (xCarryForced && xCarryForcedSlotMask != null) {
-            for (Integer slot : xCarryForcedSlotMask) {
-                if (slot != null && slot >= 0) merged.add(slot);
+      this.xCarryForcedSlotMask = Collections.unmodifiableSet(copy);
+      this.xCarryForcedCarryCursor = carryCursor;
+   }
+
+   public void mergeXCarryForcedTargets(Set<Integer> slotMask, boolean carryCursor) {
+      LinkedHashSet<Integer> merged = new LinkedHashSet<>();
+      if (this.xCarryForced && this.xCarryForcedSlotMask != null) {
+         for (Integer slot : this.xCarryForcedSlotMask) {
+            if (slot != null && slot >= 0) {
+               merged.add(slot);
             }
-        }
-        if (slotMask != null) {
-            for (Integer slot : slotMask) {
-                if (slot != null && slot >= 0) merged.add(slot);
+         }
+      }
+
+      if (slotMask != null) {
+         for (Integer slotx : slotMask) {
+            if (slotx != null && slotx >= 0) {
+               merged.add(slotx);
             }
-        }
-        this.xCarryForcedSlotMask = Collections.unmodifiableSet(merged);
-        this.xCarryForcedCarryCursor = (xCarryForced && xCarryForcedCarryCursor) || carryCursor;
-    }
+         }
+      }
 
-    public boolean isXCarryArmorBypass() { return xCarryArmorBypass; }
-    public void setXCarryArmorBypass(boolean value) { this.xCarryArmorBypass = value; }
+      this.xCarryForcedSlotMask = Collections.unmodifiableSet(merged);
+      this.xCarryForcedCarryCursor = this.xCarryForced && this.xCarryForcedCarryCursor || carryCursor;
+   }
 
-    public BlockPos getLastInteractedBlockPos() { return lastInteractedBlockPos; }
-    public void setLastInteractedBlockPos(BlockPos pos) { lastInteractedBlockPos = pos; }
-    public AutismContainerTarget getLastContainerTarget() { return lastContainerTarget; }
-    public void setLastContainerTarget(AutismContainerTarget target) {
-        lastContainerTarget = target;
-        if (target != null && target.isBlock()) {
-            lastInteractedBlockPos = target.blockPos();
-        }
-    }
+   public boolean isXCarryArmorBypass() {
+      return this.xCarryArmorBypass;
+   }
 
-    public synchronized List<QueuedPacket> getDelayedPackets() {
-        return new ArrayList<>(delayedPackets);
-    }
+   public void setXCarryArmorBypass(boolean value) {
+      this.xCarryArmorBypass = value;
+   }
 
-    public int getQueueRenderRevision() {
-        return queueRenderRevision.get();
-    }
+   public BlockPos getLastInteractedBlockPos() {
+      return this.lastInteractedBlockPos;
+   }
 
-    public synchronized QueueRenderSnapshot getQueueRenderSnapshot(boolean sending, int maxLines) {
-        List<QueuedPacket> source = sending ? staggeredQueue : delayedPackets;
-        int totalCount = source.size();
-        if (totalCount == 0 || maxLines <= 0) {
-            return new QueueRenderSnapshot(List.of(), totalCount);
-        }
+   public void setLastInteractedBlockPos(BlockPos pos) {
+      this.lastInteractedBlockPos = pos;
+   }
 
-        int limit = Math.min(totalCount, maxLines);
-        ArrayList<QueuedPacket> visiblePackets = new ArrayList<>(limit);
-        for (QueuedPacket packet : source) {
-            if (packet == null || packet.packet == null) continue;
-            int insertAt = visiblePackets.size();
-            for (int i = 0; i < visiblePackets.size(); i++) {
-                QueuedPacket existing = visiblePackets.get(i);
-                int byDelay = Integer.compare(existing.getDelay(), packet.getDelay());
-                if (byDelay > 0 || (byDelay == 0 && existing.getId() > packet.getId())) {
-                    insertAt = i;
-                    break;
-                }
+   public AutismContainerTarget getLastContainerTarget() {
+      return this.lastContainerTarget;
+   }
+
+   public void setLastContainerTarget(AutismContainerTarget target) {
+      this.lastContainerTarget = target;
+      if (target != null && target.isBlock()) {
+         this.lastInteractedBlockPos = target.blockPos();
+      }
+   }
+
+   public synchronized List<AutismSharedState.QueuedPacket> getDelayedPackets() {
+      return new ArrayList<>(this.delayedPackets);
+   }
+
+   public int getQueueRenderRevision() {
+      return this.queueRenderRevision.get();
+   }
+
+   public synchronized AutismSharedState.QueueRenderSnapshot getQueueRenderSnapshot(boolean sending, int maxLines) {
+      List<AutismSharedState.QueuedPacket> source = sending ? this.staggeredQueue : this.delayedPackets;
+      int totalCount = source.size();
+      if (totalCount != 0 && maxLines > 0) {
+         int limit = Math.min(totalCount, maxLines);
+         ArrayList<AutismSharedState.QueuedPacket> visiblePackets = new ArrayList<>(limit);
+
+         for (AutismSharedState.QueuedPacket packet : source) {
+            if (packet != null && packet.packet != null) {
+               int insertAt = visiblePackets.size();
+
+               for (int i = 0; i < visiblePackets.size(); i++) {
+                  AutismSharedState.QueuedPacket existing = visiblePackets.get(i);
+                  int byDelay = Integer.compare(existing.getDelay(), packet.getDelay());
+                  if (byDelay > 0 || byDelay == 0 && existing.getId() > packet.getId()) {
+                     insertAt = i;
+                     break;
+                  }
+               }
+
+               if (insertAt < limit) {
+                  visiblePackets.add(insertAt, packet);
+                  if (visiblePackets.size() > limit) {
+                     visiblePackets.remove(limit);
+                  }
+               } else if (visiblePackets.size() < limit) {
+                  visiblePackets.add(packet);
+               }
             }
-            if (insertAt < limit) {
-                visiblePackets.add(insertAt, packet);
-                if (visiblePackets.size() > limit) {
-                    visiblePackets.remove(limit);
-                }
-            } else if (visiblePackets.size() < limit) {
-                visiblePackets.add(packet);
+         }
+
+         return new AutismSharedState.QueueRenderSnapshot(visiblePackets, totalCount);
+      } else {
+         return new AutismSharedState.QueueRenderSnapshot(List.of(), totalCount);
+      }
+   }
+
+   public synchronized boolean hasDelayedPackets() {
+      return !this.delayedPackets.isEmpty();
+   }
+
+   public synchronized void setDelayedPackets(List<AutismSharedState.QueuedPacket> packets) {
+      this.delayedPackets.clear();
+      if (packets != null && !packets.isEmpty()) {
+         this.delayedPackets.addAll(this.rebuildQueueWithSequentialIds(packets));
+      }
+
+      this.checkAndResetIdCounter();
+      this.markQueueRenderDirty();
+   }
+
+   public synchronized void clearDelayedPackets() {
+      if (!this.delayedPackets.isEmpty()) {
+         this.saveToHistory();
+      }
+
+      this.delayedPackets.clear();
+      this.checkAndResetIdCounter();
+      this.markQueueRenderDirty();
+   }
+
+   private void checkAndResetIdCounter() {
+      if (this.delayedPackets.isEmpty() && this.staggeredQueue.isEmpty()) {
+         this.resetCaptureTiming();
+         AutismSharedState.QueuedPacket.resetIdCounter();
+      }
+   }
+
+   private void resetCaptureTiming() {
+      this.lastCaptureNanos = -1L;
+      this.lastCaptureClientTick = -1;
+   }
+
+   private void saveToHistory() {
+      this.lastFlushedQueue.clear();
+      if (!this.delayedPackets.isEmpty()) {
+         this.lastFlushedQueue.addAll(this.rebuildQueueWithSequentialIds(this.delayedPackets));
+      }
+   }
+
+   private void saveQueueToHistory(List<AutismSharedState.QueuedPacket> queue) {
+      this.lastFlushedQueue.clear();
+      if (queue != null && !queue.isEmpty()) {
+         this.lastFlushedQueue.addAll(this.rebuildQueueWithSequentialIds(queue));
+      }
+   }
+
+   private void stopStaggeredSendLocked() {
+      this.staggeredQueue.clear();
+      this.staggeredDisplayQueue.clear();
+      this.staggeredNetworkHandler = null;
+      this.staggeredTickCounter = 0;
+      this.flushStartNanos = 0L;
+      this.flushStartClientTick = 0;
+      this.staggeredTotal = 0;
+      this.activeSendUsesExplicitDelays = false;
+      this.activeCaptureLastNanos = -1L;
+      this.activeCaptureLastClientTick = -1;
+      this.activeCaptureTailDelay = 0;
+      this.staggeredDelayMode = this.delayMode;
+      this.markQueueRenderDirty();
+   }
+
+   private void markQueueRenderDirty() {
+      this.queueRenderRevision.incrementAndGet();
+   }
+
+   private boolean isActiveStaggerSendLocked() {
+      return this.staggeredNetworkHandler != null && !this.staggeredQueue.isEmpty();
+   }
+
+   private int getElapsedForDelayModeLocked(AutismSharedState.DelayMode mode) {
+      if (mode == AutismSharedState.DelayMode.MS) {
+         return this.flushStartNanos <= 0L ? 0 : (int)Math.max(0L, (System.nanoTime() - this.flushStartNanos) / 1000000L);
+      } else {
+         return Math.max(0, this.clientTickCounter - this.flushStartClientTick);
+      }
+   }
+
+   private int getQueueTailDelayLocked(List<AutismSharedState.QueuedPacket> queue) {
+      int maxDelay = 0;
+      if (queue != null && !queue.isEmpty()) {
+         for (AutismSharedState.QueuedPacket qp : queue) {
+            if (qp != null && !qp.isSent()) {
+               maxDelay = Math.max(maxDelay, qp.getDelay());
             }
-        }
-        return new QueueRenderSnapshot(visiblePackets, totalCount);
-    }
+         }
 
-    public synchronized boolean hasDelayedPackets() {
-        return !delayedPackets.isEmpty();
-    }
+         return maxDelay;
+      } else {
+         return maxDelay;
+      }
+   }
 
-    public synchronized void setDelayedPackets(List<QueuedPacket> packets) {
-        delayedPackets.clear();
-        if (packets != null && !packets.isEmpty()) {
-            delayedPackets.addAll(rebuildQueueWithSequentialIds(packets));
-        }
-        checkAndResetIdCounter();
-        markQueueRenderDirty();
-    }
+   private void insertQueuedPacketSorted(List<AutismSharedState.QueuedPacket> queue, AutismSharedState.QueuedPacket packet) {
+      if (queue != null && packet != null) {
+         int insertAt = queue.size();
 
-    public synchronized void clearDelayedPackets() {
-        if (!delayedPackets.isEmpty()) {
-            saveToHistory();
-        }
-        delayedPackets.clear();
-        checkAndResetIdCounter();
-        markQueueRenderDirty();
-    }
-
-    private void checkAndResetIdCounter() {
-        if (delayedPackets.isEmpty() && staggeredQueue.isEmpty()) {
-            resetCaptureTiming();
-            QueuedPacket.resetIdCounter();
-        }
-    }
-
-    private void resetCaptureTiming() {
-        lastCaptureNanos = -1;
-        lastCaptureClientTick = -1;
-    }
-
-    private void saveToHistory() {
-        lastFlushedQueue.clear();
-        if (!delayedPackets.isEmpty()) {
-            lastFlushedQueue.addAll(rebuildQueueWithSequentialIds(delayedPackets));
-        }
-    }
-
-    private void saveQueueToHistory(List<QueuedPacket> queue) {
-        lastFlushedQueue.clear();
-        if (queue == null || queue.isEmpty()) return;
-        lastFlushedQueue.addAll(rebuildQueueWithSequentialIds(queue));
-    }
-
-    private void stopStaggeredSendLocked() {
-        staggeredQueue.clear();
-        staggeredDisplayQueue.clear();
-        staggeredNetworkHandler = null;
-        staggeredTickCounter = 0;
-        flushStartNanos = 0;
-        flushStartClientTick = 0;
-        staggeredTotal = 0;
-        activeSendUsesExplicitDelays = false;
-        activeCaptureLastNanos = -1;
-        activeCaptureLastClientTick = -1;
-        activeCaptureTailDelay = 0;
-        staggeredDelayMode = delayMode;
-        markQueueRenderDirty();
-    }
-
-    private void markQueueRenderDirty() {
-        queueRenderRevision.incrementAndGet();
-    }
-
-    private boolean isActiveStaggerSendLocked() {
-        return staggeredNetworkHandler != null && !staggeredQueue.isEmpty();
-    }
-
-    private int getElapsedForDelayModeLocked(DelayMode mode) {
-        if (mode == DelayMode.MS) {
-            if (flushStartNanos <= 0L) return 0;
-            return (int) Math.max(0L, (System.nanoTime() - flushStartNanos) / 1_000_000L);
-        }
-        return Math.max(0, clientTickCounter - flushStartClientTick);
-    }
-
-    private int getQueueTailDelayLocked(List<QueuedPacket> queue) {
-        int maxDelay = 0;
-        if (queue == null || queue.isEmpty()) return maxDelay;
-        for (QueuedPacket qp : queue) {
-            if (qp == null || qp.isSent()) continue;
-            maxDelay = Math.max(maxDelay, qp.getDelay());
-        }
-        return maxDelay;
-    }
-
-    private void insertQueuedPacketSorted(List<QueuedPacket> queue, QueuedPacket packet) {
-        if (queue == null || packet == null) return;
-        int insertAt = queue.size();
-        for (int i = 0; i < queue.size(); i++) {
-            QueuedPacket existing = queue.get(i);
-            if (existing == null) continue;
-            int byDelay = Integer.compare(existing.getDelay(), packet.getDelay());
-            if (byDelay > 0 || (byDelay == 0 && existing.getId() > packet.getId())) {
-                insertAt = i;
-                break;
+         for (int i = 0; i < queue.size(); i++) {
+            AutismSharedState.QueuedPacket existing = queue.get(i);
+            if (existing != null) {
+               int byDelay = Integer.compare(existing.getDelay(), packet.getDelay());
+               if (byDelay > 0 || byDelay == 0 && existing.getId() > packet.getId()) {
+                  insertAt = i;
+                  break;
+               }
             }
-        }
-        queue.add(insertAt, packet);
-    }
+         }
 
-    private int computeActiveQueueDelayLocked() {
-        int elapsed = getElapsedForDelayModeLocked(staggeredDelayMode);
-        if (activeSendUsesExplicitDelays || captureMode) {
-            return elapsed;
-        }
+         queue.add(insertAt, packet);
+      }
+   }
 
-        if (staggeredPacketSend) {
-            int tailDelay = getQueueTailDelayLocked(staggeredQueue);
-            return Math.max(elapsed, tailDelay) + staggeredSendDelay;
-        }
+   private int computeActiveQueueDelayLocked() {
+      int elapsed = this.getElapsedForDelayModeLocked(this.staggeredDelayMode);
+      if (this.activeSendUsesExplicitDelays || this.captureMode) {
+         return elapsed;
+      } else if (this.staggeredPacketSend) {
+         int tailDelay = this.getQueueTailDelayLocked(this.staggeredQueue);
+         return Math.max(elapsed, tailDelay) + this.staggeredSendDelay;
+      } else {
+         return elapsed;
+      }
+   }
 
-        return elapsed;
-    }
+   private int computeActiveCapturedQueueDelayLocked() {
+      if (this.staggeredDelayMode == AutismSharedState.DelayMode.MS) {
+         long now = System.nanoTime();
+         long reference = this.activeCaptureLastNanos > 0L ? this.activeCaptureLastNanos : this.flushStartNanos;
+         int delta = reference > 0L ? (int)Math.max(0L, (now - reference) / 1000000L) : 0;
+         this.activeCaptureLastNanos = now;
+         this.activeCaptureLastClientTick = this.clientTickCounter;
+         this.activeCaptureTailDelay += delta;
+         return this.activeCaptureTailDelay;
+      } else {
+         int tick = this.clientTickCounter;
+         int reference = this.activeCaptureLastClientTick >= 0 ? this.activeCaptureLastClientTick : this.flushStartClientTick;
+         int delta = Math.max(0, tick - reference);
+         this.activeCaptureLastClientTick = tick;
+         this.activeCaptureLastNanos = System.nanoTime();
+         this.activeCaptureTailDelay += delta;
+         return this.activeCaptureTailDelay;
+      }
+   }
 
-    private int computeActiveCapturedQueueDelayLocked() {
-        if (staggeredDelayMode == DelayMode.MS) {
-            long now = System.nanoTime();
-            long reference = activeCaptureLastNanos > 0L ? activeCaptureLastNanos : flushStartNanos;
-            int delta = reference > 0L ? (int) Math.max(0L, (now - reference) / 1_000_000L) : 0;
-            activeCaptureLastNanos = now;
-            activeCaptureLastClientTick = clientTickCounter;
-            activeCaptureTailDelay += delta;
-            return activeCaptureTailDelay;
-        }
+   public synchronized boolean restoreLastFlushedQueue() {
+      if (this.lastFlushedQueue.isEmpty()) {
+         return false;
+      } else {
+         this.delayedPackets.clear();
+         this.resetCaptureTiming();
+         if (!this.lastFlushedQueue.isEmpty()) {
+            this.delayedPackets.addAll(this.rebuildQueueWithSequentialIds(this.lastFlushedQueue));
+         }
 
-        int tick = clientTickCounter;
-        int reference = activeCaptureLastClientTick >= 0 ? activeCaptureLastClientTick : flushStartClientTick;
-        int delta = Math.max(0, tick - reference);
-        activeCaptureLastClientTick = tick;
-        activeCaptureLastNanos = System.nanoTime();
-        activeCaptureTailDelay += delta;
-        return activeCaptureTailDelay;
-    }
+         this.markQueueRenderDirty();
+         return true;
+      }
+   }
 
-    public synchronized boolean restoreLastFlushedQueue() {
-        if (lastFlushedQueue.isEmpty()) return false;
+   public synchronized void enqueuePacket(Packet<?> packet) {
+      this.enqueuePacket(packet, AutismSharedState.ReplayMode.REGENERATE);
+   }
 
-        delayedPackets.clear();
-        resetCaptureTiming();
+   public synchronized void enqueueExactPacket(Packet<?> packet) {
+      this.enqueuePacket(packet, AutismSharedState.ReplayMode.EXACT);
+   }
 
-        if (!lastFlushedQueue.isEmpty()) {
-            delayedPackets.addAll(rebuildQueueWithSequentialIds(lastFlushedQueue));
-        }
-        markQueueRenderDirty();
-        return true;
-    }
-
-    public synchronized void enqueuePacket(Packet<?> packet) {
-        enqueuePacket(packet, ReplayMode.REGENERATE);
-    }
-
-    public synchronized void enqueueExactPacket(Packet<?> packet) {
-        enqueuePacket(packet, ReplayMode.EXACT);
-    }
-
-    public synchronized void enqueuePacket(Packet<?> packet, ReplayMode replayMode) {
-        if (packet != null) {
-            ReplayMode mode = normalizeReplayModeForEnqueue(packet, replayMode);
-            if (isActiveStaggerSendLocked()) {
-                int activeDelay = captureMode
-                    ? computeActiveCapturedQueueDelayLocked()
-                    : computeActiveQueueDelayLocked();
-                QueuedPacket queuedPacket = new QueuedPacket(packet, activeDelay, mode);
-                insertQueuedPacketSorted(staggeredQueue, queuedPacket);
-                insertQueuedPacketSorted(staggeredDisplayQueue, queuedPacket);
-                staggeredTotal++;
-                markQueueRenderDirty();
-                return;
+   public synchronized void enqueuePacket(Packet<?> packet, AutismSharedState.ReplayMode replayMode) {
+      if (!PackHideState.isHardLocked()) {
+         if (packet != null) {
+            AutismSharedState.ReplayMode mode = this.normalizeReplayModeForEnqueue(packet, replayMode);
+            if (this.isActiveStaggerSendLocked()) {
+               int activeDelay = this.captureMode ? this.computeActiveCapturedQueueDelayLocked() : this.computeActiveQueueDelayLocked();
+               AutismSharedState.QueuedPacket queuedPacket = new AutismSharedState.QueuedPacket(packet, activeDelay, mode);
+               this.insertQueuedPacketSorted(this.staggeredQueue, queuedPacket);
+               this.insertQueuedPacketSorted(this.staggeredDisplayQueue, queuedPacket);
+               this.staggeredTotal++;
+               this.markQueueRenderDirty();
+               return;
             }
 
             int delay = 0;
-            if (captureMode) {
-                if (delayedPackets.isEmpty() && staggeredQueue.isEmpty()) {
-                    resetCaptureTiming();
-                }
-                if (delayMode == DelayMode.TICKS) {
+            if (this.captureMode) {
+               if (this.delayedPackets.isEmpty() && this.staggeredQueue.isEmpty()) {
+                  this.resetCaptureTiming();
+               }
 
-                    int tick = clientTickCounter;
-                    if (lastCaptureClientTick < 0) {
-                        lastCaptureClientTick = tick;
-                        delay = 0;
-                    } else {
-                        delay = tick - lastCaptureClientTick;
-                    }
-                } else {
-
-                    long now = System.nanoTime();
-                    if (lastCaptureNanos < 0) {
-                        lastCaptureNanos = now;
-                        delay = 0;
-                    } else {
-                        delay = (int) ((now - lastCaptureNanos) / 1_000_000L);
-                    }
-                }
-            } else if (staggeredPacketSend) {
-                delay = delayedPackets.size() * staggeredSendDelay;
+               if (this.delayMode == AutismSharedState.DelayMode.TICKS) {
+                  int tick = this.clientTickCounter;
+                  if (this.lastCaptureClientTick < 0) {
+                     this.lastCaptureClientTick = tick;
+                     delay = 0;
+                  } else {
+                     delay = tick - this.lastCaptureClientTick;
+                  }
+               } else {
+                  long now = System.nanoTime();
+                  if (this.lastCaptureNanos < 0L) {
+                     this.lastCaptureNanos = now;
+                     delay = 0;
+                  } else {
+                     delay = (int)((now - this.lastCaptureNanos) / 1000000L);
+                  }
+               }
+            } else if (this.staggeredPacketSend) {
+               delay = this.delayedPackets.size() * this.staggeredSendDelay;
             }
-            delayedPackets.add(new QueuedPacket(packet, delay, mode));
-            markQueueRenderDirty();
-        }
-    }
 
-    private ReplayMode normalizeReplayModeForEnqueue(Packet<?> packet, ReplayMode replayMode) {
-        ReplayMode mode = replayMode == null ? ReplayMode.REGENERATE : replayMode;
-        if (mode == ReplayMode.REGENERATE
-            && packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClosePacket closePacket
-            && hasExactContainerClickForContainer(readContainerCloseId(closePacket))) {
-            return ReplayMode.EXACT;
-        }
-        return mode;
-    }
+            this.delayedPackets.add(new AutismSharedState.QueuedPacket(packet, delay, mode));
+            this.markQueueRenderDirty();
+         }
+      }
+   }
 
-    private int readContainerCloseId(net.minecraft.network.protocol.game.ServerboundContainerClosePacket packet) {
-        if (packet == null) return -1;
-        for (String methodName : new String[] {"containerId", "syncId", "getSyncId"}) {
+   private AutismSharedState.ReplayMode normalizeReplayModeForEnqueue(Packet<?> packet, AutismSharedState.ReplayMode replayMode) {
+      AutismSharedState.ReplayMode mode = replayMode == null ? AutismSharedState.ReplayMode.REGENERATE : replayMode;
+      return mode == AutismSharedState.ReplayMode.REGENERATE
+            && packet instanceof ServerboundContainerClosePacket closePacket
+            && this.hasExactContainerClickForContainer(this.readContainerCloseId(closePacket))
+         ? AutismSharedState.ReplayMode.EXACT
+         : mode;
+   }
+
+   private int readContainerCloseId(ServerboundContainerClosePacket packet) {
+      if (packet == null) {
+         return -1;
+      } else {
+         for (String methodName : new String[]{"containerId", "syncId", "getSyncId"}) {
             try {
-                java.lang.reflect.Method method = packet.getClass().getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                Object value = method.invoke(packet);
-                if (value instanceof Number number) return number.intValue();
-            } catch (ReflectiveOperationException ignored) {
+               Method method = packet.getClass().getDeclaredMethod(methodName);
+               method.setAccessible(true);
+               if (method.invoke(packet) instanceof Number number) {
+                  return number.intValue();
+               }
+            } catch (ReflectiveOperationException var10) {
             }
-        }
-        if (packet.getClass().isRecord()) {
-            for (java.lang.reflect.RecordComponent component : packet.getClass().getRecordComponents()) {
-                try {
-                    Object value = component.getAccessor().invoke(packet);
-                    if (value instanceof Number number) return number.intValue();
-                } catch (ReflectiveOperationException ignored) {
-                }
+         }
+
+         if (packet.getClass().isRecord()) {
+            for (RecordComponent component : packet.getClass().getRecordComponents()) {
+               try {
+                  if (component.getAccessor().invoke(packet) instanceof Number number) {
+                     return number.intValue();
+                  }
+               } catch (ReflectiveOperationException var9) {
+               }
             }
-        }
-        for (java.lang.reflect.Field field : packet.getClass().getDeclaredFields()) {
+         }
+
+         for (Field field : packet.getClass().getDeclaredFields()) {
             if (field.getType() == int.class) {
-                try {
-                    field.setAccessible(true);
-                    return field.getInt(packet);
-                } catch (IllegalAccessException ignored) {
-                }
+               try {
+                  field.setAccessible(true);
+                  return field.getInt(packet);
+               } catch (IllegalAccessException var11) {
+               }
             }
-        }
-        return -1;
-    }
+         }
 
-    private boolean hasExactContainerClickForContainer(int containerId) {
-        for (QueuedPacket queuedPacket : delayedPackets) {
-            if (isExactClickForContainer(queuedPacket, containerId)) return true;
-        }
-        for (QueuedPacket queuedPacket : staggeredQueue) {
-            if (isExactClickForContainer(queuedPacket, containerId)) return true;
-        }
-        return false;
-    }
+         return -1;
+      }
+   }
 
-    private boolean isExactClickForContainer(QueuedPacket queuedPacket, int containerId) {
-        return queuedPacket != null
-            && queuedPacket.isExactReplay()
-            && queuedPacket.packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket clickPacket
-            && clickPacket.containerId() == containerId;
-    }
+   private boolean hasExactContainerClickForContainer(int containerId) {
+      for (AutismSharedState.QueuedPacket queuedPacket : this.delayedPackets) {
+         if (this.isExactClickForContainer(queuedPacket, containerId)) {
+            return true;
+         }
+      }
 
-    public void storeScreen(Screen screen, AbstractContainerMenu handler) {
-        this.storedScreen = screen;
-        this.storedAbstractContainerMenu = handler;
-    }
+      for (AutismSharedState.QueuedPacket queuedPacketx : this.staggeredQueue) {
+         if (this.isExactClickForContainer(queuedPacketx, containerId)) {
+            return true;
+         }
+      }
 
-    public Screen getStoredScreen() {
-        return storedScreen;
-    }
+      return false;
+   }
 
-    public AbstractContainerMenu getStoredAbstractContainerMenu() {
-        return storedAbstractContainerMenu;
-    }
+   private boolean isExactClickForContainer(AutismSharedState.QueuedPacket queuedPacket, int containerId) {
+      return queuedPacket != null
+         && queuedPacket.isExactReplay()
+         && queuedPacket.packet instanceof ServerboundContainerClickPacket clickPacket
+         && clickPacket.containerId() == containerId;
+   }
 
-    public synchronized int flushDelayedPackets(ClientPacketListener networkHandler) {
+   public void storeScreen(Screen screen, AbstractContainerMenu handler) {
+      this.storedScreen = screen;
+      this.storedAbstractContainerMenu = handler;
+   }
 
-        if (!staggeredQueue.isEmpty()) {
-            AutismClientMessaging.sendPrefixed("\u00a7cAlready sending - wait for current queue to finish");
+   public Screen getStoredScreen() {
+      return this.storedScreen;
+   }
+
+   public AbstractContainerMenu getStoredAbstractContainerMenu() {
+      return this.storedAbstractContainerMenu;
+   }
+
+   public synchronized int flushDelayedPackets(ClientPacketListener networkHandler) {
+      if (PackHideState.isHardLocked()) {
+         return 0;
+      } else if (!this.staggeredQueue.isEmpty()) {
+         AutismClientMessaging.sendPrefixed("§cAlready sending - wait for current queue to finish");
+         return 0;
+      } else {
+         this.pendingQueueCompletionMessage = null;
+         int count = this.delayedPackets.size();
+         if (count == 0) {
             return 0;
-        }
-
-        pendingQueueCompletionMessage = null;
-        int count = delayedPackets.size();
-        if (count == 0) return 0;
-
-        resetCaptureTiming();
-
-        AutismModule module = AutismModule.get();
-        boolean hasDelays = delayedPackets.stream().anyMatch(qp -> qp.delay > 0);
-
-        if (module.shouldUseDirectFlush() && !hasDelays) {
-            return flushDelayedPacketsDirect(networkHandler);
-        }
-
-        saveToHistory();
-
-        if (networkHandler != null) {
-            boolean shouldStagger = staggeredPacketSend || hasDelays;
-
-            if (shouldStagger) {
-
-                staggeredDisplayQueue.clear();
-                staggeredQueue.addAll(delayedPackets);
-                staggeredDisplayQueue.addAll(delayedPackets);
-                staggeredNetworkHandler = networkHandler;
-                staggeredTickCounter = 0;
-                staggeredTotal = count;
-                activeSendUsesExplicitDelays = hasDelays;
-                staggeredDelayMode = delayMode;
-                flushStartNanos = System.nanoTime();
-                flushStartClientTick = clientTickCounter;
-                activeCaptureLastNanos = flushStartNanos;
-                activeCaptureLastClientTick = flushStartClientTick;
-                activeCaptureTailDelay = getQueueTailDelayLocked(staggeredQueue);
+         } else {
+            this.resetCaptureTiming();
+            AutismModule module = AutismModule.get();
+            boolean hasDelays = this.delayedPackets.stream().anyMatch(qpx -> qpx.delay > 0);
+            if (module.shouldUseDirectFlush() && !hasDelays) {
+               return this.flushDelayedPacketsDirect(networkHandler);
             } else {
-                isFlushing = true;
-                try {
-                    for (QueuedPacket qp : delayedPackets) {
-                        if (AutismPacketRegistry.getC2SPackets().contains(qp.packet.getClass())) {
-                            Packet<?> packetToSend = packetForQueuedSend(qp);
-                            if (packetToSend == null) {
-                                continue;
-                            }
-                            autismclient.util.AutismPacketSender.send(packetToSend);
-                        } else {
-                            AutismClientAddon.LOG.warn("[Autism] Skipped sending invalid C2S packet during flush: {}", qp.packet.getClass().getName());
+               this.saveToHistory();
+               if (networkHandler != null) {
+                  boolean shouldStagger = this.staggeredPacketSend || hasDelays;
+                  if (shouldStagger) {
+                     this.staggeredDisplayQueue.clear();
+                     this.staggeredQueue.addAll(this.delayedPackets);
+                     this.staggeredDisplayQueue.addAll(this.delayedPackets);
+                     this.staggeredNetworkHandler = networkHandler;
+                     this.staggeredTickCounter = 0;
+                     this.staggeredTotal = count;
+                     this.activeSendUsesExplicitDelays = hasDelays;
+                     this.staggeredDelayMode = this.delayMode;
+                     this.flushStartNanos = System.nanoTime();
+                     this.flushStartClientTick = this.clientTickCounter;
+                     this.activeCaptureLastNanos = this.flushStartNanos;
+                     this.activeCaptureLastClientTick = this.flushStartClientTick;
+                     this.activeCaptureTailDelay = this.getQueueTailDelayLocked(this.staggeredQueue);
+                  } else {
+                     this.isFlushing = true;
+
+                     try {
+                        for (AutismSharedState.QueuedPacket qp : this.delayedPackets) {
+                           if (AutismPacketRegistry.getC2SPackets().contains(qp.packet.getClass())) {
+                              Packet<?> packetToSend = this.packetForQueuedSend(qp);
+                              if (packetToSend != null) {
+                                 AutismPacketSender.send(packetToSend);
+                              }
+                           } else {
+                              autismclient.AutismClientAddon.LOG
+                                 .warn("[Autism] Skipped sending invalid C2S packet during flush: {}", qp.packet.getClass().getName());
+                           }
                         }
-                    }
-                } finally {
-                    isFlushing = false;
-                }
+                     } finally {
+                        this.isFlushing = false;
+                     }
 
-                QueuedPacket.resetIdCounter();
+                     AutismSharedState.QueuedPacket.resetIdCounter();
+                  }
+               }
+
+               this.delayedPackets.clear();
+               this.markQueueRenderDirty();
+               return count;
             }
-        }
+         }
+      }
+   }
 
-        delayedPackets.clear();
-        markQueueRenderDirty();
-        return count;
-    }
+   public void sendPacketBypassDelay(ClientPacketListener networkHandler, Packet<?> packet) {
+      if (!PackHideState.isHardLocked()) {
+         if (networkHandler != null && packet != null) {
+            this.isFlushing = true;
 
-    public void sendPacketBypassDelay(ClientPacketListener networkHandler, Packet<?> packet) {
-        if (networkHandler == null || packet == null) return;
-        isFlushing = true;
-        try {
-            networkHandler.getConnection().send(packet, null);
-        } finally {
-            isFlushing = false;
-        }
-    }
-
-    private int flushDelayedPacketsDirect(ClientPacketListener networkHandler) {
-
-        int count = delayedPackets.size();
-        if (count == 0) return 0;
-
-        saveToHistory();
-
-        if (networkHandler != null) {
-            isFlushing = true;
             try {
-                for (QueuedPacket qp : delayedPackets) {
-                    if (AutismPacketRegistry.getC2SPackets().contains(qp.packet.getClass())) {
-                        Packet<?> packetToSend = packetForQueuedSend(qp);
-                        if (packetToSend == null) {
-                            continue;
-                        }
-                        networkHandler.getConnection().send(packetToSend, null);
-                    } else {
-                        AutismClientAddon.LOG.warn("[Autism] Skipped invalid C2S packet during bypass flush: {}",
-                            qp.packet.getClass().getName());
-                    }
-                }
+               networkHandler.getConnection().send(packet, null);
             } finally {
-                isFlushing = false;
+               this.isFlushing = false;
             }
-        }
+         }
+      }
+   }
 
-        delayedPackets.clear();
-        checkAndResetIdCounter();
-        markQueueRenderDirty();
-        return count;
-    }
+   private int flushDelayedPacketsDirect(ClientPacketListener networkHandler) {
+      if (PackHideState.isHardLocked()) {
+         return 0;
+      } else {
+         int count = this.delayedPackets.size();
+         if (count == 0) {
+            return 0;
+         } else {
+            this.saveToHistory();
+            if (networkHandler != null) {
+               this.isFlushing = true;
 
-    public synchronized void regenerateQueue() {
-        if (delayedPackets.isEmpty()) return;
-
-        List<QueuedPacket> newPackets = new ArrayList<>(delayedPackets.size());
-        int skipped = 0;
-        int deferredClickSlot = 0;
-
-        for (QueuedPacket qp : delayedPackets) {
-
-            if (qp.packet instanceof net.minecraft.network.protocol.game.ServerboundContainerClickPacket) {
-
-                newPackets.add(new QueuedPacket(qp.packet, qp.delay, qp.id, qp.replayMode));
-                deferredClickSlot++;
-                continue;
+               try {
+                  for (AutismSharedState.QueuedPacket qp : this.delayedPackets) {
+                     if (AutismPacketRegistry.getC2SPackets().contains(qp.packet.getClass())) {
+                        Packet<?> packetToSend = this.packetForQueuedSend(qp);
+                        if (packetToSend != null) {
+                           networkHandler.getConnection().send(packetToSend, null);
+                        }
+                     } else {
+                        autismclient.AutismClientAddon.LOG.warn("[Autism] Skipped invalid C2S packet during bypass flush: {}", qp.packet.getClass().getName());
+                     }
+                  }
+               } finally {
+                  this.isFlushing = false;
+               }
             }
 
-            if (qp.isExactReplay()) {
-                newPackets.add(new QueuedPacket(qp.packet, qp.delay, qp.id, qp.replayMode));
-                continue;
-            }
+            this.delayedPackets.clear();
+            this.checkAndResetIdCounter();
+            this.markQueueRenderDirty();
+            return count;
+         }
+      }
+   }
 
-            Packet<?> regenerated = PacketRegenerator.regenerate(qp.packet);
-            if (regenerated != null) {
+   public synchronized void regenerateQueue() {
+      if (!this.delayedPackets.isEmpty()) {
+         List<AutismSharedState.QueuedPacket> newPackets = new ArrayList<>(this.delayedPackets.size());
+         int skipped = 0;
+         int deferredClickSlot = 0;
 
-                newPackets.add(new QueuedPacket(regenerated, qp.delay, qp.id, qp.replayMode));
+         for (AutismSharedState.QueuedPacket qp : this.delayedPackets) {
+            if (qp.packet instanceof ServerboundContainerClickPacket) {
+               newPackets.add(new AutismSharedState.QueuedPacket(qp.packet, qp.delay, qp.id, qp.replayMode));
+               deferredClickSlot++;
+            } else if (qp.isExactReplay()) {
+               newPackets.add(new AutismSharedState.QueuedPacket(qp.packet, qp.delay, qp.id, qp.replayMode));
             } else {
-
-                skipped++;
+               Packet<?> regenerated = PacketRegenerator.regenerate(qp.packet);
+               if (regenerated != null) {
+                  newPackets.add(new AutismSharedState.QueuedPacket(regenerated, qp.delay, qp.id, qp.replayMode));
+               } else {
+                  skipped++;
+               }
             }
-        }
+         }
 
-        delayedPackets.clear();
-        delayedPackets.addAll(rebuildQueueWithSequentialIds(newPackets));
-        markQueueRenderDirty();
+         this.delayedPackets.clear();
+         this.delayedPackets.addAll(this.rebuildQueueWithSequentialIds(newPackets));
+         this.markQueueRenderDirty();
+         if (skipped <= 0 && deferredClickSlot <= 0) {
+            autismclient.AutismClientAddon.LOG.info("[Autism] Regenerated {} queued packets (IDs preserved).", newPackets.size());
+         } else {
+            autismclient.AutismClientAddon.LOG
+               .warn(
+                  "[Autism] Regenerated {} packets, skipped {}, deferred {} ClickSlot (IDs preserved).",
+                  new Object[]{newPackets.size() - deferredClickSlot, skipped, deferredClickSlot}
+               );
+         }
+      }
+   }
 
-        if (skipped > 0 || deferredClickSlot > 0) {
-            AutismClientAddon.LOG.warn("[Autism] Regenerated {} packets, skipped {}, deferred {} ClickSlot (IDs preserved).",
-                newPackets.size() - deferredClickSlot, skipped, deferredClickSlot);
-        } else {
-            AutismClientAddon.LOG.info("[Autism] Regenerated {} queued packets (IDs preserved).", newPackets.size());
-        }
-    }
+   public synchronized void tickStaggeredSend() {
+      if (PackHideState.isHardLocked()) {
+         this.staggeredQueue.clear();
+         this.staggeredDisplayQueue.clear();
+         this.staggeredNetworkHandler = null;
+         this.markQueueRenderDirty();
+      } else if (!this.staggeredQueue.isEmpty() && this.staggeredNetworkHandler != null) {
+         List<AutismSharedState.QueuedPacket> toRemove = new ArrayList<>();
 
-    public synchronized void tickStaggeredSend() {
-        if (staggeredQueue.isEmpty() || staggeredNetworkHandler == null) {
-            return;
-        }
-
-        List<QueuedPacket> toRemove = new ArrayList<>();
-
-        for (QueuedPacket qp : staggeredQueue) {
-
+         for (AutismSharedState.QueuedPacket qp : this.staggeredQueue) {
             boolean shouldSend;
-            if (staggeredDelayMode == DelayMode.MS) {
-
-                long elapsedMs = (System.nanoTime() - flushStartNanos) / 1_000_000L;
-                shouldSend = elapsedMs >= qp.getDelay() && !qp.isSent();
+            if (this.staggeredDelayMode == AutismSharedState.DelayMode.MS) {
+               long elapsedMs = (System.nanoTime() - this.flushStartNanos) / 1000000L;
+               shouldSend = elapsedMs >= qp.getDelay() && !qp.isSent();
             } else {
-
-                int elapsedTicks = clientTickCounter - flushStartClientTick;
-                shouldSend = elapsedTicks >= qp.getDelay() && !qp.isSent();
+               int elapsedTicks = this.clientTickCounter - this.flushStartClientTick;
+               shouldSend = elapsedTicks >= qp.getDelay() && !qp.isSent();
             }
 
             if (shouldSend) {
-                isFlushing = true;
-                try {
+               this.isFlushing = true;
 
-                if (AutismPacketRegistry.getC2SPackets().contains(qp.packet.getClass())) {
-
-                    Packet<?> packetToSend = packetForQueuedSend(qp);
-                    if (packetToSend == null) {
+               try {
+                  if (AutismPacketRegistry.getC2SPackets().contains(qp.packet.getClass())) {
+                     Packet<?> packetToSend = this.packetForQueuedSend(qp);
+                     if (packetToSend == null) {
                         qp.markAsSent();
                         toRemove.add(qp);
-                        continue;
-                    }
-                    staggeredNetworkHandler.getConnection().send(packetToSend, null);
-                    qp.markAsSent();
-                    toRemove.add(qp);
-                } else {
-                        AutismClientAddon.LOG.warn("[Autism] Skipped sending invalid C2S packet: {}", qp.packet.getClass().getName());
-
+                     } else {
+                        this.staggeredNetworkHandler.getConnection().send(packetToSend, null);
                         qp.markAsSent();
                         toRemove.add(qp);
-                    }
-                } catch (Exception e) {
-                    qp.markAsSent();
-                    toRemove.add(qp);
-                    AutismClientAddon.LOG.error("[Autism] Failed to send queued packet: {}", qp.packet.getClass().getName(), e);
-                } finally {
-                    isFlushing = false;
-                }
+                     }
+                  } else {
+                     autismclient.AutismClientAddon.LOG.warn("[Autism] Skipped sending invalid C2S packet: {}", qp.packet.getClass().getName());
+                     qp.markAsSent();
+                     toRemove.add(qp);
+                  }
+               } catch (Exception var10) {
+                  qp.markAsSent();
+                  toRemove.add(qp);
+                  autismclient.AutismClientAddon.LOG.error("[Autism] Failed to send queued packet: {}", qp.packet.getClass().getName(), var10);
+               } finally {
+                  this.isFlushing = false;
+               }
             }
-        }
+         }
 
-        staggeredQueue.removeAll(toRemove);
-        if (!toRemove.isEmpty()) {
-            markQueueRenderDirty();
-        }
-        staggeredTickCounter++;
+         this.staggeredQueue.removeAll(toRemove);
+         if (!toRemove.isEmpty()) {
+            this.markQueueRenderDirty();
+         }
 
-        if (staggeredQueue.isEmpty()) {
-            int total = staggeredTotal;
-            String completionMessage = consumePendingQueueCompletionMessageLocked();
-            stopStaggeredSendLocked();
-
-            if (delayedPackets.isEmpty()) {
-                resetCaptureTiming();
-                QueuedPacket.resetIdCounter();
+         this.staggeredTickCounter++;
+         if (this.staggeredQueue.isEmpty()) {
+            int total = this.staggeredTotal;
+            String completionMessage = this.consumePendingQueueCompletionMessageLocked();
+            this.stopStaggeredSendLocked();
+            if (this.delayedPackets.isEmpty()) {
+               this.resetCaptureTiming();
+               AutismSharedState.QueuedPacket.resetIdCounter();
             }
 
             if (completionMessage == null || completionMessage.isBlank()) {
-                completionMessage = "Finished sending " + total + " packets.";
+               completionMessage = "Finished sending " + total + " packets.";
             }
-            AutismNotifications.show(completionMessage, 0xFF35D873);
-        }
-    }
 
-    public boolean hasStaggeredSendWork() {
-        return !staggeredQueue.isEmpty() && staggeredNetworkHandler != null;
-    }
+            AutismNotifications.show(completionMessage, -13248397);
+         }
+      }
+   }
 
-    public boolean hasPacketFlowWork() {
-        return delayGuiPackets
-            || !sendGuiPackets
-            || useCustomPackets
-            || isFlushing
-            || suppressNextContainerClosePacket
-            || suppressNextSignUpdatePacket
-            || suppressNextBookEditPacket
-            || forceNextSignUpdatePacket
-            || forceNextBookEditPacket
-            || !allowSignEditing
-            || !allowBookUpdate
-            || gbreakCaptureMode
-            || captureMode
-            || blockCaptureCallback != null
-            || directionalBlockCaptureCallback != null
-            || attackCaptureCallback != null
-            || entityCaptureCallback != null
-            || captureCancelCallback != null;
-    }
+   public boolean hasStaggeredSendWork() {
+      return !this.staggeredQueue.isEmpty() && this.staggeredNetworkHandler != null;
+   }
 
-    public synchronized boolean isStaggering() {
-        return !staggeredQueue.isEmpty() && staggeredNetworkHandler != null;
-    }
+   public boolean hasPacketFlowWork() {
+      return this.delayGuiPackets
+         || !this.sendGuiPackets
+         || this.useCustomPackets
+         || this.isFlushing
+         || this.suppressNextContainerClosePacket
+         || this.suppressNextSignUpdatePacket
+         || this.suppressNextBookEditPacket
+         || this.forceNextSignUpdatePacket
+         || this.forceNextBookEditPacket
+         || !this.allowSignEditing
+         || !this.allowBookUpdate
+         || this.gbreakCaptureMode
+         || this.captureMode
+         || this.blockCaptureCallback != null
+         || this.directionalBlockCaptureCallback != null
+         || this.attackCaptureCallback != null
+         || this.entityCaptureCallback != null
+         || this.captureCancelCallback != null;
+   }
 
-    public synchronized void setPendingQueueCompletionMessage(String message) {
-        pendingQueueCompletionMessage = (message == null || message.isBlank()) ? null : message;
-    }
+   public synchronized boolean isStaggering() {
+      return !this.staggeredQueue.isEmpty() && this.staggeredNetworkHandler != null;
+   }
 
-    private String consumePendingQueueCompletionMessageLocked() {
-        String message = pendingQueueCompletionMessage;
-        pendingQueueCompletionMessage = null;
-        return message;
-    }
+   public synchronized void setPendingQueueCompletionMessage(String message) {
+      this.pendingQueueCompletionMessage = message != null && !message.isBlank() ? message : null;
+   }
 
-    public synchronized List<QueuedPacket> getStaggeredQueue() {
-        return new ArrayList<>(staggeredQueue);
-    }
+   private String consumePendingQueueCompletionMessageLocked() {
+      String message = this.pendingQueueCompletionMessage;
+      this.pendingQueueCompletionMessage = null;
+      return message;
+   }
 
-    public synchronized boolean hasStaggeredPackets() {
-        return !staggeredQueue.isEmpty();
-    }
+   public synchronized List<AutismSharedState.QueuedPacket> getStaggeredQueue() {
+      return new ArrayList<>(this.staggeredQueue);
+   }
 
-    public synchronized List<QueuedPacket> getStaggeredDisplayQueue() {
-        return new ArrayList<>(staggeredDisplayQueue);
-    }
+   public synchronized boolean hasStaggeredPackets() {
+      return !this.staggeredQueue.isEmpty();
+   }
 
-    public synchronized int clearQueuedPackets() {
-        if (!staggeredQueue.isEmpty()) {
-            int count = staggeredQueue.size() + delayedPackets.size();
-            List<QueuedPacket> combined = new ArrayList<>(staggeredQueue.size() + delayedPackets.size());
-            combined.addAll(staggeredQueue);
-            combined.addAll(delayedPackets);
-            saveQueueToHistory(combined);
-            pendingQueueCompletionMessage = null;
-            stopStaggeredSendLocked();
-            delayedPackets.clear();
-            checkAndResetIdCounter();
-            return count;
-        }
+   public synchronized List<AutismSharedState.QueuedPacket> getStaggeredDisplayQueue() {
+      return new ArrayList<>(this.staggeredDisplayQueue);
+   }
 
-        int count = delayedPackets.size();
-        clearDelayedPackets();
-        return count;
-    }
+   public synchronized int clearQueuedPackets() {
+      if (!this.staggeredQueue.isEmpty()) {
+         int count = this.staggeredQueue.size() + this.delayedPackets.size();
+         List<AutismSharedState.QueuedPacket> combined = new ArrayList<>(this.staggeredQueue.size() + this.delayedPackets.size());
+         combined.addAll(this.staggeredQueue);
+         combined.addAll(this.delayedPackets);
+         this.saveQueueToHistory(combined);
+         this.pendingQueueCompletionMessage = null;
+         this.stopStaggeredSendLocked();
+         this.delayedPackets.clear();
+         this.checkAndResetIdCounter();
+         return count;
+      } else {
+         int count = this.delayedPackets.size();
+         this.clearDelayedPackets();
+         return count;
+      }
+   }
 
-    public synchronized void removeQueuedPacket(QueuedPacket packet) {
-        if (packet == null) return;
+   public synchronized void removeQueuedPacket(AutismSharedState.QueuedPacket packet) {
+      if (packet != null) {
+         this.staggeredDisplayQueue.remove(packet);
+         boolean removedFromStaggered = this.staggeredQueue.remove(packet);
+         if (removedFromStaggered && this.staggeredQueue.isEmpty()) {
+            this.stopStaggeredSendLocked();
+         }
 
-        staggeredDisplayQueue.remove(packet);
-        boolean removedFromStaggered = staggeredQueue.remove(packet);
-        if (removedFromStaggered && staggeredQueue.isEmpty()) {
-            stopStaggeredSendLocked();
-        }
-
-        if (!removedFromStaggered) {
-            delayedPackets.remove(packet);
-            if (!delayedPackets.isEmpty()) {
-                List<QueuedPacket> rebuilt = rebuildQueueWithSequentialIds(delayedPackets);
-                delayedPackets.clear();
-                delayedPackets.addAll(rebuilt);
+         if (!removedFromStaggered) {
+            this.delayedPackets.remove(packet);
+            if (!this.delayedPackets.isEmpty()) {
+               List<AutismSharedState.QueuedPacket> rebuilt = this.rebuildQueueWithSequentialIds(this.delayedPackets);
+               this.delayedPackets.clear();
+               this.delayedPackets.addAll(rebuilt);
             }
-        }
+         }
 
-        checkAndResetIdCounter();
-        markQueueRenderDirty();
-    }
+         this.checkAndResetIdCounter();
+         this.markQueueRenderDirty();
+      }
+   }
 
-    public synchronized void updatePacketDelay(QueuedPacket packet, int newDelay) {
-        if (packet != null) {
-            packet.setDelay(newDelay);
-            markQueueRenderDirty();
-        }
-    }
+   public synchronized void updatePacketDelay(AutismSharedState.QueuedPacket packet, int newDelay) {
+      if (packet != null) {
+         packet.setDelay(newDelay);
+         this.markQueueRenderDirty();
+      }
+   }
 
-    public synchronized void sortDelayedPacketsByDelayPreservingIds() {
-        if (delayedPackets.size() < 2) return;
-
-        List<QueuedPacket> ordered = new ArrayList<>(delayedPackets);
-        ordered.sort((a, b) -> {
+   public synchronized void sortDelayedPacketsByDelayPreservingIds() {
+      if (this.delayedPackets.size() >= 2) {
+         List<AutismSharedState.QueuedPacket> ordered = new ArrayList<>(this.delayedPackets);
+         ordered.sort((a, b) -> {
             int byDelay = Integer.compare(a.getDelay(), b.getDelay());
-            if (byDelay != 0) return byDelay;
-            return Integer.compare(a.getId(), b.getId());
-        });
+            return byDelay != 0 ? byDelay : Integer.compare(a.getId(), b.getId());
+         });
+         this.delayedPackets.clear();
+         this.delayedPackets.addAll(ordered);
+         this.markQueueRenderDirty();
+      }
+   }
 
-        delayedPackets.clear();
-        delayedPackets.addAll(ordered);
-        markQueueRenderDirty();
-    }
+   private List<AutismSharedState.QueuedPacket> rebuildQueueWithSequentialIds(List<AutismSharedState.QueuedPacket> source) {
+      List<AutismSharedState.QueuedPacket> rebuilt = new ArrayList<>();
+      if (source != null && !source.isEmpty()) {
+         List<AutismSharedState.QueuedPacket> ordered = new ArrayList<>();
 
-    private List<QueuedPacket> rebuildQueueWithSequentialIds(List<QueuedPacket> source) {
-        List<QueuedPacket> rebuilt = new ArrayList<>();
-        if (source == null || source.isEmpty()) return rebuilt;
-
-        List<QueuedPacket> ordered = new ArrayList<>();
-        for (QueuedPacket qp : source) {
+         for (AutismSharedState.QueuedPacket qp : source) {
             if (qp != null && qp.packet != null) {
-                ordered.add(qp);
+               ordered.add(qp);
             }
-        }
-        ordered.sort((a, b) -> {
+         }
+
+         ordered.sort((a, b) -> {
             int byDelay = Integer.compare(a.getDelay(), b.getDelay());
-            if (byDelay != 0) return byDelay;
-            return Integer.compare(a.getId(), b.getId());
-        });
+            return byDelay != 0 ? byDelay : Integer.compare(a.getId(), b.getId());
+         });
+         AutismSharedState.QueuedPacket.resetIdCounter();
 
-        QueuedPacket.resetIdCounter();
-        for (QueuedPacket qp : ordered) {
-            rebuilt.add(new QueuedPacket(qp.packet, qp.getDelay(), qp.getReplayMode()));
-        }
-        return rebuilt;
-    }
+         for (AutismSharedState.QueuedPacket qpx : ordered) {
+            rebuilt.add(new AutismSharedState.QueuedPacket(qpx.packet, qpx.getDelay(), qpx.getReplayMode()));
+         }
 
-    private Packet<?> packetForQueuedSend(QueuedPacket queuedPacket) {
-        if (queuedPacket == null || queuedPacket.packet == null) return null;
-        return queuedPacket.isExactReplay() ? queuedPacket.packet : PacketRegenerator.regenerate(queuedPacket.packet);
-    }
+         return rebuilt;
+      } else {
+         return rebuilt;
+      }
+   }
 
-    public record QueueRenderSnapshot(List<QueuedPacket> packets, int totalCount) {
-    }
+   private Packet<?> packetForQueuedSend(AutismSharedState.QueuedPacket queuedPacket) {
+      if (queuedPacket != null && queuedPacket.packet != null) {
+         return queuedPacket.isExactReplay() ? queuedPacket.packet : PacketRegenerator.regenerate(queuedPacket.packet);
+      } else {
+         return null;
+      }
+   }
 
-    public static class QueuedPacket {
-        private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
+   public boolean isFlushing() {
+      return this.isFlushing;
+   }
 
-        public final Packet<?> packet;
-        public final int id;
-        private volatile ReplayMode replayMode;
-        private volatile int delay;
-        private volatile boolean sent;
+   public void setFlushing(boolean value) {
+      this.isFlushing = value;
+   }
 
-        public QueuedPacket(Packet<?> packet, int delay) {
-            this(packet, delay, ReplayMode.REGENERATE);
-        }
+   public void clearStoredScreen() {
+      this.storedScreen = null;
+      this.storedAbstractContainerMenu = null;
+   }
 
-        public QueuedPacket(Packet<?> packet, int delay, ReplayMode replayMode) {
-            this.packet = packet;
-            this.id = ID_COUNTER.getAndIncrement();
-            this.delay = delay;
-            this.sent = false;
-            this.replayMode = replayMode == null ? ReplayMode.REGENERATE : replayMode;
-        }
+   public synchronized void resetAll() {
+      this.sendGuiPackets = true;
+      this.delayGuiPackets = false;
+      this.allowSignEditing = true;
+      this.allowBookUpdate = true;
+      this.bypassResourcePack = false;
+      this.resourcePackForceDeny = false;
+      this.xCarryActive = false;
+      this.xCarryForced = false;
+      this.lastInteractedBlockPos = null;
+      this.lastContainerTarget = null;
+      this.delayedPackets.clear();
+      this.staggeredQueue.clear();
+      this.staggeredDisplayQueue.clear();
+      this.staggeredNetworkHandler = null;
+      this.staggeredTickCounter = 0;
+      this.staggeredTotal = 0;
+      AutismSharedState.QueuedPacket.resetIdCounter();
+      this.activeSendUsesExplicitDelays = false;
+      this.flushStartNanos = 0L;
+      this.flushStartClientTick = 0;
+      this.activeCaptureLastNanos = -1L;
+      this.activeCaptureLastClientTick = -1;
+      this.activeCaptureTailDelay = 0;
+      this.staggeredDelayMode = AutismSharedState.DelayMode.TICKS;
+      this.lastCaptureNanos = -1L;
+      this.lastCaptureClientTick = -1;
+      this.markQueueRenderDirty();
+      this.storedScreen = null;
+      this.storedAbstractContainerMenu = null;
+      this.serverPluginScans.clear();
+      this.serverInfoOverlayActiveTab = 0;
+      this.serverInfoOverlayPluginScrollOffset = 0;
+      this.serverInfoOverlaySelectedPlugin = "";
+      this.serverInfoOverlayStateAddress = "";
+      this.realServerVersion = "";
+      this.realServerVersionAddress = "";
+      this.serverInfoOverlayProbeDelayMs = 50;
+   }
 
-        public QueuedPacket(Packet<?> packet, int delay, int existingId) {
-            this(packet, delay, existingId, ReplayMode.REGENERATE);
-        }
+   public boolean shouldEditSigns() {
+      return this.allowSignEditing;
+   }
 
-        public QueuedPacket(Packet<?> packet, int delay, int existingId, ReplayMode replayMode) {
-            this.packet = packet;
-            this.id = existingId;
-            this.delay = delay;
-            this.sent = false;
-            this.replayMode = replayMode == null ? ReplayMode.REGENERATE : replayMode;
-        }
+   public void setAllowSignEditing(boolean value) {
+      this.allowSignEditing = value;
+   }
 
-        public int getId() {
-            return id;
-        }
+   public boolean shouldUpdateBook() {
+      return this.allowBookUpdate;
+   }
 
-        public int getDelay() {
-            return delay;
-        }
+   public void setAllowBookUpdate(boolean value) {
+      this.allowBookUpdate = value;
+   }
 
-        public ReplayMode getReplayMode() {
-            return replayMode;
-        }
+   public boolean shouldBypassResourcePack() {
+      return this.bypassResourcePack;
+   }
 
-        public boolean isExactReplay() {
-            return replayMode == ReplayMode.EXACT;
-        }
+   public void setBypassResourcePack(boolean value) {
+      this.bypassResourcePack = value;
+   }
 
-        public synchronized void setDelay(int newDelay) {
-            if (!sent) {
-                this.delay = newDelay;
+   public boolean shouldForceDenyResourcePack() {
+      return this.resourcePackForceDeny;
+   }
+
+   public void setResourcePackForceDeny(boolean value) {
+      this.resourcePackForceDeny = value;
+   }
+
+   public boolean shouldUseCustomPackets() {
+      return this.useCustomPackets;
+   }
+
+   public void setUseCustomPackets(boolean value) {
+      this.useCustomPackets = value;
+   }
+
+   public Set<Class<? extends Packet<?>>> getC2SPackets() {
+      return this.c2sPackets;
+   }
+
+   public void setC2SPackets(Set<Class<? extends Packet<?>>> packets) {
+      this.c2sPackets = new HashSet<>(packets);
+   }
+
+   public Set<Class<? extends Packet<?>>> getS2CPackets() {
+      return this.s2cPackets;
+   }
+
+   public void setS2CPackets(Set<Class<? extends Packet<?>>> packets) {
+      this.s2cPackets = new HashSet<>(packets);
+   }
+
+   public boolean isStaggeredPacketSend() {
+      return this.staggeredPacketSend;
+   }
+
+   public void setStaggeredPacketSend(boolean value) {
+      if (!value || !PackHideState.isHardLocked()) {
+         this.staggeredPacketSend = value;
+      }
+   }
+
+   public int getStaggeredSendDelay() {
+      return this.staggeredSendDelay;
+   }
+
+   public void setStaggeredSendDelay(int delay) {
+      this.staggeredSendDelay = Math.max(1, Math.min(40, delay));
+   }
+
+   public AutismSharedState.DelayMode getDelayMode() {
+      return this.delayMode;
+   }
+
+   public synchronized AutismSharedState.DelayMode getQueueDisplayDelayMode() {
+      return this.isActiveStaggerSendLocked() ? this.staggeredDelayMode : this.delayMode;
+   }
+
+   public void setDelayMode(AutismSharedState.DelayMode mode) {
+      this.delayMode = mode;
+   }
+
+   public void toggleDelayMode() {
+      this.delayMode = this.delayMode == AutismSharedState.DelayMode.TICKS ? AutismSharedState.DelayMode.MS : AutismSharedState.DelayMode.TICKS;
+   }
+
+   public boolean isFabricatorOverlayVisible() {
+      return this.fabricatorOverlayVisible;
+   }
+
+   public void setFabricatorOverlayVisible(boolean visible) {
+      this.fabricatorOverlayVisible = visible;
+   }
+
+   public int getFabricatorOverlayX() {
+      return this.fabricatorOverlayX;
+   }
+
+   public void setFabricatorOverlayX(int x) {
+      this.fabricatorOverlayX = x;
+   }
+
+   public int getFabricatorOverlayY() {
+      return this.fabricatorOverlayY;
+   }
+
+   public void setFabricatorOverlayY(int y) {
+      this.fabricatorOverlayY = y;
+   }
+
+   public String getFabricatorSlotValue() {
+      return this.fabricatorSlotValue;
+   }
+
+   public void setFabricatorSlotValue(String value) {
+      this.fabricatorSlotValue = value != null ? value : "0";
+   }
+
+   public String getFabricatorItemNameValue() {
+      return this.fabricatorItemNameValue;
+   }
+
+   public void setFabricatorItemNameValue(String value) {
+      this.fabricatorItemNameValue = value != null ? value : "";
+   }
+
+   public String getFabricatorTimesValue() {
+      return this.fabricatorTimesValue;
+   }
+
+   public void setFabricatorTimesValue(String value) {
+      this.fabricatorTimesValue = value != null ? value : "1";
+   }
+
+   public int getFabricatorActionIndex() {
+      return this.fabricatorActionIndex;
+   }
+
+   public void setFabricatorActionIndex(int index) {
+      this.fabricatorActionIndex = Math.max(0, index);
+   }
+
+   public boolean isFabricatorCraftUseMaxAmount() {
+      return this.fabricatorCraftUseMaxAmount;
+   }
+
+   public void setFabricatorCraftUseMaxAmount(boolean useMaxAmount) {
+      this.fabricatorCraftUseMaxAmount = useMaxAmount;
+   }
+
+   public int getFabricatorButtonIndex() {
+      return this.fabricatorButtonIndex;
+   }
+
+   public void setFabricatorButtonIndex(int index) {
+      this.fabricatorButtonIndex = Math.max(0, index);
+   }
+
+   public boolean isFabricatorDropWholeStack() {
+      return this.fabricatorDropWholeStack;
+   }
+
+   public void setFabricatorDropWholeStack(boolean value) {
+      this.fabricatorDropWholeStack = value;
+   }
+
+   public String getFabricatorCraftSearchValue() {
+      return this.fabricatorCraftSearchValue;
+   }
+
+   public void setFabricatorCraftSearchValue(String value) {
+      this.fabricatorCraftSearchValue = value != null ? value : "";
+   }
+
+   public int getFabricatorCraftSelectedRecipeId() {
+      return this.fabricatorCraftSelectedRecipeId;
+   }
+
+   public void setFabricatorCraftSelectedRecipeId(int recipeId) {
+      this.fabricatorCraftSelectedRecipeId = recipeId;
+   }
+
+   public String getFabricatorCraftSelectedRecipeKey() {
+      return this.fabricatorCraftSelectedRecipeKey;
+   }
+
+   public void setFabricatorCraftSelectedRecipeKey(String recipeKey) {
+      this.fabricatorCraftSelectedRecipeKey = recipeKey != null ? recipeKey : "";
+   }
+
+   public int getFabricatorCraftScrollOffset() {
+      return this.fabricatorCraftScrollOffset;
+   }
+
+   public void setFabricatorCraftScrollOffset(int offset) {
+      this.fabricatorCraftScrollOffset = Math.max(0, offset);
+   }
+
+   public synchronized List<CraftAction.CraftEntry> getFabricatorCraftPlanEntries() {
+      List<CraftAction.CraftEntry> copies = new ArrayList<>(this.fabricatorCraftPlanEntries.size());
+
+      for (CraftAction.CraftEntry entry : this.fabricatorCraftPlanEntries) {
+         if (entry != null) {
+            copies.add(entry.copy());
+         }
+      }
+
+      return copies;
+   }
+
+   public synchronized void setFabricatorCraftPlanEntries(List<CraftAction.CraftEntry> entries) {
+      this.fabricatorCraftPlanEntries.clear();
+      if (entries != null) {
+         for (CraftAction.CraftEntry entry : entries) {
+            if (entry != null) {
+               this.fabricatorCraftPlanEntries.add(entry.copy());
             }
-        }
+         }
+      }
+   }
 
-        public synchronized void setReplayMode(ReplayMode mode) {
-            if (!sent) {
-                this.replayMode = mode == null ? ReplayMode.REGENERATE : mode;
+   public int getFabricatorCraftPlanSelectedIndex() {
+      return this.fabricatorCraftPlanSelectedIndex;
+   }
+
+   public void setFabricatorCraftPlanSelectedIndex(int index) {
+      this.fabricatorCraftPlanSelectedIndex = index;
+   }
+
+   public int getFabricatorCraftPlanScrollOffset() {
+      return this.fabricatorCraftPlanScrollOffset;
+   }
+
+   public void setFabricatorCraftPlanScrollOffset(int offset) {
+      this.fabricatorCraftPlanScrollOffset = Math.max(0, offset);
+   }
+
+   public boolean isLanSyncOverlayVisible() {
+      return this.lanSyncOverlayVisible;
+   }
+
+   public void setLanSyncOverlayVisible(boolean visible) {
+      this.lanSyncOverlayVisible = visible;
+   }
+
+   public int getLanSyncOverlayX() {
+      return this.lanSyncOverlayX;
+   }
+
+   public void setLanSyncOverlayX(int x) {
+      this.lanSyncOverlayX = x;
+   }
+
+   public int getLanSyncOverlayY() {
+      return this.lanSyncOverlayY;
+   }
+
+   public void setLanSyncOverlayY(int y) {
+      this.lanSyncOverlayY = y;
+   }
+
+   public int getLanSyncOverlayActiveTab() {
+      return this.lanSyncOverlayActiveTab;
+   }
+
+   public void setLanSyncOverlayActiveTab(int activeTab) {
+      this.lanSyncOverlayActiveTab = Math.max(0, activeTab);
+   }
+
+   public int getLanSyncOverlayScrollOffset() {
+      return this.lanSyncOverlayScrollOffset;
+   }
+
+   public void setLanSyncOverlayScrollOffset(int scrollOffset) {
+      this.lanSyncOverlayScrollOffset = Math.max(0, scrollOffset);
+   }
+
+   public boolean isLanSyncOverlayPerUserMode() {
+      return this.lanSyncOverlayPerUserMode;
+   }
+
+   public void setLanSyncOverlayPerUserMode(boolean perUserMode) {
+      this.lanSyncOverlayPerUserMode = perUserMode;
+   }
+
+   public String getLanSyncOverlaySelectedMacroName() {
+      return this.lanSyncOverlaySelectedMacroName;
+   }
+
+   public void setLanSyncOverlaySelectedMacroName(String selectedMacroName) {
+      this.lanSyncOverlaySelectedMacroName = selectedMacroName == null ? "" : selectedMacroName;
+   }
+
+   public String getLanSyncOverlayExpandedExecutePeer() {
+      return this.lanSyncOverlayExpandedExecutePeer;
+   }
+
+   public void setLanSyncOverlayExpandedExecutePeer(String expandedExecutePeer) {
+      this.lanSyncOverlayExpandedExecutePeer = expandedExecutePeer == null ? "" : expandedExecutePeer;
+   }
+
+   public String getLanSyncOverlaySelectedPeer() {
+      return this.lanSyncOverlaySelectedPeer;
+   }
+
+   public void setLanSyncOverlaySelectedPeer(String selectedPeer) {
+      this.lanSyncOverlaySelectedPeer = selectedPeer == null ? "" : selectedPeer;
+   }
+
+   public boolean isMacroListOverlayVisible() {
+      return this.macroListOverlayVisible;
+   }
+
+   public void setMacroListOverlayVisible(boolean visible) {
+      this.macroListOverlayVisible = visible;
+   }
+
+   public int getMacroListOverlayX() {
+      return this.macroListOverlayX;
+   }
+
+   public void setMacroListOverlayX(int x) {
+      this.macroListOverlayX = x;
+   }
+
+   public int getMacroListOverlayY() {
+      return this.macroListOverlayY;
+   }
+
+   public void setMacroListOverlayY(int y) {
+      this.macroListOverlayY = y;
+   }
+
+   public int getMacroListOverlayScrollOffset() {
+      return this.macroListOverlayScrollOffset;
+   }
+
+   public void setMacroListOverlayScrollOffset(int scrollOffset) {
+      this.macroListOverlayScrollOffset = Math.max(0, scrollOffset);
+   }
+
+   public String getMacroListOverlaySearch() {
+      return this.macroListOverlaySearch;
+   }
+
+   public void setMacroListOverlaySearch(String search) {
+      this.macroListOverlaySearch = search == null ? "" : search;
+   }
+
+   public boolean isQueueEditorOverlayVisible() {
+      return this.queueEditorOverlayVisible;
+   }
+
+   public void setQueueEditorOverlayVisible(boolean visible) {
+      this.queueEditorOverlayVisible = visible;
+   }
+
+   public int getQueueEditorOverlayX() {
+      return this.queueEditorOverlayX;
+   }
+
+   public void setQueueEditorOverlayX(int x) {
+      this.queueEditorOverlayX = x;
+   }
+
+   public int getQueueEditorOverlayY() {
+      return this.queueEditorOverlayY;
+   }
+
+   public void setQueueEditorOverlayY(int y) {
+      this.queueEditorOverlayY = y;
+   }
+
+   public int getServerDataOverlayActiveTab() {
+      return this.serverInfoOverlayActiveTab;
+   }
+
+   public void setServerDataOverlayActiveTab(int tab) {
+      this.serverInfoOverlayActiveTab = Math.max(0, tab);
+   }
+
+   public int getServerDataOverlayPluginScrollOffset() {
+      return this.serverInfoOverlayPluginScrollOffset;
+   }
+
+   public void setServerDataOverlayPluginScrollOffset(int offset) {
+      this.serverInfoOverlayPluginScrollOffset = Math.max(0, offset);
+   }
+
+   public String getServerDataOverlaySelectedPlugin() {
+      return this.serverInfoOverlaySelectedPlugin;
+   }
+
+   public void setServerDataOverlaySelectedPlugin(String plugin) {
+      this.serverInfoOverlaySelectedPlugin = plugin == null ? "" : plugin;
+   }
+
+   public String getServerDataOverlayStateAddress() {
+      return this.serverInfoOverlayStateAddress;
+   }
+
+   public void setServerDataOverlayStateAddress(String address) {
+      this.serverInfoOverlayStateAddress = normalizeServerAddress(address);
+   }
+
+   public String getRealServerVersion(String address) {
+      String normalizedAddress = normalizeServerAddress(address);
+      if (this.realServerVersion == null || this.realServerVersion.isBlank()) {
+         return "";
+      } else if (normalizedAddress.isEmpty()) {
+         return this.realServerVersion;
+      } else {
+         String normalizedStored = normalizeServerAddress(this.realServerVersionAddress);
+         if (normalizedStored.isEmpty()) {
+            return this.realServerVersion;
+         } else {
+            String addrNoPort = this.stripPort(normalizedAddress);
+            String storedNoPort = this.stripPort(normalizedStored);
+            if (addrNoPort.equals(storedNoPort)) {
+               return this.realServerVersion;
+            } else {
+               return normalizedAddress.equals(normalizedStored) ? this.realServerVersion : "";
             }
-        }
-
-        public boolean isSent() {
-            return sent;
-        }
-
-        synchronized void markAsSent() {
-            this.sent = true;
-        }
-
-        public static void resetIdCounter() {
-            ID_COUNTER.set(1);
-        }
-    }
-
-    public boolean isFlushing() {
-        return isFlushing;
-    }
-
-    public void setFlushing(boolean value) {
-        this.isFlushing = value;
-    }
-
-    public void clearStoredScreen() {
-        storedScreen = null;
-        storedAbstractContainerMenu = null;
-    }
-
-    public synchronized void resetAll() {
-        sendGuiPackets = true;
-        delayGuiPackets = false;
-        allowSignEditing = true;
-        allowBookUpdate = true;
-        bypassResourcePack = false;
-        resourcePackForceDeny = false;
-        xCarryActive = false;
-        xCarryForced = false;
-        lastInteractedBlockPos = null;
-        lastContainerTarget = null;
-        delayedPackets.clear();
-        staggeredQueue.clear();
-        staggeredDisplayQueue.clear();
-        staggeredNetworkHandler = null;
-        staggeredTickCounter = 0;
-        staggeredTotal = 0;
-        QueuedPacket.resetIdCounter();
-        activeSendUsesExplicitDelays = false;
-        flushStartNanos = 0;
-        flushStartClientTick = 0;
-        activeCaptureLastNanos = -1;
-        activeCaptureLastClientTick = -1;
-        activeCaptureTailDelay = 0;
-        staggeredDelayMode = DelayMode.TICKS;
-        lastCaptureNanos = -1;
-        lastCaptureClientTick = -1;
-        markQueueRenderDirty();
-
-        storedScreen = null;
-        storedAbstractContainerMenu = null;
-        serverPluginScans.clear();
-        serverInfoOverlayActiveTab = 0;
-        serverInfoOverlayPluginScrollOffset = 0;
-        serverInfoOverlaySelectedPlugin = "";
-        serverInfoOverlayStateAddress = "";
-        realServerVersion = "";
-        realServerVersionAddress = "";
-        serverInfoOverlayProbeDelayMs = 50;
-    }
-
-    public static final class ServerPluginScan {
-        private final String address;
-        private final String contextSignature;
-        private final List<String> plugins;
-        private final Map<String, List<String>> pluginCommands;
-        private final Map<String, String> pluginEvidence;
-
-        private ServerPluginScan(String address, String contextSignature, List<String> plugins, Map<String, List<String>> pluginCommands, Map<String, String> pluginEvidence) {
-            this.address = address;
-            this.contextSignature = contextSignature == null ? "" : contextSignature;
-            this.plugins = plugins == null ? List.of() : new ArrayList<>(plugins);
-            this.pluginCommands = copyPluginCommands(pluginCommands);
-            this.pluginEvidence = copyPluginEvidence(pluginEvidence);
-        }
-
-        public String getAddress() {
-            return address;
-        }
-
-        public List<String> getPlugins() {
-            return new ArrayList<>(plugins);
-        }
-
-        public String getContextSignature() {
-            return contextSignature;
-        }
-
-        public Map<String, List<String>> getPluginCommands() {
-            return copyPluginCommands(pluginCommands);
-        }
-
-        public Map<String, String> getPluginEvidence() {
-            return copyPluginEvidence(pluginEvidence);
-        }
-
-        private ServerPluginScan copy() {
-            return new ServerPluginScan(address, contextSignature, plugins, pluginCommands, pluginEvidence);
-        }
-
-        private static Map<String, List<String>> copyPluginCommands(Map<String, List<String>> source) {
-            if (source == null || source.isEmpty()) return Collections.emptyMap();
-
-            Map<String, List<String>> copy = new LinkedHashMap<>();
-            for (Map.Entry<String, List<String>> entry : source.entrySet()) {
-                if (entry.getKey() == null) continue;
-                copy.put(entry.getKey(), entry.getValue() == null ? List.of() : new ArrayList<>(entry.getValue()));
-            }
-            return copy;
-        }
-
-        private static Map<String, String> copyPluginEvidence(Map<String, String> source) {
-            if (source == null || source.isEmpty()) return Collections.emptyMap();
-
-            Map<String, String> copy = new LinkedHashMap<>();
-            for (Map.Entry<String, String> entry : source.entrySet()) {
-                if (entry.getKey() == null || entry.getKey().isBlank()) continue;
-                copy.put(entry.getKey(), entry.getValue() == null ? "" : entry.getValue());
-            }
-            return copy;
-        }
-    }
-
-    public boolean shouldEditSigns() {
-        return allowSignEditing;
-    }
-
-    public void setAllowSignEditing(boolean value) {
-        this.allowSignEditing = value;
-    }
-
-    public boolean shouldUpdateBook() {
-        return allowBookUpdate;
-    }
-
-    public void setAllowBookUpdate(boolean value) {
-        this.allowBookUpdate = value;
-    }
-
-    public boolean shouldBypassResourcePack() {
-        return bypassResourcePack;
-    }
-
-    public void setBypassResourcePack(boolean value) {
-        this.bypassResourcePack = value;
-    }
-
-    public boolean shouldForceDenyResourcePack() {
-        return resourcePackForceDeny;
-    }
-
-    public void setResourcePackForceDeny(boolean value) {
-        this.resourcePackForceDeny = value;
-    }
-
-    public boolean shouldUseCustomPackets() {
-        return useCustomPackets;
-    }
-
-    public void setUseCustomPackets(boolean value) {
-        this.useCustomPackets = value;
-    }
-
-    public Set<Class<? extends Packet<?>>> getC2SPackets() {
-        return c2sPackets;
-    }
-
-    public void setC2SPackets(Set<Class<? extends Packet<?>>> packets) {
-        this.c2sPackets = new HashSet<>(packets);
-    }
-
-    public Set<Class<? extends Packet<?>>> getS2CPackets() {
-        return s2cPackets;
-    }
-
-    public void setS2CPackets(Set<Class<? extends Packet<?>>> packets) {
-        this.s2cPackets = new HashSet<>(packets);
-    }
-
-    public boolean isStaggeredPacketSend() {
-        return staggeredPacketSend;
-    }
-
-    public void setStaggeredPacketSend(boolean value) {
-        this.staggeredPacketSend = value;
-    }
-
-    public int getStaggeredSendDelay() {
-        return staggeredSendDelay;
-    }
-
-    public void setStaggeredSendDelay(int delay) {
-        this.staggeredSendDelay = Math.max(1, Math.min(40, delay));
-    }
-
-    public DelayMode getDelayMode() {
-        return delayMode;
-    }
-
-    public synchronized DelayMode getQueueDisplayDelayMode() {
-        return isActiveStaggerSendLocked() ? staggeredDelayMode : delayMode;
-    }
-
-    public void setDelayMode(DelayMode mode) {
-        this.delayMode = mode;
-    }
-
-    public void toggleDelayMode() {
-        this.delayMode = (delayMode == DelayMode.TICKS) ? DelayMode.MS : DelayMode.TICKS;
-    }
-
-    public boolean isFabricatorOverlayVisible() {
-        return fabricatorOverlayVisible;
-    }
-
-    public void setFabricatorOverlayVisible(boolean visible) {
-        this.fabricatorOverlayVisible = visible;
-    }
-
-    public int getFabricatorOverlayX() {
-        return fabricatorOverlayX;
-    }
-
-    public void setFabricatorOverlayX(int x) {
-        this.fabricatorOverlayX = x;
-    }
-
-    public int getFabricatorOverlayY() {
-        return fabricatorOverlayY;
-    }
-
-    public void setFabricatorOverlayY(int y) {
-        this.fabricatorOverlayY = y;
-    }
-
-    public String getFabricatorSlotValue() {
-        return fabricatorSlotValue;
-    }
-
-    public void setFabricatorSlotValue(String value) {
-        this.fabricatorSlotValue = value != null ? value : "0";
-    }
-
-    public String getFabricatorItemNameValue() {
-        return fabricatorItemNameValue;
-    }
-
-    public void setFabricatorItemNameValue(String value) {
-        this.fabricatorItemNameValue = value != null ? value : "";
-    }
-
-    public String getFabricatorTimesValue() {
-        return fabricatorTimesValue;
-    }
-
-    public void setFabricatorTimesValue(String value) {
-        this.fabricatorTimesValue = value != null ? value : "1";
-    }
-
-    public int getFabricatorActionIndex() {
-        return fabricatorActionIndex;
-    }
-
-    public void setFabricatorActionIndex(int index) {
-        this.fabricatorActionIndex = Math.max(0, index);
-    }
-
-    public boolean isFabricatorCraftUseMaxAmount() {
-        return fabricatorCraftUseMaxAmount;
-    }
-
-    public void setFabricatorCraftUseMaxAmount(boolean useMaxAmount) {
-        this.fabricatorCraftUseMaxAmount = useMaxAmount;
-    }
-
-    public int getFabricatorButtonIndex() {
-        return fabricatorButtonIndex;
-    }
-
-    public void setFabricatorButtonIndex(int index) {
-        this.fabricatorButtonIndex = Math.max(0, index);
-    }
-
-    public boolean isFabricatorDropWholeStack() {
-        return fabricatorDropWholeStack;
-    }
-
-    public void setFabricatorDropWholeStack(boolean value) {
-        this.fabricatorDropWholeStack = value;
-    }
-
-    public String getFabricatorCraftSearchValue() {
-        return fabricatorCraftSearchValue;
-    }
-
-    public void setFabricatorCraftSearchValue(String value) {
-        this.fabricatorCraftSearchValue = value != null ? value : "";
-    }
-
-    public int getFabricatorCraftSelectedRecipeId() {
-        return fabricatorCraftSelectedRecipeId;
-    }
-
-    public void setFabricatorCraftSelectedRecipeId(int recipeId) {
-        this.fabricatorCraftSelectedRecipeId = recipeId;
-    }
-
-    public String getFabricatorCraftSelectedRecipeKey() {
-        return fabricatorCraftSelectedRecipeKey;
-    }
-
-    public void setFabricatorCraftSelectedRecipeKey(String recipeKey) {
-        this.fabricatorCraftSelectedRecipeKey = recipeKey != null ? recipeKey : "";
-    }
-
-    public int getFabricatorCraftScrollOffset() {
-        return fabricatorCraftScrollOffset;
-    }
-
-    public void setFabricatorCraftScrollOffset(int offset) {
-        this.fabricatorCraftScrollOffset = Math.max(0, offset);
-    }
-
-    public synchronized List<CraftAction.CraftEntry> getFabricatorCraftPlanEntries() {
-        List<CraftAction.CraftEntry> copies = new ArrayList<>(fabricatorCraftPlanEntries.size());
-        for (CraftAction.CraftEntry entry : fabricatorCraftPlanEntries) {
-            if (entry != null) copies.add(entry.copy());
-        }
-        return copies;
-    }
-
-    public synchronized void setFabricatorCraftPlanEntries(List<CraftAction.CraftEntry> entries) {
-        fabricatorCraftPlanEntries.clear();
-        if (entries == null) return;
-        for (CraftAction.CraftEntry entry : entries) {
-            if (entry != null) fabricatorCraftPlanEntries.add(entry.copy());
-        }
-    }
-
-    public int getFabricatorCraftPlanSelectedIndex() {
-        return fabricatorCraftPlanSelectedIndex;
-    }
-
-    public void setFabricatorCraftPlanSelectedIndex(int index) {
-        fabricatorCraftPlanSelectedIndex = index;
-    }
-
-    public int getFabricatorCraftPlanScrollOffset() {
-        return fabricatorCraftPlanScrollOffset;
-    }
-
-    public void setFabricatorCraftPlanScrollOffset(int offset) {
-        fabricatorCraftPlanScrollOffset = Math.max(0, offset);
-    }
-
-    public boolean isLanSyncOverlayVisible() {
-        return lanSyncOverlayVisible;
-    }
-
-    public void setLanSyncOverlayVisible(boolean visible) {
-        this.lanSyncOverlayVisible = visible;
-    }
-
-    public int getLanSyncOverlayX() {
-        return lanSyncOverlayX;
-    }
-
-    public void setLanSyncOverlayX(int x) {
-        this.lanSyncOverlayX = x;
-    }
-
-    public int getLanSyncOverlayY() {
-        return lanSyncOverlayY;
-    }
-
-    public void setLanSyncOverlayY(int y) {
-        this.lanSyncOverlayY = y;
-    }
-
-    public int getLanSyncOverlayActiveTab() {
-        return lanSyncOverlayActiveTab;
-    }
-
-    public void setLanSyncOverlayActiveTab(int activeTab) {
-        this.lanSyncOverlayActiveTab = Math.max(0, activeTab);
-    }
-
-    public int getLanSyncOverlayScrollOffset() {
-        return lanSyncOverlayScrollOffset;
-    }
-
-    public void setLanSyncOverlayScrollOffset(int scrollOffset) {
-        this.lanSyncOverlayScrollOffset = Math.max(0, scrollOffset);
-    }
-
-    public boolean isLanSyncOverlayPerUserMode() {
-        return lanSyncOverlayPerUserMode;
-    }
-
-    public void setLanSyncOverlayPerUserMode(boolean perUserMode) {
-        this.lanSyncOverlayPerUserMode = perUserMode;
-    }
-
-    public String getLanSyncOverlaySelectedMacroName() {
-        return lanSyncOverlaySelectedMacroName;
-    }
-
-    public void setLanSyncOverlaySelectedMacroName(String selectedMacroName) {
-        this.lanSyncOverlaySelectedMacroName = selectedMacroName == null ? "" : selectedMacroName;
-    }
-
-    public String getLanSyncOverlayExpandedExecutePeer() {
-        return lanSyncOverlayExpandedExecutePeer;
-    }
-
-    public void setLanSyncOverlayExpandedExecutePeer(String expandedExecutePeer) {
-        this.lanSyncOverlayExpandedExecutePeer = expandedExecutePeer == null ? "" : expandedExecutePeer;
-    }
-
-    public String getLanSyncOverlaySelectedPeer() {
-        return lanSyncOverlaySelectedPeer;
-    }
-
-    public void setLanSyncOverlaySelectedPeer(String selectedPeer) {
-        this.lanSyncOverlaySelectedPeer = selectedPeer == null ? "" : selectedPeer;
-    }
-
-    public boolean isMacroListOverlayVisible() {
-        return macroListOverlayVisible;
-    }
-
-    public void setMacroListOverlayVisible(boolean visible) {
-        this.macroListOverlayVisible = visible;
-    }
-
-    public int getMacroListOverlayX() {
-        return macroListOverlayX;
-    }
-
-    public void setMacroListOverlayX(int x) {
-        this.macroListOverlayX = x;
-    }
-
-    public int getMacroListOverlayY() {
-        return macroListOverlayY;
-    }
-
-    public void setMacroListOverlayY(int y) {
-        this.macroListOverlayY = y;
-    }
-
-    public int getMacroListOverlayScrollOffset() {
-        return macroListOverlayScrollOffset;
-    }
-
-    public void setMacroListOverlayScrollOffset(int scrollOffset) {
-        this.macroListOverlayScrollOffset = Math.max(0, scrollOffset);
-    }
-
-    public String getMacroListOverlaySearch() {
-        return macroListOverlaySearch;
-    }
-
-    public void setMacroListOverlaySearch(String search) {
-        this.macroListOverlaySearch = search == null ? "" : search;
-    }
-
-    public boolean isQueueEditorOverlayVisible() {
-        return queueEditorOverlayVisible;
-    }
-
-    public void setQueueEditorOverlayVisible(boolean visible) {
-        this.queueEditorOverlayVisible = visible;
-    }
-
-    public int getQueueEditorOverlayX() {
-        return queueEditorOverlayX;
-    }
-
-    public void setQueueEditorOverlayX(int x) {
-        this.queueEditorOverlayX = x;
-    }
-
-    public int getQueueEditorOverlayY() {
-        return queueEditorOverlayY;
-    }
-
-    public void setQueueEditorOverlayY(int y) {
-        this.queueEditorOverlayY = y;
-    }
-
-    public int getServerDataOverlayActiveTab() {
-        return serverInfoOverlayActiveTab;
-    }
-
-    public void setServerDataOverlayActiveTab(int tab) {
-        this.serverInfoOverlayActiveTab = Math.max(0, tab);
-    }
-
-    public int getServerDataOverlayPluginScrollOffset() {
-        return serverInfoOverlayPluginScrollOffset;
-    }
-
-    public void setServerDataOverlayPluginScrollOffset(int offset) {
-        this.serverInfoOverlayPluginScrollOffset = Math.max(0, offset);
-    }
-
-    public String getServerDataOverlaySelectedPlugin() {
-        return serverInfoOverlaySelectedPlugin;
-    }
-
-    public void setServerDataOverlaySelectedPlugin(String plugin) {
-        this.serverInfoOverlaySelectedPlugin = plugin == null ? "" : plugin;
-    }
-
-    public String getServerDataOverlayStateAddress() {
-        return serverInfoOverlayStateAddress;
-    }
-
-    public void setServerDataOverlayStateAddress(String address) {
-        this.serverInfoOverlayStateAddress = normalizeServerAddress(address);
-    }
-
-    public String getRealServerVersion(String address) {
-        String normalizedAddress = normalizeServerAddress(address);
-        if (realServerVersion == null || realServerVersion.isBlank()) return "";
-        if (normalizedAddress.isEmpty()) return realServerVersion;
-        String normalizedStored = normalizeServerAddress(realServerVersionAddress);
-        if (normalizedStored.isEmpty()) return realServerVersion;
-        String addrNoPort = stripPort(normalizedAddress);
-        String storedNoPort = stripPort(normalizedStored);
-        if (addrNoPort.equals(storedNoPort)) return realServerVersion;
-        if (normalizedAddress.equals(normalizedStored)) return realServerVersion;
-        return "";
-    }
-
-    private String stripPort(String address) {
-        if (address == null || address.isBlank()) return "";
-        int colonIdx = address.lastIndexOf(':');
-        if (colonIdx >= 0) {
+         }
+      }
+   }
+
+   private String stripPort(String address) {
+      if (address != null && !address.isBlank()) {
+         int colonIdx = address.lastIndexOf(58);
+         if (colonIdx >= 0) {
             String potentialPort = address.substring(colonIdx + 1);
             if (potentialPort.matches("\\d+")) {
-                return address.substring(0, colonIdx);
+               return address.substring(0, colonIdx);
             }
-        }
-        return address;
-    }
+         }
 
-    public void setRealServerVersion(String address, String version) {
-        String normalizedAddress = normalizeServerAddress(address);
-        this.realServerVersionAddress = normalizedAddress;
-        this.realServerVersion = version == null ? "" : version.trim();
-    }
+         return address;
+      } else {
+         return "";
+      }
+   }
 
-    public void clearRealServerVersion() {
-        this.realServerVersion = "";
-        this.realServerVersionAddress = "";
-    }
+   public void setRealServerVersion(String address, String version) {
+      String normalizedAddress = normalizeServerAddress(address);
+      this.realServerVersionAddress = normalizedAddress;
+      this.realServerVersion = version == null ? "" : version.trim();
+   }
 
-    public int getServerDataOverlayProbeDelayMs() {
-        return serverInfoOverlayProbeDelayMs;
-    }
+   public void clearRealServerVersion() {
+      this.realServerVersion = "";
+      this.realServerVersionAddress = "";
+   }
 
-    public void setServerDataOverlayProbeDelayMs(int delayMs) {
-        this.serverInfoOverlayProbeDelayMs = Math.max(10, Math.min(500, delayMs));
-    }
+   public int getServerDataOverlayProbeDelayMs() {
+      return this.serverInfoOverlayProbeDelayMs;
+   }
 
-    public int getServerDataOverlayInfoWidth() {
-        return serverInfoOverlayInfoWidth;
-    }
+   public void setServerDataOverlayProbeDelayMs(int delayMs) {
+      this.serverInfoOverlayProbeDelayMs = Math.max(10, Math.min(500, delayMs));
+   }
 
-    public void setServerDataOverlayInfoWidth(int width) {
-        this.serverInfoOverlayInfoWidth = Math.max(252, width);
-    }
+   public int getServerDataOverlayInfoWidth() {
+      return this.serverInfoOverlayInfoWidth;
+   }
 
-    public int getServerDataOverlayInfoHeight() {
-        return serverInfoOverlayInfoHeight;
-    }
+   public void setServerDataOverlayInfoWidth(int width) {
+      this.serverInfoOverlayInfoWidth = Math.max(252, width);
+   }
 
-    public void setServerDataOverlayInfoHeight(int height) {
-        this.serverInfoOverlayInfoHeight = Math.max(258, height);
-    }
+   public int getServerDataOverlayInfoHeight() {
+      return this.serverInfoOverlayInfoHeight;
+   }
 
-    public int getServerDataOverlayPluginWidth() {
-        return serverInfoOverlayPluginWidth;
-    }
+   public void setServerDataOverlayInfoHeight(int height) {
+      this.serverInfoOverlayInfoHeight = Math.max(258, height);
+   }
 
-    public void setServerDataOverlayPluginWidth(int width) {
-        this.serverInfoOverlayPluginWidth = Math.max(280, width);
-    }
+   public int getServerDataOverlayPluginWidth() {
+      return this.serverInfoOverlayPluginWidth;
+   }
 
-    public int getServerDataOverlayPluginHeight() {
-        return serverInfoOverlayPluginHeight;
-    }
+   public void setServerDataOverlayPluginWidth(int width) {
+      this.serverInfoOverlayPluginWidth = Math.max(280, width);
+   }
 
-    public void setServerDataOverlayPluginHeight(int height) {
-        this.serverInfoOverlayPluginHeight = Math.max(280, height);
-    }
+   public int getServerDataOverlayPluginHeight() {
+      return this.serverInfoOverlayPluginHeight;
+   }
 
-    public void startGBreakCapture(Runnable onCaptureComplete) {
-        gbreakCaptureMode = true;
-        gbreakPacketCount = 0;
-        gbreakCapturedPackets.clear();
-        gbreakCallback = onCaptureComplete;
-    }
+   public void setServerDataOverlayPluginHeight(int height) {
+      this.serverInfoOverlayPluginHeight = Math.max(280, height);
+   }
 
-    public boolean isGBreakCapturing() {
-        return gbreakCaptureMode;
-    }
+   public void startGBreakCapture(Runnable onCaptureComplete) {
+      this.gbreakCaptureMode = true;
+      this.gbreakPacketCount = 0;
+      this.gbreakCapturedPackets.clear();
+      this.gbreakCallback = onCaptureComplete;
+   }
 
-    public void onGBreakPacket(Packet<?> packet) {
-        if (!gbreakCaptureMode) return;
+   public boolean isGBreakCapturing() {
+      return this.gbreakCaptureMode;
+   }
 
-        gbreakPacketCount++;
-        AutismClientAddon.LOG.info("[GBreak] Packet #{}: {}", gbreakPacketCount, packet.getClass().getSimpleName());
+   public void onGBreakPacket(Packet<?> packet) {
+      if (this.gbreakCaptureMode) {
+         this.gbreakPacketCount++;
+         autismclient.AutismClientAddon.LOG.info("[GBreak] Packet #{}: {}", this.gbreakPacketCount, packet.getClass().getSimpleName());
+         if (this.gbreakPacketCount == 2) {
+            this.gbreakCapturedPackets.clear();
+            this.gbreakCapturedPackets.add(new AutismSharedState.QueuedPacket(packet, 0));
+            this.finishGBreakCapture();
+         }
+      }
+   }
 
-        if (gbreakPacketCount == 2) {
+   public List<AutismSharedState.QueuedPacket> getGBreakCapturedPackets() {
+      return new ArrayList<>(this.gbreakCapturedPackets);
+   }
 
-            gbreakCapturedPackets.clear();
-            gbreakCapturedPackets.add(new QueuedPacket(packet, 0));
-            finishGBreakCapture();
-        }
-    }
+   private void finishGBreakCapture() {
+      this.gbreakCaptureMode = false;
+      if (this.gbreakCallback != null) {
+         this.gbreakCallback.run();
+         this.gbreakCallback = null;
+      }
+   }
 
-    public List<QueuedPacket> getGBreakCapturedPackets() {
-        return new ArrayList<>(gbreakCapturedPackets);
-    }
+   public void cancelGBreakCapture() {
+      this.gbreakCaptureMode = false;
+      this.gbreakPacketCount = 0;
+      this.gbreakCapturedPackets.clear();
+      this.gbreakCallback = null;
+   }
 
-    private void finishGBreakCapture() {
-        gbreakCaptureMode = false;
-        if (gbreakCallback != null) {
-            gbreakCallback.run();
-            gbreakCallback = null;
-        }
-    }
+   public void setSuppressNextClosePacket(boolean v) {
+      this.setSuppressNextContainerClosePacket(v);
+   }
 
-    public void cancelGBreakCapture() {
-        gbreakCaptureMode = false;
-        gbreakPacketCount = 0;
-        gbreakCapturedPackets.clear();
-        gbreakCallback = null;
-    }
+   public void setSuppressNextContainerClosePacket(boolean v) {
+      this.suppressNextContainerClosePacket = v;
+   }
 
-    private volatile boolean suppressNextContainerClosePacket = false;
-    private volatile boolean suppressNextSignUpdatePacket = false;
-    private volatile boolean suppressNextBookEditPacket = false;
-    private volatile boolean forceNextSignUpdatePacket = false;
-    private volatile boolean forceNextBookEditPacket = false;
-    public void setSuppressNextClosePacket(boolean v) { setSuppressNextContainerClosePacket(v); }
-    public void setSuppressNextContainerClosePacket(boolean v) { suppressNextContainerClosePacket = v; }
-    public void setSuppressNextSignUpdatePacket(boolean v) { suppressNextSignUpdatePacket = v; }
-    public void setSuppressNextBookEditPacket(boolean v) { suppressNextBookEditPacket = v; }
-    public void setForceNextSignUpdatePacket(boolean v) { forceNextSignUpdatePacket = v; }
-    public void setForceNextBookEditPacket(boolean v) { forceNextBookEditPacket = v; }
+   public void setSuppressNextSignUpdatePacket(boolean v) {
+      this.suppressNextSignUpdatePacket = v;
+   }
 
-    public boolean consumeSuppressNextClosePacket() {
-        boolean v = suppressNextContainerClosePacket;
-        suppressNextContainerClosePacket = false;
-        return v;
-    }
+   public void setSuppressNextBookEditPacket(boolean v) {
+      this.suppressNextBookEditPacket = v;
+   }
 
-    public boolean consumeSuppressNextContainerClosePacket() {
-        return consumeSuppressNextClosePacket();
-    }
+   public void setForceNextSignUpdatePacket(boolean v) {
+      this.forceNextSignUpdatePacket = v;
+   }
 
-    public boolean consumeSuppressNextSignUpdatePacket() {
-        boolean v = suppressNextSignUpdatePacket;
-        suppressNextSignUpdatePacket = false;
-        return v;
-    }
+   public void setForceNextBookEditPacket(boolean v) {
+      this.forceNextBookEditPacket = v;
+   }
 
-    public boolean consumeSuppressNextBookEditPacket() {
-        boolean v = suppressNextBookEditPacket;
-        suppressNextBookEditPacket = false;
-        return v;
-    }
+   public boolean consumeSuppressNextClosePacket() {
+      boolean v = this.suppressNextContainerClosePacket;
+      this.suppressNextContainerClosePacket = false;
+      return v;
+   }
 
-    public boolean consumeForceNextSignUpdatePacket() {
-        boolean v = forceNextSignUpdatePacket;
-        forceNextSignUpdatePacket = false;
-        return v;
-    }
+   public boolean consumeSuppressNextContainerClosePacket() {
+      return this.consumeSuppressNextClosePacket();
+   }
 
-    public boolean consumeForceNextBookEditPacket() {
-        boolean v = forceNextBookEditPacket;
-        forceNextBookEditPacket = false;
-        return v;
-    }
+   public boolean consumeSuppressNextSignUpdatePacket() {
+      boolean v = this.suppressNextSignUpdatePacket;
+      this.suppressNextSignUpdatePacket = false;
+      return v;
+   }
 
-    private volatile java.util.function.Consumer<net.minecraft.core.BlockPos> blockCaptureCallback = null;
-    private volatile java.util.function.BiConsumer<net.minecraft.core.BlockPos, net.minecraft.core.Direction> directionalBlockCaptureCallback = null;
+   public boolean consumeSuppressNextBookEditPacket() {
+      boolean v = this.suppressNextBookEditPacket;
+      this.suppressNextBookEditPacket = false;
+      return v;
+   }
 
-    public void setBlockCaptureCallback(java.util.function.Consumer<net.minecraft.core.BlockPos> cb) {
-        this.blockCaptureCallback = cb;
-    }
+   public boolean consumeForceNextSignUpdatePacket() {
+      boolean v = this.forceNextSignUpdatePacket;
+      this.forceNextSignUpdatePacket = false;
+      return v;
+   }
 
-    public void setDirectionalBlockCaptureCallback(java.util.function.BiConsumer<net.minecraft.core.BlockPos, net.minecraft.core.Direction> cb) {
-        this.directionalBlockCaptureCallback = cb;
-    }
+   public boolean consumeForceNextBookEditPacket() {
+      boolean v = this.forceNextBookEditPacket;
+      this.forceNextBookEditPacket = false;
+      return v;
+   }
 
-    public boolean consumeBlockCaptureCallback(net.minecraft.core.BlockPos pos) {
-        return consumeBlockCaptureCallback(pos, net.minecraft.core.Direction.UP);
-    }
+   public void setBlockCaptureCallback(Consumer<BlockPos> cb) {
+      this.blockCaptureCallback = cb;
+   }
 
-    public boolean consumeBlockCaptureCallback(net.minecraft.core.BlockPos pos, net.minecraft.core.Direction direction) {
-        java.util.function.BiConsumer<net.minecraft.core.BlockPos, net.minecraft.core.Direction> dcb = directionalBlockCaptureCallback;
-        if (dcb != null) {
-            directionalBlockCaptureCallback = null;
-            dcb.accept(pos, direction == null ? net.minecraft.core.Direction.UP : direction);
-            return true;
-        }
-        java.util.function.Consumer<net.minecraft.core.BlockPos> cb = blockCaptureCallback;
-        if (cb != null) {
-            blockCaptureCallback = null;
+   public void setDirectionalBlockCaptureCallback(BiConsumer<BlockPos, Direction> cb) {
+      this.directionalBlockCaptureCallback = cb;
+   }
+
+   public boolean consumeBlockCaptureCallback(BlockPos pos) {
+      return this.consumeBlockCaptureCallback(pos, Direction.UP);
+   }
+
+   public boolean consumeBlockCaptureCallback(BlockPos pos, Direction direction) {
+      BiConsumer<BlockPos, Direction> dcb = this.directionalBlockCaptureCallback;
+      if (dcb != null) {
+         this.directionalBlockCaptureCallback = null;
+         dcb.accept(pos, direction == null ? Direction.UP : direction);
+         return true;
+      } else {
+         Consumer<BlockPos> cb = this.blockCaptureCallback;
+         if (cb != null) {
+            this.blockCaptureCallback = null;
             cb.accept(pos);
             return true;
-        }
-        return false;
-    }
+         } else {
+            return false;
+         }
+      }
+   }
 
-    public boolean hasBlockCaptureCallback() { return blockCaptureCallback != null || directionalBlockCaptureCallback != null; }
+   public boolean hasBlockCaptureCallback() {
+      return this.blockCaptureCallback != null || this.directionalBlockCaptureCallback != null;
+   }
 
-    private volatile Runnable attackCaptureCallback = null;
-    private volatile Runnable captureCancelCallback = null;
+   public void setAttackCaptureCallback(Runnable cb) {
+      this.attackCaptureCallback = cb;
+   }
 
-    public void setAttackCaptureCallback(Runnable cb) { this.attackCaptureCallback = cb; }
+   public boolean consumeAttackCaptureCallback() {
+      Runnable cb = this.attackCaptureCallback;
+      if (cb != null) {
+         this.attackCaptureCallback = null;
+         cb.run();
+         return true;
+      } else {
+         return false;
+      }
+   }
 
-    public boolean consumeAttackCaptureCallback() {
-        Runnable cb = attackCaptureCallback;
-        if (cb != null) {
-            attackCaptureCallback = null;
-            cb.run();
-            return true;
-        }
-        return false;
-    }
+   public boolean hasAttackCaptureCallback() {
+      return this.attackCaptureCallback != null;
+   }
 
-    public boolean hasAttackCaptureCallback() { return attackCaptureCallback != null; }
+   public void setCaptureCancelCallback(Runnable cb) {
+      this.captureCancelCallback = cb;
+   }
 
-    public void setCaptureCancelCallback(Runnable cb) {
-        this.captureCancelCallback = cb;
-    }
+   public boolean consumeCaptureCancelCallback() {
+      Runnable cb = this.captureCancelCallback;
+      if (cb != null) {
+         this.captureCancelCallback = null;
+         cb.run();
+         return true;
+      } else {
+         return false;
+      }
+   }
 
-    public boolean consumeCaptureCancelCallback() {
-        Runnable cb = captureCancelCallback;
-        if (cb != null) {
-            captureCancelCallback = null;
-            cb.run();
-            return true;
-        }
-        return false;
-    }
+   public boolean hasCaptureCancelCallback() {
+      return this.captureCancelCallback != null;
+   }
 
-    public boolean hasCaptureCancelCallback() { return captureCancelCallback != null; }
+   public void setEntityCaptureCallback(Consumer<String> cb) {
+      this.entityCaptureCallback = cb;
+   }
 
-    private volatile java.util.function.Consumer<String> entityCaptureCallback = null;
+   public boolean consumeEntityCaptureCallback(String payload) {
+      Consumer<String> cb = this.entityCaptureCallback;
+      if (cb != null) {
+         this.entityCaptureCallback = null;
+         cb.accept(payload);
+         return true;
+      } else {
+         return false;
+      }
+   }
 
-    private volatile boolean entityCaptureSpecific = false;
+   public boolean hasEntityCaptureCallback() {
+      return this.entityCaptureCallback != null;
+   }
 
-    public void setEntityCaptureCallback(java.util.function.Consumer<String> cb) {
-        this.entityCaptureCallback = cb;
-    }
+   public void setEntityCaptureSpecific(boolean v) {
+      this.entityCaptureSpecific = v;
+   }
 
-    public boolean consumeEntityCaptureCallback(String payload) {
-        java.util.function.Consumer<String> cb = entityCaptureCallback;
-        if (cb != null) {
-            entityCaptureCallback = null;
-            cb.accept(payload);
-            return true;
-        }
-        return false;
-    }
+   public boolean isEntityCaptureSpecific() {
+      return this.entityCaptureSpecific;
+   }
 
-    public boolean hasEntityCaptureCallback() { return entityCaptureCallback != null; }
-    public void setEntityCaptureSpecific(boolean v) { entityCaptureSpecific = v; }
-    public boolean isEntityCaptureSpecific() { return entityCaptureSpecific; }
+   public boolean isCaptureMode() {
+      return this.captureMode;
+   }
 
-    public boolean isCaptureMode() { return captureMode; }
-    public void setCaptureMode(boolean v) {
-        this.captureMode = v;
-        if (v) {
-            this.lastCaptureNanos = -1;
+   public void setCaptureMode(boolean v) {
+      if (!v || !PackHideState.isHardLocked()) {
+         this.captureMode = v;
+         if (v) {
+            this.lastCaptureNanos = -1L;
             this.lastCaptureClientTick = -1;
-        }
-    }
+         }
+      }
+   }
 
-    public void onServerTimeSyncReceived() {
-        long now = System.currentTimeMillis();
-        if (lastTimeSyncMs > 0) {
-            long wallDeltaMs = now - lastTimeSyncMs;
-            if (wallDeltaMs > 0) {
+   public void onServerTimeSyncReceived() {
+      long now = System.currentTimeMillis();
+      if (this.lastTimeSyncMs > 0L) {
+         long wallDeltaMs = now - this.lastTimeSyncMs;
+         if (wallDeltaMs > 0L) {
+            double measured = wallDeltaMs / 20.0;
+            measured = Math.max(50.0, Math.min(200.0, measured));
+            this.serverMsPerTick = this.serverMsPerTick * 0.3 + measured * 0.7;
+         }
+      }
 
-                double measured = wallDeltaMs / 20.0;
+      this.lastTimeSyncMs = now;
+   }
 
-                measured = Math.max(50.0, Math.min(200.0, measured));
+   public double getServerMsPerTick() {
+      return this.serverMsPerTick;
+   }
 
-                serverMsPerTick = serverMsPerTick * 0.3 + measured * 0.7;
+   public double getEstimatedTps() {
+      return this.lastTimeSyncMs <= 0L ? -1.0 : 1000.0 / this.serverMsPerTick;
+   }
+
+   public void onClientTickStart() {
+      this.clientTickCounter++;
+   }
+
+   public int getClientTickCounter() {
+      return this.clientTickCounter;
+   }
+
+   public boolean isPlaceCaptureActive() {
+      return this.placeCaptureActive;
+   }
+
+   public void setPlaceCaptureActive(boolean active) {
+      this.placeCaptureActive = active;
+   }
+
+   public static enum DelayMode {
+      TICKS,
+      MS;
+   }
+
+   public record QueueRenderSnapshot(List<AutismSharedState.QueuedPacket> packets, int totalCount) {
+   }
+
+   public static class QueuedPacket {
+      private static final AtomicInteger ID_COUNTER = new AtomicInteger(1);
+      public final Packet<?> packet;
+      public final int id;
+      private volatile AutismSharedState.ReplayMode replayMode;
+      private volatile int delay;
+      private volatile boolean sent;
+
+      public QueuedPacket(Packet<?> packet, int delay) {
+         this(packet, delay, AutismSharedState.ReplayMode.REGENERATE);
+      }
+
+      public QueuedPacket(Packet<?> packet, int delay, AutismSharedState.ReplayMode replayMode) {
+         this.packet = packet;
+         this.id = ID_COUNTER.getAndIncrement();
+         this.delay = delay;
+         this.sent = false;
+         this.replayMode = replayMode == null ? AutismSharedState.ReplayMode.REGENERATE : replayMode;
+      }
+
+      public QueuedPacket(Packet<?> packet, int delay, int existingId) {
+         this(packet, delay, existingId, AutismSharedState.ReplayMode.REGENERATE);
+      }
+
+      public QueuedPacket(Packet<?> packet, int delay, int existingId, AutismSharedState.ReplayMode replayMode) {
+         this.packet = packet;
+         this.id = existingId;
+         this.delay = delay;
+         this.sent = false;
+         this.replayMode = replayMode == null ? AutismSharedState.ReplayMode.REGENERATE : replayMode;
+      }
+
+      public int getId() {
+         return this.id;
+      }
+
+      public int getDelay() {
+         return this.delay;
+      }
+
+      public AutismSharedState.ReplayMode getReplayMode() {
+         return this.replayMode;
+      }
+
+      public boolean isExactReplay() {
+         return this.replayMode == AutismSharedState.ReplayMode.EXACT;
+      }
+
+      public synchronized void setDelay(int newDelay) {
+         if (!this.sent) {
+            this.delay = newDelay;
+         }
+      }
+
+      public synchronized void setReplayMode(AutismSharedState.ReplayMode mode) {
+         if (!this.sent) {
+            this.replayMode = mode == null ? AutismSharedState.ReplayMode.REGENERATE : mode;
+         }
+      }
+
+      public boolean isSent() {
+         return this.sent;
+      }
+
+      synchronized void markAsSent() {
+         this.sent = true;
+      }
+
+      public static void resetIdCounter() {
+         ID_COUNTER.set(1);
+      }
+   }
+
+   public static enum ReplayMode {
+      REGENERATE,
+      EXACT;
+   }
+
+   public static final class ReportSample {
+      public final String label;
+      public final long deltaMs;
+      public final String startEvent;
+      public final String endEvent;
+      public final long capturedAtMs;
+
+      public ReportSample(String label, long deltaMs, String startEvent, String endEvent, long capturedAtMs) {
+         this.label = label == null ? "" : label;
+         this.deltaMs = deltaMs;
+         this.startEvent = startEvent == null ? "" : startEvent;
+         this.endEvent = endEvent == null ? "" : endEvent;
+         this.capturedAtMs = capturedAtMs;
+      }
+   }
+
+   public static final class ServerPluginScan {
+      private final String address;
+      private final String contextSignature;
+      private final List<String> plugins;
+      private final Map<String, List<String>> pluginCommands;
+      private final Map<String, String> pluginEvidence;
+
+      private ServerPluginScan(
+         String address, String contextSignature, List<String> plugins, Map<String, List<String>> pluginCommands, Map<String, String> pluginEvidence
+      ) {
+         this.address = address;
+         this.contextSignature = contextSignature == null ? "" : contextSignature;
+         this.plugins = (List<String>)(plugins == null ? List.of() : new ArrayList<>(plugins));
+         this.pluginCommands = copyPluginCommands(pluginCommands);
+         this.pluginEvidence = copyPluginEvidence(pluginEvidence);
+      }
+
+      public String getAddress() {
+         return this.address;
+      }
+
+      public List<String> getPlugins() {
+         return new ArrayList<>(this.plugins);
+      }
+
+      public String getContextSignature() {
+         return this.contextSignature;
+      }
+
+      public Map<String, List<String>> getPluginCommands() {
+         return copyPluginCommands(this.pluginCommands);
+      }
+
+      public Map<String, String> getPluginEvidence() {
+         return copyPluginEvidence(this.pluginEvidence);
+      }
+
+      private AutismSharedState.ServerPluginScan copy() {
+         return new AutismSharedState.ServerPluginScan(this.address, this.contextSignature, this.plugins, this.pluginCommands, this.pluginEvidence);
+      }
+
+      private static Map<String, List<String>> copyPluginCommands(Map<String, List<String>> source) {
+         if (source != null && !source.isEmpty()) {
+            Map<String, List<String>> copy = new LinkedHashMap<>();
+
+            for (Entry<String, List<String>> entry : source.entrySet()) {
+               if (entry.getKey() != null) {
+                  copy.put(entry.getKey(), (List<String>)(entry.getValue() == null ? List.of() : new ArrayList<>(entry.getValue())));
+               }
             }
-        }
-        lastTimeSyncMs = now;
-    }
 
-    public double getServerMsPerTick() {
-        return serverMsPerTick;
-    }
+            return copy;
+         } else {
+            return Collections.emptyMap();
+         }
+      }
 
-    public double getEstimatedTps() {
-        if (lastTimeSyncMs <= 0) return -1;
-        return 1000.0 / serverMsPerTick;
-    }
+      private static Map<String, String> copyPluginEvidence(Map<String, String> source) {
+         if (source != null && !source.isEmpty()) {
+            Map<String, String> copy = new LinkedHashMap<>();
 
-    public void onClientTickStart() {
-        clientTickCounter++;
-    }
+            for (Entry<String, String> entry : source.entrySet()) {
+               if (entry.getKey() != null && !entry.getKey().isBlank()) {
+                  copy.put(entry.getKey(), entry.getValue() == null ? "" : entry.getValue());
+               }
+            }
 
-    public int getClientTickCounter() {
-        return clientTickCounter;
-    }
-
-    private volatile boolean placeCaptureActive = false;
-
-    public boolean isPlaceCaptureActive() {
-        return placeCaptureActive;
-    }
-
-    public void setPlaceCaptureActive(boolean active) {
-        this.placeCaptureActive = active;
-    }
-
+            return copy;
+         } else {
+            return Collections.emptyMap();
+         }
+      }
+   }
 }

@@ -156,28 +156,56 @@ public abstract class AutismSignEditScreenMixin extends Screen implements Autism
         }
     }
 
+    //? if >=1.21.9 {
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
+    //?} else {
+/*    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e.x(), e.y(), e.button(), dx, dy); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubled = false;*/
+    //?}
         if (yang$isAutismActive() && AutismOverlayManager.get().handleMouseClicked(click.x(), click.y(), click.button())) {
             return true;
         }
-        return super.mouseClicked(click, doubled);
+        return autism$superMouseClicked(click, doubled);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (yang$isAutismActive() && AutismOverlayManager.get().handleMouseReleased(click.x(), click.y(), click.button())) {
             return true;
         }
-        return super.mouseReleased(click);
+        return autism$superMouseReleased(click);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double deltaX, double deltaY) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (yang$isAutismActive() && AutismOverlayManager.get().handleMouseDragged(click.x(), click.y(), click.button(), deltaX, deltaY)) {
             return true;
         }
-        return super.mouseDragged(click, deltaX, deltaY);
+        return autism$superMouseDragged(click, deltaX, deltaY);
     }
 
     @Override
@@ -189,7 +217,12 @@ public abstract class AutismSignEditScreenMixin extends Screen implements Autism
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$keyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$keyPressed(int autism$k, int autism$s, int autism$m, CallbackInfoReturnable<Boolean> cir) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (!yang$isAutismActive()) return;
         if (AutismOverlayManager.get().handleKeyPressed(input.key(), input.scancode(), input.modifiers())) {
             cir.setReturnValue(true);
@@ -197,7 +230,12 @@ public abstract class AutismSignEditScreenMixin extends Screen implements Autism
     }
 
     @Inject(method = "charTyped", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$charTyped(CharacterEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$charTyped(char autism$c, int autism$mods, CallbackInfoReturnable<Boolean> cir) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         if (!yang$isAutismActive()) return;
         if (AutismOverlayManager.get().handleCharTyped((char) input.codepoint(), 0)) {
             cir.setReturnValue(true);
@@ -273,3 +311,4 @@ public abstract class AutismSignEditScreenMixin extends Screen implements Autism
         return messages == null ? new String[]{"", "", "", ""} : messages.clone();
     }
 }
+

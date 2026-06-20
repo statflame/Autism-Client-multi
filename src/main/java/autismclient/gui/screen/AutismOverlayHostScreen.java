@@ -52,18 +52,37 @@ public class AutismOverlayHostScreen extends Screen {
         AutismOverlayManager.get().renderAll(graphics, mouseX, mouseY, delta);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubled) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubled = false;*/
+    //?}
         return AutismOverlayManager.get().handleMouseClicked(event.x(), event.y(), event.button());
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         return AutismOverlayManager.get().handleMouseReleased(event.x(), event.y(), event.button());
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         return AutismOverlayManager.get().handleMouseDragged(event.x(), event.y(), event.button(), dx, dy);
     }
 
@@ -72,12 +91,21 @@ public class AutismOverlayHostScreen extends Screen {
         return AutismOverlayManager.get().handleMouseScrolled(mouseX, mouseY, scrollY);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent input) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
 
         boolean inventoryKey = minecraft != null && minecraft.options != null
             && minecraft.options.keyInventory != null
+            //? if >=1.21.9 {
             && minecraft.options.keyInventory.matches(input);
+            //?} else {
+            /*&& minecraft.options.keyInventory.matches(input.key(), input.scancode());*///?}
         boolean closeKey = input.key() == GLFW.GLFW_KEY_ESCAPE || inventoryKey;
 
         if (closeKey && minecraft != null && !AutismOverlayManager.get().isAnyTextFieldFocused()) {
@@ -95,9 +123,16 @@ public class AutismOverlayHostScreen extends Screen {
         return false;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean charTyped(CharacterEvent input) {
+    //?} else {
+    /*@Override
+    public boolean charTyped(char autism$c, int autism$mods) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         return AutismOverlayManager.get().handleCharTyped((char) input.codepoint(), 0);
     }
 }
+
 

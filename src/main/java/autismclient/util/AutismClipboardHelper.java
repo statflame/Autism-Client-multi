@@ -28,6 +28,9 @@ public class AutismClipboardHelper {
     private static final int CLIPBOARD_VERSION = 1;
     private static final String MACRO_CLIPBOARD_TYPE = "autism_macro";
     private static final String MACRO_STEPS_CLIPBOARD_TYPE = "autism_macro_steps";
+    private static final String LEGACY_MACRO_CLIPBOARD_TYPE = "packutil_macro";
+    private static final String LEGACY_MACRO_STEPS_CLIPBOARD_TYPE = "packutil_macro_steps";
+    public static volatile String lastMacroPasteError = "";
 
     public static void copyToClipboard(List<AutismSharedState.QueuedPacket> queue) {
         try {
@@ -82,34 +85,47 @@ public class AutismClipboardHelper {
         try {
             String base64 = Minecraft.getInstance().keyboardHandler.getClipboard();
             if (base64 == null || base64.trim().isEmpty()) {
+                lastMacroPasteError = "clipboard empty (len=" + (base64 == null ? "null" : base64.length()) + ")";
                 AutismClientAddon.LOG.warn("[Autism] Macro clipboard is empty");
                 return null;
             }
 
-            byte[] data = Base64.getDecoder().decode(base64.trim());
+            byte[] data;
+            try {
+                data = Base64.getDecoder().decode(base64.trim());
+            } catch (Exception de) {
+                lastMacroPasteError = "not base64 (clipboard starts with: " + base64.trim().substring(0, Math.min(24, base64.trim().length())) + ")";
+                AutismClientAddon.LOG.error("[Autism] Macro clipboard is not valid base64", de);
+                return null;
+            }
             ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
             CompoundTag rootTag = NbtIo.readCompressed(inputStream, NbtAccounter.unlimitedHeap());
 
             int version = rootTag.getIntOr("version", 0);
             if (version != CLIPBOARD_VERSION) {
+                lastMacroPasteError = "version " + version + " (need " + CLIPBOARD_VERSION + ")";
                 AutismClientAddon.LOG.error("[Autism] Unsupported macro clipboard version: {}", version);
                 return null;
             }
 
             String type = rootTag.getStringOr("type", "");
-            if (!MACRO_CLIPBOARD_TYPE.equals(type)) {
+            if (!MACRO_CLIPBOARD_TYPE.equals(type) && !LEGACY_MACRO_CLIPBOARD_TYPE.equals(type)) {
+                lastMacroPasteError = "wrong type '" + type + "'";
                 AutismClientAddon.LOG.warn("[Autism] Clipboard data is not a Autism macro payload");
                 return null;
             }
 
             CompoundTag macroTag = rootTag.getCompound("macro").orElse(new CompoundTag());
             if (macroTag.isEmpty()) {
+                lastMacroPasteError = "macro payload empty";
                 AutismClientAddon.LOG.warn("[Autism] Macro clipboard payload was empty");
                 return null;
             }
 
+            lastMacroPasteError = "";
             return new AutismMacro().fromTag(macroTag).sanitizeForSharing();
         } catch (Exception e) {
+            lastMacroPasteError = e.getClass().getSimpleName() + ": " + e.getMessage();
             AutismClientAddon.LOG.error("[Autism] Failed to paste macro from clipboard", e);
             return null;
         }
@@ -160,7 +176,7 @@ public class AutismClipboardHelper {
             if (version != CLIPBOARD_VERSION) return null;
 
             String type = rootTag.getStringOr("type", "");
-            if (!MACRO_STEPS_CLIPBOARD_TYPE.equals(type)) return null;
+            if (!MACRO_STEPS_CLIPBOARD_TYPE.equals(type) && !LEGACY_MACRO_STEPS_CLIPBOARD_TYPE.equals(type)) return null;
 
             ListTag actionList = rootTag.getList("actions").orElse(new ListTag());
             List<MacroAction> actions = new ArrayList<>();

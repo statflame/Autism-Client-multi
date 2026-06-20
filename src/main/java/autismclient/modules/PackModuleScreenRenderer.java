@@ -13,6 +13,8 @@ import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.joml.Vector4f;
 
 import java.util.HashMap;
@@ -22,8 +24,11 @@ import java.util.Map;
 public final class PackModuleScreenRenderer {
     private static final Minecraft MC = Minecraft.getInstance();
     private static final Map<Integer, SmoothedScreenBox> SMOOTHED_BOXES = new HashMap<>();
+    private static final Map<Integer, double[]> COMPASS_POINTS = new HashMap<>();
+    private static final double COMPASS_EASE = 0.3;
     private static Object lastLevel;
     private static long frameIndex;
+    private static long compassFrame;
 
     private PackModuleScreenRenderer() {
     }
@@ -31,11 +36,14 @@ public final class PackModuleScreenRenderer {
     public static void render(GuiGraphicsExtractor context) {
         if (PackHideState.isActive()) return;
         if (MC == null || MC.level == null || MC.player == null || MC.options.hideGui) return;
-        if (!PackModuleRenderUtil.has2dEspWork()) return;
+        boolean esp2d = PackModuleRenderUtil.has2dEspWork();
+        boolean compass = PackModuleRenderUtil.hasWorldTracerWork();
+        if (!esp2d && !compass) return;
         if (PackModuleRenderUtil.shouldSuppressEspForUi()) return;
         long perf = AutismPerf.begin();
         try {
-            renderEsp2d(context);
+            if (esp2d) renderEsp2d(context);
+            if (compass) renderCompass(context);
         } finally {
             AutismPerf.end("modules.esp2d", perf);
         }
@@ -49,9 +57,11 @@ public final class PackModuleScreenRenderer {
             lastLevel = MC.level;
         }
         long frame = ++frameIndex;
+        Matrix4f viewProj = PackModuleWorldRenderer.viewProjMatrix();
+        if (viewProj == null) return;
         Projection projection = new Projection(
             camera.position(),
-            new Matrix4f().rotation(camera.rotation()),
+            viewProj,
             AutismUiScale.getVirtualScreenWidth(),
             AutismUiScale.getVirtualScreenHeight()
         );
@@ -66,6 +76,140 @@ public final class PackModuleScreenRenderer {
             drawLiquidBounce2dBox(context, box, color, entity);
         }
         pruneSmoothingCache(frame);
+    }
+
+    private static void renderCompass(GuiGraphicsExtractor context) {
+        Camera camera = MC.gameRenderer.getMainCamera();
+        if (camera == null || MC.getWindow() == null) return;
+        Matrix4f viewProj = PackModuleWorldRenderer.viewProjMatrix();
+        if (viewProj == null) return;
+        int width = AutismUiScale.getVirtualScreenWidth();
+        int height = AutismUiScale.getVirtualScreenHeight();
+        if (width <= 0 || height <= 0) return;
+
+        double cx = width / 2.0;
+        double cy = height / 2.0;
+        double topY = cy;
+        double botY = height;
+        Vec3 cam = camera.position();
+        Quaternionf invRot = new Quaternionf(camera.rotation()).conjugate();
+        float tickDelta = MC.getDeltaTracker().getGameTimeDeltaPartialTick(false);
+        float lineWidth = compassLineWidth();
+
+        Vector4f clip = new Vector4f();
+        Vector3f view = new Vector3f();
+        long frame = ++compassFrame;
+        int drawn = 0;
+        for (Entity entity : MC.level.entitiesForRendering()) {
+            if (drawn >= 64) break;
+            if (!PackModuleRenderUtil.shouldTrace(entity)) continue;
+            double wx = Mth.lerp(tickDelta, entity.xOld, entity.getX());
+            double wy = Mth.lerp(tickDelta, entity.yOld, entity.getY()) + entity.getBbHeight() * 0.5;
+            double wz = Mth.lerp(tickDelta, entity.zOld, entity.getZ());
+            double rx = wx - cam.x;
+            double ry = wy - cam.y;
+            double rz = wz - cam.z;
+
+            clip.set((float) rx, (float) ry, (float) rz, 1.0f);
+            viewProj.transform(clip);
+            double dirX;
+            double dirY;
+            if (clip.w > 0.001f) {
+                double sx = (clip.x / clip.w * 0.5 + 0.5) * width;
+                double sy = (0.5 - clip.y / clip.w * 0.5) * height;
+                if (sx >= 0.0 && sx <= width && sy >= 0.0 && sy <= height) continue;
+                dirX = sx - cx;
+                dirY = sy - cy;
+            } else {
+                view.set((float) rx, (float) ry, (float) rz);
+                invRot.transform(view);
+                double theta = Math.atan2(view.x, -view.z);
+                dirX = Math.sin(theta);
+                dirY = -Math.cos(theta);
+            }
+
+            double len = Math.sqrt(dirX * dirX + dirY * dirY);
+            if (len < 1.0e-6) continue;
+            dirX /= len;
+            dirY /= len;
+            if (dirY < 0.0) dirY = -dirY;
+
+            double tTarget = rayClampT(dirX, dirY, cx, cy, 0.0, width, topY, botY);
+            if (tTarget == Double.MAX_VALUE || tTarget <= 1.0) continue;
+            double targetX = cx + dirX * tTarget;
+            double targetY = cy + dirY * tTarget;
+
+            double tEdge = rayClampT(dirX, dirY, cx, cy, 0.0, width, 0.0, botY);
+            double edgeX = tEdge == Double.MAX_VALUE ? targetX : cx + dirX * tEdge;
+            double edgeY = tEdge == Double.MAX_VALUE ? targetY : cy + dirY * tEdge;
+
+            int id = entity.getId();
+            double[] pt = COMPASS_POINTS.get(id);
+            if (pt == null) {
+                pt = new double[]{edgeX, edgeY, frame};
+                COMPASS_POINTS.put(id, pt);
+            } else {
+                pt[0] += (targetX - pt[0]) * COMPASS_EASE;
+                pt[1] += (targetY - pt[1]) * COMPASS_EASE;
+                pt[2] = frame;
+            }
+
+            int color = 0xFF000000 | (PackModuleRenderUtil.tracerColor(entity) & 0x00FFFFFF);
+            drawLine2d(context, cx, cy, pt[0], pt[1], color, lineWidth * 0.5f);
+            drawn++;
+        }
+
+        java.util.Iterator<Map.Entry<Integer, double[]>> it = COMPASS_POINTS.entrySet().iterator();
+        while (it.hasNext()) {
+            if (frame - (long) it.next().getValue()[2] > 3L) it.remove();
+        }
+    }
+
+    private static void drawLine2d(GuiGraphicsExtractor context, double x0, double y0, double x1, double y1, int color, float thickness) {
+        double dx = x1 - x0;
+        double dy = y1 - y0;
+        double len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1.0) return;
+        float angle = (float) Math.atan2(dy, dx);
+        float th = Math.max(0.1f, thickness);
+        int end = (int) Math.round(len);
+        //? if >=1.21.6 {
+        context.pose().pushMatrix();
+        context.pose().translate((float) x0, (float) y0);
+        context.pose().rotate(angle);
+        context.pose().translate(0.0f, -th / 2.0f);
+        context.pose().scale(1.0f, th);
+        context.fill(0, 0, end, 1, color);
+        context.pose().popMatrix();
+        //?} else {
+        /*com.mojang.blaze3d.vertex.PoseStack ps = context.pose();
+        ps.pushPose();
+        ps.translate((float) x0, (float) y0, 0.0f);
+        ps.mulPose(com.mojang.math.Axis.ZP.rotation(angle));
+        ps.translate(0.0f, -th / 2.0f, 0.0f);
+        ps.scale(1.0f, th, 1.0f);
+        context.fill(0, 0, end, 1, color);
+        ps.popPose();
+        *///?}
+    }
+
+    private static double rayClampT(double dirX, double dirY, double ox, double oy, double xmin, double xmax, double ymin, double ymax) {
+        double t = Double.MAX_VALUE;
+        if (dirX > 1.0e-6) t = Math.min(t, (xmax - ox) / dirX);
+        else if (dirX < -1.0e-6) t = Math.min(t, (xmin - ox) / dirX);
+        if (dirY > 1.0e-6) t = Math.min(t, (ymax - oy) / dirY);
+        else if (dirY < -1.0e-6) t = Math.min(t, (ymin - oy) / dirY);
+        return t;
+    }
+
+    private static float compassLineWidth() {
+        PackModule tracer = PackModuleRegistry.get("tracers");
+        if (tracer == null) return 1.0f;
+        try {
+            return Mth.clamp(Float.parseFloat(tracer.value("line-width")), 0.5f, 4.0f);
+        } catch (Exception ignored) {
+            return 1.0f;
+        }
     }
 
     private static ScreenBox projectBox(Entity entity, float tickDelta, Projection projection) {

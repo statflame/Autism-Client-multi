@@ -4,8 +4,13 @@ import autismclient.AutismClientAddon;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 
 import java.io.File;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,13 +52,15 @@ public class AutismMacroManager {
     }
 
     public synchronized void add(AutismMacro macro) {
+        if (macro == null) return;
         macros.add(macro);
         save();
     }
 
     public synchronized AutismMacro get(String name) {
+        if (name == null) return null;
         for (AutismMacro macro : macros) {
-            if (macro.name.equalsIgnoreCase(name)) return macro;
+            if (macro != null && macro.name != null && macro.name.equalsIgnoreCase(name)) return macro;
         }
         return null;
     }
@@ -111,16 +118,41 @@ public class AutismMacroManager {
 
     public synchronized void save() {
         revision++;
+        Path target = saveFile.toPath();
+        Path temp = target.resolveSibling(saveFile.getName() + ".tmp");
+        Path backup = target.resolveSibling(saveFile.getName() + ".bak");
+
         try {
             CompoundTag tag = new CompoundTag();
             ListTag list = new ListTag();
             for (AutismMacro macro : macros) {
-                list.add(macro.toTag());
+                if (macro != null) {
+                    list.add(macro.toTag());
+                }
             }
             tag.put("macros", list);
-            NbtIo.write(tag, saveFile.toPath());
+            Files.createDirectories(target.getParent());
+            NbtIo.write(tag, temp);
+            if (Files.exists(target)) {
+                try {
+                    Files.copy(target, backup, StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception e) {
+                    AutismClientAddon.LOG.warn("Could not update macro backup {}; continuing with atomic save", backup, e);
+                }
+            }
+
+            try {
+                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+            }
         } catch (Exception e) {
             AutismClientAddon.LOG.error("Failed to save Autism macros", e);
+        } finally {
+            try {
+                Files.deleteIfExists(temp);
+            } catch (Exception ignored) {
+            }
         }
 
         if (AutismLANSync.getInstance().isInSession()) {
@@ -129,24 +161,51 @@ public class AutismMacroManager {
     }
 
     public synchronized void load() {
-        if (!saveFile.exists()) return;
+        Path target = saveFile.toPath();
+        Path backup = target.resolveSibling(saveFile.getName() + ".bak");
+        if (!Files.exists(target) && !Files.exists(backup)) {
+            return;
+        }
 
         try {
-            CompoundTag tag = NbtIo.read(saveFile.toPath());
-            if (tag != null && tag.contains("macros")) {
-                macros.clear();
-                ListTag list = (ListTag) tag.get("macros");
-                for (int i = 0; i < list.size(); i++) {
-                    if (list.get(i) instanceof CompoundTag) {
-                        AutismMacro macro = new AutismMacro();
-                        macro.fromTag((CompoundTag) list.get(i));
-                        macros.add(macro);
+            if (!Files.exists(target)) {
+                throw new IllegalStateException("Main macro file is missing");
+            }
+            macros = loadFile(target);
+            revision++;
+        } catch (Exception e) {
+            AutismClientAddon.LOG.error("Failed to load Autism macros; trying backup", e);
+            if (!Files.exists(backup)) {
+                return;
+            }
+            try {
+                macros = loadFile(backup);
+                revision++;
+                AutismClientAddon.LOG.warn("Recovered Autism macros from {}", backup);
+            } catch (Exception e2) {
+                AutismClientAddon.LOG.error("Failed to load Autism macro backup", e2);
+            }
+        }
+    }
+
+    private List<AutismMacro> loadFile(Path path) throws Exception {
+        CompoundTag tag = NbtIo.read(path);
+        if (tag == null) {
+            throw new IllegalStateException("Macro file was empty");
+        }
+        if (tag.get("macros") instanceof ListTag list) {
+            List<AutismMacro> loaded = new ArrayList<>();
+            for (Tag element : list) {
+                if (element instanceof CompoundTag macroTag) {
+                    try {
+                        loaded.add(new AutismMacro().fromTag(macroTag));
+                    } catch (Throwable t) {
+                        AutismClientAddon.LOG.warn("Skipping one damaged macro entry from {}", path, t);
                     }
                 }
             }
-            revision++;
-        } catch (Exception e) {
-            AutismClientAddon.LOG.error("Failed to load Autism macros", e);
+            return loaded;
         }
+        throw new IllegalStateException("Macro file has no macro list");
     }
 }

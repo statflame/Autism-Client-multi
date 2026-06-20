@@ -1647,7 +1647,7 @@ public class AutismLANSyncOverlay extends AutismOverlayBase {
         if (collapsed) return false;
 
         if (lanChatField != null) {
-            MouseButtonEvent click = new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
+            MouseButtonEvent click = new MouseButtonEvent(mouseX, mouseY, new net.minecraft.client.input.MouseButtonInfo(button, 0));
             if (lanChatField.mouseClicked(click, false)) {
                 lanChatField.setFocused(true);
                 return true;

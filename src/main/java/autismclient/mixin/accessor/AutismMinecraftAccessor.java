@@ -45,9 +45,11 @@ public interface AutismMinecraftAccessor {
     @Accessor("profileFuture")
     void autism$setProfileFuture(CompletableFuture<ProfileResult> future);
 
+    //? if >=1.21.9 {
     @Mutable
     @Accessor("services")
     void autism$setServices(Services services);
+    //?}
 
     @Accessor("rightClickDelay")
     int autism$getRightClickDelay();

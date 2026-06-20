@@ -203,15 +203,15 @@ public final class AutismNormalPacketAnalyzer {
             out.context("Slot: " + click.slotNum() + " | Button: " + describeButton(click.clickType(), click.buttonNum()), AutismColors.textPrimary());
             out.context("Changed Slots: " + click.changedSlots().size(), AutismColors.textPrimary());
             int shown = 0;
-            for (Int2ObjectMap.Entry<HashedStack> slot : click.changedSlots().int2ObjectEntrySet()) {
+            for (var slot : click.changedSlots().int2ObjectEntrySet()) {
                 if (shown >= MAX_CHANGED_SLOTS) {
                     out.context("  ... +" + (click.changedSlots().size() - shown) + " more", AutismColors.textMuted());
                     break;
                 }
-                out.context("  #" + slot.getIntKey() + " -> " + AutismPacketContextTracker.summarizeHashedStack(slot.getValue()), AutismColors.textSecondary());
+                out.context("  #" + slot.getIntKey() + " -> " + AutismPacketContextTracker.summarizeSlotValue(slot.getValue()), AutismColors.textSecondary());
                 shown++;
             }
-            out.context("Carried Item: " + AutismPacketContextTracker.summarizeHashedStack(click.carriedItem()), AutismColors.successText());
+            out.context("Carried Item: " + AutismPacketContextTracker.summarizeCarried(click), AutismColors.successText());
             return;
         }
         if (packet instanceof ServerboundContainerButtonClickPacket button) {
@@ -600,16 +600,16 @@ public final class AutismNormalPacketAnalyzer {
         out.decoded("Slot Before: " + before.slotItem(click.slotNum()), AutismColors.textMuted());
         out.decoded("Slot After: " + after.slotItem(click.slotNum()), AutismColors.successText());
         out.decoded("Cursor Before: " + before.cursorItem(), AutismColors.textMuted());
-        out.decoded("Cursor After: " + AutismPacketContextTracker.summarizeHashedStack(click.carriedItem()), AutismColors.successText());
+        out.decoded("Cursor After: " + AutismPacketContextTracker.summarizeCarried(click), AutismColors.successText());
         out.decoded("Changed Slots: " + click.changedSlots().size(), AutismColors.textPrimary());
         int shown = 0;
-        for (Int2ObjectMap.Entry<HashedStack> slot : click.changedSlots().int2ObjectEntrySet()) {
+        for (var slot : click.changedSlots().int2ObjectEntrySet()) {
             if (shown >= MAX_CHANGED_SLOTS) {
                 out.decoded("  ... +" + (click.changedSlots().size() - shown) + " more", AutismColors.textMuted());
                 break;
             }
             out.decoded("  #" + slot.getIntKey() + " " + AutismPacketContextTracker.slotArea(before, slot.getIntKey())
-                + " -> " + AutismPacketContextTracker.summarizeHashedStack(slot.getValue()), AutismColors.textSecondary());
+                + " -> " + AutismPacketContextTracker.summarizeSlotValue(slot.getValue()), AutismColors.textSecondary());
             shown++;
         }
     }

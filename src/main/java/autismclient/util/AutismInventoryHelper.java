@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import autismclient.util.macro.ItemTarget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
@@ -16,6 +17,7 @@ public final class AutismInventoryHelper {
     }
 
     public static void selectHotbarSlot(Minecraft mc, int slot) {
+        if (PackHideState.isHardLocked()) return;
         if (mc == null || mc.player == null || mc.getConnection() == null) return;
 
         int clampedSlot = Math.max(0, Math.min(8, slot));
@@ -26,6 +28,7 @@ public final class AutismInventoryHelper {
     }
 
     public static boolean swapInventorySlots(Minecraft mc, int fromSlot, int toSlot) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc == null || mc.player == null || mc.gameMode == null) return false;
         if (fromSlot == toSlot) return true;
         if (fromSlot < 0 || fromSlot >= PLAYER_VISIBLE_SLOT_COUNT || toSlot < 0 || toSlot >= PLAYER_VISIBLE_SLOT_COUNT) return false;
@@ -191,6 +194,7 @@ public final class AutismInventoryHelper {
     }
 
     public static boolean swapHandlerSlots(Minecraft mc, int fromScreenSlot, int toScreenSlot) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc == null || mc.player == null || mc.gameMode == null) return false;
         if (fromScreenSlot == toScreenSlot) return true;
         AbstractContainerMenu handler = mc.player.containerMenu;

@@ -35,8 +35,10 @@ public class AutismLocalPlayerMovementMixin {
         return input.hasForwardImpulse();
     }
 
+    //? if >=1.21.9 {
     @Inject(method = "isSprintingPossible", at = @At("HEAD"), cancellable = true)
     private void autism$autoSprintHungry(boolean allowedInShallowWater, CallbackInfoReturnable<Boolean> cir) {
         if (PackModuleMovementUtil.sprintIgnoresHunger()) cir.setReturnValue(true);
     }
+    //?}
 }

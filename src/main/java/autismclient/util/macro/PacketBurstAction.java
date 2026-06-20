@@ -1,136 +1,186 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
+import autismclient.util.AutismSharedState;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import java.util.concurrent.TimeUnit;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.HashedStack;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.common.ServerboundClientInformationPacket;
-import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
-import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundSelectBundleItemPacket;
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket.Action;
 import net.minecraft.server.level.ClientInformation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.phys.Vec3;
 
 public class PacketBurstAction implements MacroAction {
-    public enum BurstMode { CONTAINER_CLICK, ENTITY_INTERACT, CLIENT_COMMAND, BUNDLE_SELECT, USE_ITEM, RELEASE_ITEM, SET_CARRIED_ITEM, CLIENT_INFORMATION, CLOSE_CONTAINER }
+   public PacketBurstAction.BurstMode mode = PacketBurstAction.BurstMode.CONTAINER_CLICK;
+   public int count = 1;
+   public int delayTicks = 0;
+   public int slot = 0;
+   public int button = 0;
+   public String containerInput = "PICKUP";
+   public int entityId = -1;
+   public String hand = "MAIN_HAND";
+   public String clientCommand = "REQUEST_STATS";
+   public String playerCommand = "OPEN_INVENTORY";
+   public int bundleIndex = 0;
+   public int carriedSlot = 0;
+   public int containerId = 0;
+   public boolean flushBefore = false;
 
-    public BurstMode mode = BurstMode.CONTAINER_CLICK;
-    public int count = 1;
-    public int delayTicks = 0;
-    public int slot = 0;
-    public int button = 0;
-    public String containerInput = "PICKUP";
-    public int entityId = -1;
-    public String hand = "MAIN_HAND";
-    public String clientCommand = "REQUEST_STATS";
-    public String playerCommand = "OPEN_INVENTORY";
-    public int bundleIndex = 0;
-    public int carriedSlot = 0;
-    public int containerId = 0;
-    public boolean flushBefore = false;
-
-    @Override
-    public void execute(Minecraft mc) {
-        if (mc == null || mc.getConnection() == null) return;
-        if (flushBefore) autismclient.util.AutismSharedState.get().flushDelayedPackets(mc.getConnection());
-        int times = Math.max(1, Math.min(10000, count));
-        for (int i = 0; i < times; i++) {
-            Packet<?> packet = createPacket(mc);
-            if (packet != null) mc.getConnection().send(packet);
-            for (int t = 0; t < delayTicks; t++) {
-                try {
-                    MacroConditionRegistry.waitForNextTick().get(100, java.util.concurrent.TimeUnit.MILLISECONDS);
-                } catch (Exception ignored) {}
+   @Override
+   public void execute(Minecraft mc) {
+      if (!PackHideState.isHardLocked()) {
+         if (mc != null && mc.getConnection() != null) {
+            if (this.flushBefore) {
+               AutismSharedState.get().flushDelayedPackets(mc.getConnection());
             }
-        }
-    }
 
-    private Packet<?> createPacket(Minecraft mc) {
-        return switch (mode) {
-            case CONTAINER_CLICK -> new ServerboundContainerClickPacket(
-                mc.player == null || mc.player.containerMenu == null ? 0 : mc.player.containerMenu.containerId,
-                mc.player == null || mc.player.containerMenu == null ? 0 : mc.player.containerMenu.getStateId(),
-                (short) slot,
-                (byte) button,
-                input(),
-                new Int2ObjectOpenHashMap<>(),
-                HashedStack.EMPTY
-            );
-            case ENTITY_INTERACT -> {
-                int id = entityId;
-                if (id < 0 && mc.crosshairPickEntity != null) id = mc.crosshairPickEntity.getId();
-                net.minecraft.world.entity.Entity autismTarget = (id < 0 || mc.level == null) ? null : mc.level.getEntity(id); yield autismTarget == null ? null : ServerboundInteractPacket.createInteractionPacket(autismTarget, false, interactionHand());
+            int times = Math.max(1, Math.min(10000, this.count));
+
+            for (int i = 0; i < times; i++) {
+               if (PackHideState.isHardLocked()) {
+                  return;
+               }
+
+               Packet<?> packet = this.createPacket(mc);
+               if (packet != null) {
+                  mc.getConnection().send(packet);
+               }
+
+               for (int t = 0; t < this.delayTicks; t++) {
+                  try {
+                     MacroConditionRegistry.waitForNextTick().get(100L, TimeUnit.MILLISECONDS);
+                  } catch (Exception var7) {
+                  }
+               }
             }
-            case CLIENT_COMMAND -> mc.player == null ? null : new ServerboundPlayerCommandPacket(mc.player, MacroStringList.enumValue(ServerboundPlayerCommandPacket.Action.class, playerCommand, ServerboundPlayerCommandPacket.Action.OPEN_INVENTORY));
-            case BUNDLE_SELECT -> new ServerboundSelectBundleItemPacket(slot >= 0 ? slot : 36 + (mc.player == null ? 0 : mc.player.getInventory().getSelectedSlot()), bundleIndex);
-            case USE_ITEM -> new ServerboundUseItemPacket(interactionHand(), 0, mc.player == null ? 0 : mc.player.getYRot(), mc.player == null ? 0 : mc.player.getXRot());
-            case RELEASE_ITEM -> new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN);
-            case SET_CARRIED_ITEM -> new ServerboundSetCarriedItemPacket(Math.max(0, Math.min(8, carriedSlot)));
-            case CLIENT_INFORMATION -> new ServerboundClientInformationPacket(ClientInformation.createDefault());
-            case CLOSE_CONTAINER -> new ServerboundContainerClosePacket(containerId);
-        };
-    }
+         }
+      }
+   }
 
-    private ClickType input() {
-        return MacroStringList.enumValue(ClickType.class, containerInput, ClickType.PICKUP);
-    }
+   private Packet<?> createPacket(Minecraft mc) {
+      return (Packet<?>)(switch (this.mode) {
+         case CONTAINER_CLICK -> autismclient.util.AutismPacketCompat.click(
+            mc.player != null && mc.player.containerMenu != null ? mc.player.containerMenu.containerId : 0,
+            mc.player != null && mc.player.containerMenu != null ? mc.player.containerMenu.getStateId() : 0,
+            (short)this.slot,
+            (byte)this.button,
+            this.input()
+         );
+         case ENTITY_INTERACT -> {
+            int id = this.entityId;
+            if (id < 0 && mc.crosshairPickEntity != null) {
+               id = mc.crosshairPickEntity.getId();
+            }
 
-    private InteractionHand interactionHand() {
-        return "OFF_HAND".equalsIgnoreCase(hand) ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
-    }
+            net.minecraft.world.entity.Entity autismTarget = (id < 0 || mc.level == null) ? null : mc.level.getEntity(id);
+            yield autismTarget == null ? null : ServerboundInteractPacket.createInteractionPacket(autismTarget, false, this.interactionHand());
+         }
+         case CLIENT_COMMAND -> mc.player == null
+            ? null
+            : new ServerboundPlayerCommandPacket(mc.player, MacroStringList.enumValue(Action.class, this.playerCommand, Action.OPEN_INVENTORY));
+         case BUNDLE_SELECT -> new ServerboundSelectBundleItemPacket(
+            this.slot >= 0 ? this.slot : 36 + (mc.player == null ? 0 : mc.player.getInventory().getSelectedSlot()), this.bundleIndex
+         );
+         case USE_ITEM -> new ServerboundUseItemPacket(
+            this.interactionHand(), 0, mc.player == null ? 0.0F : mc.player.getYRot(), mc.player == null ? 0.0F : mc.player.getXRot()
+         );
+         case RELEASE_ITEM -> new ServerboundPlayerActionPacket(
+            net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.RELEASE_USE_ITEM, BlockPos.ZERO, Direction.DOWN
+         );
+         case SET_CARRIED_ITEM -> new ServerboundSetCarriedItemPacket(Math.max(0, Math.min(8, this.carriedSlot)));
+         case CLIENT_INFORMATION -> new ServerboundClientInformationPacket(ClientInformation.createDefault());
+         case CLOSE_CONTAINER -> new ServerboundContainerClosePacket(this.containerId);
+      });
+   }
 
-    @Override public MacroActionType getType() { return MacroActionType.PACKET_BURST; }
+   private ClickType input() {
+      return MacroStringList.enumValue(ClickType.class, this.containerInput, ClickType.PICKUP);
+   }
 
-    @Override
-    public CompoundTag toTag() {
-        CompoundTag tag = new CompoundTag();
-        tag.putString("type", "PACKET_BURST");
-        tag.putString("mode", mode.name());
-        tag.putInt("count", count);
-        tag.putInt("delayTicks", delayTicks);
-        tag.putInt("slot", slot);
-        tag.putInt("button", button);
-        tag.putString("containerInput", containerInput);
-        tag.putInt("entityId", entityId);
-        tag.putString("hand", hand);
-        tag.putString("clientCommand", clientCommand);
-        tag.putString("playerCommand", playerCommand);
-        tag.putInt("bundleIndex", bundleIndex);
-        tag.putInt("carriedSlot", carriedSlot);
-        tag.putInt("containerId", containerId);
-        tag.putBoolean("flushBefore", flushBefore);
-        return tag;
-    }
+   private InteractionHand interactionHand() {
+      return "OFF_HAND".equalsIgnoreCase(this.hand) ? InteractionHand.OFF_HAND : InteractionHand.MAIN_HAND;
+   }
 
-    @Override
-    public void fromTag(CompoundTag tag) {
-        mode = MacroStringList.enumValue(BurstMode.class, tag.getStringOr("mode", "CONTAINER_CLICK"), BurstMode.CONTAINER_CLICK);
-        count = tag.getIntOr("count", 1);
-        delayTicks = tag.getIntOr("delayTicks", 0);
-        slot = tag.getIntOr("slot", 0);
-        button = tag.getIntOr("button", 0);
-        containerInput = tag.getStringOr("containerInput", "PICKUP");
-        entityId = tag.getIntOr("entityId", -1);
-        hand = tag.getStringOr("hand", "MAIN_HAND");
-        clientCommand = tag.getStringOr("clientCommand", "REQUEST_STATS");
-        playerCommand = tag.getStringOr("playerCommand", "OPEN_INVENTORY");
-        bundleIndex = tag.getIntOr("bundleIndex", 0);
-        carriedSlot = tag.getIntOr("carriedSlot", 0);
-        containerId = tag.getIntOr("containerId", 0);
-        flushBefore = tag.getBooleanOr("flushBefore", false);
-    }
+   @Override
+   public MacroActionType getType() {
+      return MacroActionType.PACKET_BURST;
+   }
 
-    @Override public String getDisplayName() { return "Packet burst " + mode + " x" + count; }
-    @Override public String getIcon() { return "B"; }
+   @Override
+   public CompoundTag toTag() {
+      CompoundTag tag = new CompoundTag();
+      tag.putString("type", "PACKET_BURST");
+      tag.putString("mode", this.mode.name());
+      tag.putInt("count", this.count);
+      tag.putInt("delayTicks", this.delayTicks);
+      tag.putInt("slot", this.slot);
+      tag.putInt("button", this.button);
+      tag.putString("containerInput", this.containerInput);
+      tag.putInt("entityId", this.entityId);
+      tag.putString("hand", this.hand);
+      tag.putString("clientCommand", this.clientCommand);
+      tag.putString("playerCommand", this.playerCommand);
+      tag.putInt("bundleIndex", this.bundleIndex);
+      tag.putInt("carriedSlot", this.carriedSlot);
+      tag.putInt("containerId", this.containerId);
+      tag.putBoolean("flushBefore", this.flushBefore);
+      return tag;
+   }
+
+   @Override
+   public void fromTag(CompoundTag tag) {
+      this.mode = MacroStringList.enumValue(
+         PacketBurstAction.BurstMode.class, tag.getStringOr("mode", "CONTAINER_CLICK"), PacketBurstAction.BurstMode.CONTAINER_CLICK
+      );
+      this.count = tag.getIntOr("count", 1);
+      this.delayTicks = tag.getIntOr("delayTicks", 0);
+      this.slot = tag.getIntOr("slot", 0);
+      this.button = tag.getIntOr("button", 0);
+      this.containerInput = tag.getStringOr("containerInput", "PICKUP");
+      this.entityId = tag.getIntOr("entityId", -1);
+      this.hand = tag.getStringOr("hand", "MAIN_HAND");
+      this.clientCommand = tag.getStringOr("clientCommand", "REQUEST_STATS");
+      this.playerCommand = tag.getStringOr("playerCommand", "OPEN_INVENTORY");
+      this.bundleIndex = tag.getIntOr("bundleIndex", 0);
+      this.carriedSlot = tag.getIntOr("carriedSlot", 0);
+      this.containerId = tag.getIntOr("containerId", 0);
+      this.flushBefore = tag.getBooleanOr("flushBefore", false);
+   }
+
+   @Override
+   public String getDisplayName() {
+      return "Packet burst " + this.mode + " x" + this.count;
+   }
+
+   @Override
+   public String getIcon() {
+      return "B";
+   }
+
+   public static enum BurstMode {
+      CONTAINER_CLICK,
+      ENTITY_INTERACT,
+      CLIENT_COMMAND,
+      BUNDLE_SELECT,
+      USE_ITEM,
+      RELEASE_ITEM,
+      SET_CARRIED_ITEM,
+      CLIENT_INFORMATION,
+      CLOSE_CONTAINER;
+   }
 }

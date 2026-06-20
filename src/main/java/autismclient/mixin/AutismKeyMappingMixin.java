@@ -48,6 +48,7 @@ public abstract class AutismKeyMappingMixin implements AutismKeyMappingBridge {
         if (mc == null || mc.getWindow() == null || mc.keyboardHandler == null || mc.mouseHandler == null) return;
         Window window = mc.getWindow();
         int action = pressed ? GLFW.GLFW_PRESS : GLFW.GLFW_RELEASE;
+        //? if >=1.21.9 {
         switch (key.getType()) {
             case KEYSYM -> ((AutismKeyboardHandlerAccessor) mc.keyboardHandler).autism$invokeKeyPress(
                 window.handle(), action, new KeyEvent(key.getValue(), 0, 0)
@@ -56,9 +57,23 @@ public abstract class AutismKeyMappingMixin implements AutismKeyMappingBridge {
                 window.handle(), action, new KeyEvent(GLFW.GLFW_KEY_UNKNOWN, key.getValue(), 0)
             );
             case MOUSE -> ((AutismMouseHandlerAccessor) mc.mouseHandler).autism$invokeOnButton(
-                window.handle(), new MouseButtonInfo(key.getValue(), 0), action
+                window.handle(), new net.minecraft.client.input.MouseButtonInfo(key.getValue(), 0), action
             );
             default -> setDown(pressed);
         }
+        //?} else {
+        /*switch (key.getType()) {
+            case KEYSYM -> ((AutismKeyboardHandlerAccessor) mc.keyboardHandler).autism$invokeKeyPress(
+                window.getWindow(), key.getValue(), 0, action, 0
+            );
+            case SCANCODE -> ((AutismKeyboardHandlerAccessor) mc.keyboardHandler).autism$invokeKeyPress(
+                window.getWindow(), GLFW.GLFW_KEY_UNKNOWN, key.getValue(), action, 0
+            );
+            case MOUSE -> ((AutismMouseHandlerAccessor) mc.mouseHandler).autism$invokeOnButton(
+                window.getWindow(), key.getValue(), action, 0
+            );
+            default -> setDown(pressed);
+        }
+        *///?}
     }
 }

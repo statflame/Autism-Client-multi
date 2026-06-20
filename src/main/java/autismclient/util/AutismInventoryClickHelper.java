@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
@@ -14,6 +15,7 @@ public final class AutismInventoryClickHelper {
     }
 
     public static boolean click(Minecraft mc, int handlerSlotId, int button, ClickType input) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc == null) return false;
         if (mc.isSameThread()) {
             return clickNow(mc, handlerSlotId, button, input);
@@ -39,6 +41,7 @@ public final class AutismInventoryClickHelper {
     }
 
     private static boolean clickNow(Minecraft mc, int handlerSlotId, int button, ClickType input) {
+        if (PackHideState.isHardLocked()) return false;
         if (mc == null || mc.player == null || mc.gameMode == null || mc.getConnection() == null || input == null) return false;
         AbstractContainerMenu handler = mc.player.containerMenu;
         if (handler == null || handlerSlotId < 0 || handlerSlotId >= handler.slots.size()) return false;

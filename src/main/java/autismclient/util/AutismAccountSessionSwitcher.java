@@ -41,18 +41,25 @@ public final class AutismAccountSessionSwitcher {
             if (originalUser == null) originalUser = mc.getUser();
             AutismMinecraftAccessor accessor = (AutismMinecraftAccessor) mc;
             YggdrasilAuthenticationService userApiAuthService = new YggdrasilAuthenticationService(mc.getProxy());
+            //? if >=1.21.9 {
             Services services = Services.create(authService, mc.gameDirectory);
+            //?}
             UserApiService apiService = userApiAuthService.createUserApiService(user.getAccessToken());
             Path skinCachePath = mc.gameDirectory.toPath().resolve("assets").resolve("skins");
 
+            //? if >=1.21.9 {
             accessor.autism$setServices(services);
+            //?}
             accessor.autism$setUser(user);
             accessor.autism$setUserApiService(apiService);
             accessor.autism$setPlayerSocialManager(new PlayerSocialManager(mc, apiService));
             accessor.autism$setProfileKeyPairManager(ProfileKeyPairManager.create(apiService, user, mc.gameDirectory.toPath()));
             accessor.autism$setReportingContext(ReportingContext.create(ReportEnvironment.local(), apiService));
+            //? if >=1.21.9 {
             accessor.autism$setProfileFuture(CompletableFuture.supplyAsync(() -> mc.services().sessionService().fetchProfile(mc.getUser().getProfileId(), true), Util.nonCriticalIoPool()));
             accessor.autism$setSkinManager(new SkinManager(skinCachePath, services, new SkinTextureDownloader(mc.getProxy(), mc.getTextureManager(), mc), mc));
+            //?} else {
+            /*accessor.autism$setProfileFuture(CompletableFuture.supplyAsync(() -> mc.getMinecraftSessionService().fetchProfile(mc.getUser().getProfileId(), true), Util.nonCriticalIoPool()));*///?}
             return true;
         } catch (Exception e) {
             lastError = shortError(e);

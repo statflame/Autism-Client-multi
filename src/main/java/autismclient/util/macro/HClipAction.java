@@ -187,7 +187,7 @@ public class HClipAction implements MacroAction {
             mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(to.x, to.y, to.z, true, false));
             return 3;
         }
-        mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(to, grounded, false));
+        mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(to.x, to.y, to.z, grounded, false));
         return 1;
     }
 

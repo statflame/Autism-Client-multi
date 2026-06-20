@@ -248,7 +248,7 @@ public final class AutismPacketContextTracker {
             activeContainerId = click.containerId();
             activeContainerStateId = click.stateId();
             applyChangedSlots(click.changedSlots());
-            cursorItem = summarizeHashedStack(click.carriedItem());
+            cursorItem = summarizeCarried(click);
             changes.add("Client " + describeInput(click.clickType()) + " on slot " + click.slotNum()
                 + " changed " + click.changedSlots().size() + " slots");
             return;
@@ -369,10 +369,10 @@ public final class AutismPacketContextTracker {
         containerSlots.clear();
     }
 
-    private void applyChangedSlots(Int2ObjectMap<HashedStack> changedSlots) {
+    private void applyChangedSlots(Int2ObjectMap<?> changedSlots) {
         if (changedSlots == null) return;
-        for (Int2ObjectMap.Entry<HashedStack> entry : changedSlots.int2ObjectEntrySet()) {
-            containerSlots.put(entry.getIntKey(), summarizeHashedStack(entry.getValue()));
+        for (var entry : changedSlots.int2ObjectEntrySet()) {
+            containerSlots.put(entry.getIntKey(), summarizeSlotValue(entry.getValue()));
         }
     }
 
@@ -421,6 +421,22 @@ public final class AutismPacketContextTracker {
         } catch (Throwable ignored) {
         }
         return out.toString();
+    }
+
+    public static String summarizeSlotValue(Object value) {
+        //? if >=1.21.5 {
+        return summarizeHashedStack((net.minecraft.network.HashedStack) value);
+        //?} else {
+        /*return summarizeItem((net.minecraft.world.item.ItemStack) value);
+        *///?}
+    }
+
+    public static String summarizeCarried(net.minecraft.network.protocol.game.ServerboundContainerClickPacket click) {
+        //? if >=1.21.5 {
+        return summarizeHashedStack(click.carriedItem());
+        //?} else {
+        /*return summarizeItem(click.getCarriedItem());
+        *///?}
     }
 
     public static String summarizeHashedStack(HashedStack stack) {

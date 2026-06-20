@@ -240,11 +240,24 @@ public final class AutismAddonsScreen extends Screen {
         return y + 12;
     }
 
+    //? if >=1.21.9 {
     private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
     private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
     private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
+    //?} else {
+/*    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e.x(), e.y(), e.button(), dx, dy); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         MouseButtonEvent virtual = virtualEvent(event);
         if (virtual.button() != 0) return autism$superMouseClicked(virtual, doubleClick);
         for (CompactOverlayButton button : buttons) {
@@ -270,8 +283,14 @@ public final class AutismAddonsScreen extends Screen {
         return autism$superMouseClicked(virtual, doubleClick);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (scrollbarDragging) {
             scrollbarDragging = false;
             return true;
@@ -279,8 +298,14 @@ public final class AutismAddonsScreen extends Screen {
         return autism$superMouseReleased(virtualEvent(event));
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         MouseButtonEvent virtual = virtualEvent(event);
         if (scrollbarDragging) {
             CompactScrollbar.Metrics scrollbar = scrollbarMetrics(filteredReports().size());
@@ -472,7 +497,8 @@ public final class AutismAddonsScreen extends Screen {
     }
 
     private static MouseButtonEvent virtualEvent(MouseButtonEvent event) {
-        return new MouseButtonEvent(AutismUiScale.toVirtual(event.x()), AutismUiScale.toVirtual(event.y()), new MouseButtonInfo(event.button(), 0));
+        return new MouseButtonEvent(AutismUiScale.toVirtual(event.x()), AutismUiScale.toVirtual(event.y()), new net.minecraft.client.input.MouseButtonInfo(event.button(), 0));
     }
 }
+
 

@@ -6,8 +6,10 @@ import com.github.weisj.jsvg.parser.SVGLoader;
 import com.github.weisj.jsvg.view.ViewBox;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
+//? if >=1.21.6 {
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.TextureFormat;
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -148,26 +150,46 @@ public final class AutismSvgHudLogo {
     private record Bounds(int x, int y, int width, int height) {
     }
 
+    //? if >=1.21.6 {
     private static final class LinearDynamicTexture extends AbstractTexture {
+    //?} else {
+    /*private static final class LinearDynamicTexture extends net.minecraft.client.renderer.texture.DynamicTexture {
+    *///?}
         private final NativeImage pixels;
 
         private LinearDynamicTexture(String label, NativeImage pixels) {
+            //? if >=1.21.11 {
             this.pixels = pixels;
             this.texture = RenderSystem.getDevice().createTexture(label, 5, TextureFormat.RGBA8, pixels.getWidth(), pixels.getHeight(), 1, 1);
-            //? if >=1.21.11 {
             this.sampler = RenderSystem.getSamplerCache().getRepeat(FilterMode.LINEAR);
-            //?} else {
-            /*this.texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.REPEAT);
-            this.texture.setTextureFilter(FilterMode.LINEAR, false);*/
-            //?}
             this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
             RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.texture, pixels);
+            //?} elif >=1.21.6 {
+            /*this.pixels = pixels;
+            this.texture = RenderSystem.getDevice().createTexture(label, 5, TextureFormat.RGBA8, pixels.getWidth(), pixels.getHeight(), 1, 1);
+            this.texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.REPEAT);
+            this.texture.setTextureFilter(FilterMode.LINEAR, false);
+            this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
+            RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.texture, pixels);
+            *///?} elif >=1.21.5 {
+            /*super(() -> label, pixels);
+            this.pixels = pixels;
+            this.setFilter(true, false);
+            *///?} else {
+            /*super(pixels);
+            this.pixels = pixels;
+            this.setFilter(true, false);
+            *///?}
         }
 
         @Override
         public void close() {
+            //? if >=1.21.6 {
             this.pixels.close();
             super.close();
+            //?} else {
+            /*super.close();
+            *///?}
         }
     }
 }

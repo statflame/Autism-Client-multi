@@ -29,6 +29,20 @@ public final class AutismPayloadStudySession {
     private AutismPayloadStudySession() {
     }
 
+    public static synchronized void stop() {
+        active = false;
+        label = "";
+        startedAtMs = 0L;
+        patterns.clear();
+        armedChannels.clear();
+        channels.clear();
+        registeredHints.clear();
+        fingerprints.clear();
+        eventCount = 0;
+        matchedCount = 0;
+        registerListCount = 0;
+    }
+
     public static synchronized void start(String studyLabel, Collection<String> studyPatterns, Collection<String> registeredNow) {
         active = true;
         label = studyLabel == null || studyLabel.isBlank() ? "Payloads" : studyLabel.trim();

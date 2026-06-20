@@ -40,11 +40,304 @@ repositories {
 
 run {
     val older = stonecutter.eval(stonecutter.current.version, "<1.21.11")
+    val older129 = stonecutter.eval(stonecutter.current.version, "<1.21.9")
+    val older125 = stonecutter.eval(stonecutter.current.version, "<1.21.5")
+    val older123 = stonecutter.eval(stonecutter.current.version, "<1.21.6")
     stonecutter.replacements {
         regex {
             direction.set(older)
             replace("\\bIdentifier\\b", "ResourceLocation")
             reverse("\\bResourceLocation\\b", "Identifier")
+        }
+        regex {
+            direction.set(older129)
+            replace("net\\.minecraft\\.world\\.entity\\.player\\.PlayerSkin", "net.minecraft.client.resources.PlayerSkin")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\.getWindow\\(\\)\\.handle\\(\\)", ".getWindow().getWindow()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\bwindow\\.handle\\(\\)", "window.getWindow()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("InputConstants\\.isKeyDown\\(window, ", "InputConstants.isKeyDown(window.getWindow(), ")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\bprofile\\.name\\(\\)", "profile.getName()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\bprofile\\.id\\(\\)", "profile.getId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\bprofile\\.properties\\(\\)", "profile.getProperties()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\.matches\\(input\\)", ".matches(input.key(), input.scancode())")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\.getProfile\\(\\)\\.name\\(\\)", ".getProfile().getName()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older129)
+            replace("\\.getGameProfile\\(\\)\\.name\\(\\)", ".getGameProfile().getName()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getStringOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getString($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getBooleanOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getBoolean($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getIntOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getInt($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getDoubleOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getDouble($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getLongOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getLong($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.setSelectedSlot\\(([^()]*(\\([^()]*\\)[^()]*)*)\\)", ".selected = $1")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getSelectedSlot\\(\\)", ".selected")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.asString\\(\\)\\.orElse\\([^()]*(\\([^()]*\\)[^()]*)*\\)", ".getAsString()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\b(\\w+(\\.\\w+)*)\\.getList\\(([^()]*)\\)\\.orElse\\(new (net\\.minecraft\\.nbt\\.)?ListTag\\(\\)\\)", "autismclient.util.AutismNbtCompat.list($1, $3)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\b(\\w+(\\.\\w+)*)\\.getListOrEmpty\\(([^()]*)\\)", "autismclient.util.AutismNbtCompat.list($1, $3)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getString\\((\\w+)\\)\\.orElse\\([^()]*(\\([^()]*\\)[^()]*)*\\)", ".getString($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getCompound\\(([^()]*)\\)\\.orElse\\(new CompoundTag\\(\\)\\)", ".getCompound($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\b(\\w+(\\.\\w+)*)\\.getCompound\\(([^()]*)\\)\\.map\\(", "autismclient.util.AutismNbtCompat.compound($1, $3).map(")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getFloatOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getFloat($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getShortOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getShort($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.getByteOr\\(([^,]+), [^()]*(\\([^()]*\\)[^()]*)*\\)", ".getByte($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\.(getByteArray|getIntArray|getLongArray)\\(([^()]*)\\)\\.orElse\\([^()]*(\\([^()]*\\)[^()]*)*\\)", ".$1($2)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\b(tag|compound|nbt|src)\\.keySet\\(\\)", "autismclient.util.AutismNbtCompat.keys($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\.getMainCamera\\(\\)\\.position\\(\\)", ".getMainCamera().getPosition()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\bcamera\\.position\\(\\)", "camera.getPosition()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\.getCurrentVersion\\(\\)\\.name\\(\\)", ".getCurrentVersion().getName()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\.getCurrentVersion\\(\\)\\.stable\\(\\)", ".getCurrentVersion().isStable()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\b(tag|compound|nbt)\\.entrySet\\(\\)", "autismclient.util.AutismNbtCompat.entries($1)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("TagParser\\.parseCompoundFully\\(", "TagParser.parseTag(")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\.pose\\(\\)\\.pushMatrix\\(\\)", ".pose().pushPose()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\.pose\\(\\)\\.popMatrix\\(\\)", ".pose().popPose()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\.pose\\(\\)\\.scale\\(([^,()]+), ([^,()]+)\\)", ".pose().scale($1, $2, 1.0F)")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older123)
+            replace("\\bBookSignScreen\\b", "BookEditScreen")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bMobEffects\\.SPEED\\b", "MobEffects.MOVEMENT_SPEED")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bMobEffects\\.SLOWNESS\\b", "MobEffects.MOVEMENT_SLOWDOWN")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bMobEffects\\.HASTE\\b", "MobEffects.DIG_SPEED")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bMobEffects\\.JUMP_BOOST\\b", "MobEffects.JUMP")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bMobEffects\\.MINING_FATIGUE\\b", "MobEffects.DIG_SLOWDOWN")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\b(click|clickPacket)\\.containerId\\(\\)", "$1.getContainerId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bclick\\.stateId\\(\\)", "click.getStateId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bclick\\.slotNum\\(\\)", "click.getSlotNum()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bclick\\.buttonNum\\(\\)", "click.getButtonNum()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bclick\\.clickType\\(\\)", "click.getClickType()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bcontent\\.containerId\\(\\)", "content.getContainerId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bcontent\\.stateId\\(\\)", "content.getStateId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bcontent\\.items\\(\\)", "content.getItems()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bcontent\\.carriedItem\\(\\)", "content.getCarriedItem()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\bclick\\.changedSlots\\(\\)", "click.getChangedSlots()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\binventory\\.containerId\\(\\)", "inventory.getContainerId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\binventory\\.stateId\\(\\)", "inventory.getStateId()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\binventory\\.items\\(\\)", "inventory.getItems()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace("\\binventory\\.carriedItem\\(\\)", "inventory.getCarriedItem()")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
+        }
+        regex {
+            direction.set(older125)
+            replace(", new BitSet\\(20\\), \\(byte\\) 0\\)", ", new BitSet(20))")
+            reverse("AUTISM_NO_REVERSE_XYZ", "x")
         }
         regex {
             direction.set(older)
@@ -105,6 +398,11 @@ run {
 }
 
 val fabricApiVersion = when (stonecutter.current.version) {
+    "1.21.4" -> "0.119.4+1.21.4"
+    "1.21.5" -> "0.128.2+1.21.5"
+    "1.21.6" -> "0.128.2+1.21.6"
+    "1.21.7" -> "0.129.0+1.21.7"
+    "1.21.8" -> "0.136.1+1.21.8"
     "1.21.9" -> "0.134.1+1.21.9"
     "1.21.10" -> "0.138.4+1.21.10"
     "1.21.11" -> "0.141.4+1.21.11"
@@ -602,6 +900,8 @@ tasks {
         options.release.set(21)
         options.compilerArgs.add("-Xlint:deprecation")
         options.compilerArgs.add("-Xlint:unchecked")
+        options.compilerArgs.add("-Xmaxerrs")
+        options.compilerArgs.add("2000")
     }
 }
 

@@ -1,7 +1,8 @@
 package autismclient.util;
 
-import autismclient.gui.vanillaui.assets.UiAssets;
+import autismclient.gui.vanillaui.UiBounds;
 import autismclient.gui.vanillaui.UiContexts;
+import autismclient.gui.vanillaui.UiScissorStack;
 import autismclient.gui.vanillaui.components.CompactDropdown;
 import autismclient.gui.vanillaui.components.CompactListRenderer;
 import autismclient.gui.vanillaui.components.CompactOverlayButton;
@@ -11,2107 +12,2413 @@ import autismclient.gui.vanillaui.components.CompactTheme;
 import autismclient.gui.vanillaui.components.ScrollState;
 import autismclient.gui.vanillaui.components.UiText;
 import autismclient.gui.vanillaui.components.UiTone;
+import autismclient.mixin.accessor.AbstractContainerScreenAccessor;
 import autismclient.util.macro.CraftAction;
+import autismclient.util.macro.DropAction;
+import autismclient.util.macro.ItemAction;
 import autismclient.util.macro.ItemTarget;
 import autismclient.util.macro.PacketClickAction;
 import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
-import net.minecraft.world.inventory.CraftingMenu;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.Slot;
 import net.minecraft.network.HashedStack;
 import net.minecraft.network.chat.Component;
-import net.minecraft.ChatFormatting;
-
-import java.util.ArrayList;
-import java.util.List;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.CraftingMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 public class AutismFabricatorOverlay extends AutismOverlayBase {
-    private static final Minecraft MC = Minecraft.getInstance();
-    private static final CompactTheme THEME = new CompactTheme();
-    private static AutismFabricatorOverlay sharedOverlay;
-    private int DEFAULT_PANEL_WIDTH = 236;
-    private int LINE_HEIGHT = 14;
-    private int CRAFT_LIST_HEIGHT = 84;
-    private static final int CRAFT_LIST_ROWS = 6;
-    private int CRAFT_PLAN_HEIGHT = 52;
-    private static final int CRAFT_PLAN_ROWS = 4;
-    private static final int SCROLLBAR_GUTTER = 8;
-
-    private enum FabricatorAction {
-        CLICK("Click", "Use Left or Right on the resolved slot.") {
-            @Override boolean usesClickSelector() { return true; }
-            @Override AutismDropAction toPacketAction(boolean dropWholeStack) { return AutismDropAction.PICKUP; }
-        },
-        QUICK_MOVE("Quick Move", "Shift-click the resolved slot.") {
-            @Override AutismDropAction toPacketAction(boolean dropWholeStack) { return AutismDropAction.QUICK_MOVE; }
-        },
-        PICKUP_ALL("Pick Up All", "Double-click the resolved slot. Usually needs you to hold a matching stack first.") {
-            @Override AutismDropAction toPacketAction(boolean dropWholeStack) { return AutismDropAction.PICKUP_ALL; }
-        },
-        CRAFT_RESULT("Craft", "Choose a craftable item, set the total amount, then send, queue, or add it to a macro.") {
-            @Override boolean isCraftAction() { return true; }
-            @Override AutismDropAction toPacketAction(boolean dropWholeStack) { return AutismDropAction.QUICK_MOVE; }
-        },
-        DROP("Drop", "Drop from the resolved slot. If slot and item are both set, both must match.") {
-            @Override boolean usesDropToggle() { return true; }
-            @Override AutismDropAction toPacketAction(boolean dropWholeStack) {
-                return dropWholeStack ? AutismDropAction.DROP_STACK : AutismDropAction.DROP_ITEM;
-            }
-            @Override String getDescription(boolean dropWholeStack) {
-                return dropWholeStack
-                    ? "Drops the whole stack from the selected slot."
-                    : "Drops one item at a time from the selected slot.";
-            }
-        },
-        PACKET("Packet", "Replay a captured slot click with the captured container id and state.") {
-            @Override boolean usesClickSelector() { return true; }
-            @Override boolean isPacketAction() { return true; }
-            @Override AutismDropAction toPacketAction(boolean dropWholeStack) { return AutismDropAction.PICKUP; }
-        };
-
-        final String displayName;
-        final String description;
-
-        FabricatorAction(String displayName, String description) {
-            this.displayName = displayName;
-            this.description = description;
-        }
-
-        boolean usesClickSelector() { return false; }
-        boolean usesDropToggle() { return false; }
-        boolean isCraftAction() { return false; }
-        boolean isPacketAction() { return false; }
-        String getDescription(boolean dropWholeStack) { return description; }
-        abstract AutismDropAction toPacketAction(boolean dropWholeStack);
-    }
-
-    private int panelX = 220;
-    private int panelY = 5;
-    private int PANEL_WIDTH = DEFAULT_PANEL_WIDTH;
-    private int PANEL_HEIGHT = 392;
-    private int FIELD_WIDTH = 100;
-    private int BUTTON_HEIGHT = 20;
-    private int LABEL_WIDTH = 64;
-
-    private boolean isDragging = false;
-    private double dragOffsetX = 0;
-    private double dragOffsetY = 0;
-
-    private boolean collapsed = false;
-
-    private boolean visible = false;
-    private AbstractContainerScreen<?> parentScreen;
-    private final List<AutismChatField> textFields = new ArrayList<>();
-
-    private AutismChatField slotField;
-    private AutismChatField itemNameField;
-    private AutismChatField timesField;
-    private AutismChatField craftSearchField;
-    private int currentActionIndex = 0;
-    private final FabricatorAction[] actions = FabricatorAction.values();
-    private final List<String> actionLabels = java.util.Arrays.stream(actions).map(action -> action.displayName).toList();
-    private static final List<String> STANDARD_CLICK_LABELS = List.of("Left Click", "Right Click");
-    private static final List<String> PACKET_CLICK_LABELS = List.of("Left Click", "Right Click", "Quick Move");
-    private static final List<String> DROP_MODE_LABELS = List.of("Single", "Stack");
-
-    private final java.util.List<CompactDropdown> uiDropdowns = new ArrayList<>();
-    private CompactDropdown actionDropdown;
-    private CompactDropdown clickModeDropdown;
-    private CompactDropdown dropModeDropdown;
-
-    private int currentButtonIndex = 0;
-    private final String[] buttonTypes = {"Left Click", "Right Click", "Quick Move"};
-    private boolean dropWholeStack = false;
-    private AutismPacketClick.Target packetClickTarget = null;
-
-    private Integer selectedSlotId = null;
-    private String statusMessage = "";
-    private ChatFormatting statusColor = ChatFormatting.GRAY;
-    private long statusExpiresAtMs = 0L;
-    private final List<AutismCraftingHelper.CraftableRecipeOption> craftableRecipes = new ArrayList<>();
-    private List<AutismCraftingHelper.CraftableRecipeOption> filteredCraftableRecipes = new ArrayList<>();
-    private int readyCraftableRecipeCount = 0;
-    private int craftScrollOffset = 0;
-    private final ScrollState craftListScrollState = new ScrollState();
-    private AutismCraftingHelper.CraftableRecipeOption selectedCraftOption = null;
-    private ItemStack selectedCraftResult = ItemStack.EMPTY;
-    private final List<CraftAction.CraftEntry> plannedCraftEntries = new ArrayList<>();
-    private int craftPlanSelectedIndex = -1;
-    private int craftPlanScrollOffset = 0;
-    private final ScrollState craftPlanScrollState = new ScrollState();
-    private long lastCraftRefreshAt = 0L;
-    private volatile boolean craftExecutionInProgress = false;
-    private boolean craftUseMaxAmount = false;
-    private int activeScrollbarDrag = 0;
-    private int scrollbarGrabOffset = 0;
-
-    private static final int SCROLLBAR_NONE = 0;
-    private static final int SCROLLBAR_CRAFT_PLAN = 1;
-    private static final int SCROLLBAR_CRAFT_LIST = 2;
-
-    private String savedSlotValue = "0";
-    private String savedItemNameValue = "";
-    private ItemTarget savedItemTarget = new ItemTarget();
-    private String savedTimesValue = "1";
-    private String savedCraftSearchValue = "";
-    private int savedCraftSelectedRecipeId = -1;
-    private String savedCraftSelectedRecipeKey = "";
-
-    private int getFieldWidth() {
-        return Math.max(108, PANEL_WIDTH - LABEL_WIDTH - 26);
-    }
-
-    private int getBottomButtonY() {
-        return panelY + PANEL_HEIGHT - BUTTON_HEIGHT - 24;
-    }
-
-    private int getStatusY() {
-        return Math.max(getInfoFloorY(), getActionInfoY() - 13);
-    }
-
-    private int getActionInfoY() {
-        return Math.max(getInfoFloorY() + 13, getBottomButtonY() - 4 - getActionDescriptionLines().size() * 10);
-    }
-
-    private List<String> getActionDescriptionLines() {
-        return UiContexts.textRenderer(MC.font).wrapFully(
-            currentAction.getDescription(dropWholeStack), Math.max(1, PANEL_WIDTH - 20));
-    }
-
-    private int getInfoFloorY() {
-        if (isCraftMode()) return getCraftListY() + CRAFT_LIST_HEIGHT + 14;
-        return getStandardTimesRowY() + 22;
-    }
-
-    private int requiredPanelHeightForInfoRows(int floorY) {
-        int relativeFloor = Math.max(0, floorY - panelY);
-        return relativeFloor + 13 + getActionDescriptionLines().size() * 10 + 4 + BUTTON_HEIGHT + 24;
-    }
-
-    private boolean isCraftMode() {
-        return currentAction.isCraftAction();
-    }
-
-    private boolean showsTargetFields() {
-        return !isCraftMode();
-    }
-
-    private boolean showsSlotItemRows() {
-        return showsTargetFields() && !currentAction.isPacketAction();
-    }
-
-    private int getActionRowY() {
-        return panelY + 30;
-    }
-
-    private int getSlotRowY() {
-        return getActionRowY() + 28;
-    }
-
-    private int getItemRowY() {
-        return getSlotRowY() + (showsSlotItemRows() ? 28 : 0);
-    }
-
-    private int getOptionRowY() {
-        return getItemRowY() + (showsSlotItemRows() ? 28 : 0);
-    }
-
-    private int getStandardTimesRowY() {
-        return (isClickSelectorRelevant() || isDropModeRelevant()) ? getOptionRowY() + 28 : getItemRowY() + 28;
-    }
-
-    private int getCraftSearchY() {
-        return getCraftSearchLabelY() + 12;
-    }
-
-    private int getCraftAmountRowY() {
-        return getCraftSummaryY() + 16;
-    }
-
-    private int getCraftAmountToggleWidth() {
-        return 78;
-    }
-
-    private int getCraftAmountFieldX() {
-        return panelX + LABEL_WIDTH + 15;
-    }
-
-    private int getCraftAmountToggleX() {
-        return getCraftAmountFieldX() + getCraftAmountFieldWidth() + 4;
-    }
-
-    private int getCraftAddButtonWidth() {
-        return 44;
-    }
-
-    private int getCraftAmountFieldWidth() {
-        return Math.max(48, getFieldWidth() - getCraftAmountToggleWidth() - getCraftAddButtonWidth() - 8);
-    }
-
-    private int getCraftAddButtonX() {
-        return getCraftAmountToggleX() + getCraftAmountToggleWidth() + 4;
-    }
-
-    private int getCraftPlanHeaderY() {
-        return getSlotRowY() + 3;
-    }
-
-    private int getCraftPlanListY() {
-        return getSlotRowY() + 16;
-    }
-
-    private int getCraftSummaryY() {
-        return getCraftPlanListY() + CRAFT_PLAN_HEIGHT + 4;
-    }
-
-    private int getCraftSearchLabelY() {
-        return getCraftAmountRowY() + 24;
-    }
-
-    private boolean isClickSelectorRelevant() {
-        return currentAction.usesClickSelector();
-    }
-
-    private int getClickSelectorOptionCount() {
-        return currentAction.isPacketAction() ? AutismPacketClick.Mode.values().length : 2;
-    }
-
-    private AutismPacketClick.Mode getCurrentPacketMode() {
-        return AutismPacketClick.Mode.byIndex(currentButtonIndex);
-    }
-
-    private boolean isDropModeRelevant() {
-        return currentAction.usesDropToggle();
-    }
-
-    private int getEffectiveButton() {
-        if (currentAction.isPacketAction()) {
-            return getCurrentPacketMode().button;
-        }
-        if (currentAction.usesDropToggle()) {
-            return dropWholeStack ? 1 : 0;
-        }
-        AutismDropAction packetAction = currentAction.toPacketAction(dropWholeStack);
-        return packetAction.usesFixedButton() ? packetAction.getButton() : Math.min(currentButtonIndex, 1);
-    }
-
-    private String getClickSelectorLabel() {
-        if (currentAction.isPacketAction()) return getCurrentPacketMode().displayName;
-        if (isClickSelectorRelevant()) return buttonTypes[Math.min(currentButtonIndex, 1)];
-        if (isDropModeRelevant()) return dropWholeStack ? "Whole Stack" : "Single Item";
-        return "Auto";
-    }
-
-    private void drawOverlayButton(GuiGraphicsExtractor context, int x, int y, int w, int h, String label, CompactOverlayButton.Variant variant, boolean enabled, int mouseX, int mouseY) {
-        CompactOverlayControls.action(context, MC.font, x, y, w, h, label, variant, enabled, mouseX, mouseY);
-    }
-
-    private void drawOverlayToggleButton(GuiGraphicsExtractor context, int x, int y, int w, int h, String label, boolean enabled, String animationKey, int mouseX, int mouseY) {
-        CompactOverlayControls.toggle(context, MC.font, x, y, w, h, label, enabled, animationKey, mouseX, mouseY);
-    }
-
-    public AutismFabricatorOverlay(AbstractContainerScreen<?> parentScreen) {
-        this.parentScreen = parentScreen;
-        applyPresetMetrics();
-        this.PANEL_WIDTH = DEFAULT_PANEL_WIDTH;
-        this.PANEL_HEIGHT = craftModePanelHeight();
-    }
-
-    public static synchronized AutismFabricatorOverlay getSharedOverlay(AbstractContainerScreen<?> parentScreen) {
-        if (sharedOverlay == null) {
-            sharedOverlay = new AutismFabricatorOverlay(parentScreen);
-            sharedOverlay.restoreState();
-        } else {
-            sharedOverlay.parentScreen = parentScreen;
-        }
-        return sharedOverlay;
-    }
-
-    @Override
-    public int getMinWidth() {
-        return DEFAULT_PANEL_WIDTH;
-    }
-
-    @Override
-    public int getMinHeight() {
-        return standardPanelHeight();
-    }
-
-    @Override
-    public AutismWindowLayout getBounds() {
-        return new AutismWindowLayout(panelX, panelY, PANEL_WIDTH, PANEL_HEIGHT, visible, collapsed);
-    }
-
-    @Override
-    public void setBounds(AutismWindowLayout bounds) {
-        if (bounds == null) return;
-        AutismWindowLayout clamped = clampToScreen(this, bounds);
-        panelX = clamped.x;
-        panelY = clamped.y;
-        PANEL_WIDTH = clamped.width;
-        PANEL_HEIGHT = clamped.height;
-        visible = clamped.visible;
-        collapsed = clamped.collapsed;
-        if (visible) initWidgets();
-    }
-
-    public void toggle() {
-        setVisible(!visible);
-    }
-
-    @Override
-    public void setVisible(boolean visible) {
-        this.visible = visible;
-        if (visible) {
-            initWidgets();
-            AutismOverlayManager.get().bringToFront(this);
-        } else {
-            clearWidgets();
-        }
-        saveState();
-    }
-
-    @Override
-    public boolean isVisible() {
-        return visible;
-    }
-
-    @Override
-    public boolean isCollapsed() {
-        return collapsed;
-    }
-
-    @Override
-    public void setCollapsed(boolean collapsed) {
-        if (this.collapsed == collapsed) return;
-        this.collapsed = collapsed;
-        if (collapsed) clearHiddenInteractionState();
-        saveLayout();
-    }
-
-    @Override
-    public boolean usesSharedHeaderClickCollapse() {
-        return true;
-    }
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        if (!visible) return false;
-        int panelHeight = collapsed ? 18 : PANEL_HEIGHT;
-        return mouseX >= panelX && mouseX <= panelX + PANEL_WIDTH &&
-               mouseY >= panelY && mouseY <= panelY + panelHeight;
-    }
-
-    @Override
-    public boolean isOverDragBar(double mouseX, double mouseY) {
-        if (!visible) return false;
-        AutismWindowLayout bounds = getBounds();
-        return mouseX >= panelX && mouseX <= panelX + PANEL_WIDTH &&
-               mouseY >= panelY && mouseY <= panelY + 18 &&
-               !isOverWindowControl(mouseX, mouseY, bounds);
-    }
-
-    @Override
-    public boolean hasTextFieldFocused() {
-        for (AutismChatField field : textFields) {
-            if (field.isFocused()) return true;
-        }
-        return false;
-    }
-
-    @Override
-    public void clearTextFieldFocus() {
-        for (AutismChatField field : textFields) {
-            field.setFocused(false);
-        }
-    }
-
-    public void saveState() {
-        AutismSharedState shared = AutismSharedState.get();
-        shared.setFabricatorOverlayVisible(visible);
-        shared.setFabricatorOverlayX(panelX);
-        shared.setFabricatorOverlayY(panelY);
-
-        shared.setFabricatorSlotValue(savedSlotValue);
-        shared.setFabricatorItemNameValue(savedItemNameValue);
-        shared.setFabricatorTimesValue(savedTimesValue);
-        shared.setFabricatorActionIndex(currentActionIndex);
-        shared.setFabricatorButtonIndex(currentButtonIndex);
-        shared.setFabricatorDropWholeStack(dropWholeStack);
-        shared.setFabricatorCraftUseMaxAmount(craftUseMaxAmount);
-        shared.setFabricatorCraftSearchValue(savedCraftSearchValue);
-        shared.setFabricatorCraftSelectedRecipeId(savedCraftSelectedRecipeId);
-        shared.setFabricatorCraftSelectedRecipeKey(savedCraftSelectedRecipeKey);
-        shared.setFabricatorCraftScrollOffset(craftScrollOffset);
-        shared.setFabricatorCraftPlanEntries(plannedCraftEntries);
-        shared.setFabricatorCraftPlanSelectedIndex(craftPlanSelectedIndex);
-        shared.setFabricatorCraftPlanScrollOffset(craftPlanScrollOffset);
-        saveLayout();
-    }
-
-    public void restoreState() {
-        AutismSharedState shared = AutismSharedState.get();
-        restoreLayout();
-        this.visible = shared.isFabricatorOverlayVisible();
-        this.panelX = shared.getFabricatorOverlayX();
-        this.panelY = shared.getFabricatorOverlayY();
-
-        this.savedSlotValue = shared.getFabricatorSlotValue();
-        this.savedItemNameValue = shared.getFabricatorItemNameValue();
-        this.savedTimesValue = shared.getFabricatorTimesValue();
-        this.currentActionIndex = shared.getFabricatorActionIndex();
-        this.currentButtonIndex = shared.getFabricatorButtonIndex();
-        this.dropWholeStack = shared.isFabricatorDropWholeStack();
-        this.craftUseMaxAmount = shared.isFabricatorCraftUseMaxAmount();
-        this.savedCraftSearchValue = shared.getFabricatorCraftSearchValue();
-        this.savedCraftSelectedRecipeId = shared.getFabricatorCraftSelectedRecipeId();
-        this.savedCraftSelectedRecipeKey = shared.getFabricatorCraftSelectedRecipeKey();
-        this.craftScrollOffset = shared.getFabricatorCraftScrollOffset();
-        this.craftListScrollState.restore(this.craftScrollOffset * LINE_HEIGHT);
-        this.plannedCraftEntries.clear();
-        this.plannedCraftEntries.addAll(shared.getFabricatorCraftPlanEntries());
-        this.craftPlanSelectedIndex = shared.getFabricatorCraftPlanSelectedIndex();
-        this.craftPlanScrollOffset = shared.getFabricatorCraftPlanScrollOffset();
-        this.craftPlanScrollState.restore(this.craftPlanScrollOffset * 13);
-        this.selectedCraftOption = null;
-        this.selectedCraftResult = ItemStack.EMPTY;
-
-        if (currentActionIndex < 0 || currentActionIndex >= actions.length) {
-            currentActionIndex = 0;
-        }
-        this.currentAction = actions[currentActionIndex];
-        if (currentButtonIndex < 0 || currentButtonIndex >= buttonTypes.length) {
-            currentButtonIndex = 0;
-        }
-
-        if (visible) {
-            initWidgets();
-        }
-    }
-
-    private void initWidgets() {
-        clearWidgets();
-
-        if (!isDragging) {
-            PANEL_HEIGHT = isCraftMode() ? craftModePanelHeight() : standardPanelHeight();
-        }
-
-        int fieldX = panelX + LABEL_WIDTH + 15;
-        int fieldWidth = getFieldWidth();
-        currentAction = actions[currentActionIndex];
-
-        slotField = new AutismChatField(MC, MC.font, fieldX, getSlotRowY(), fieldWidth, 16, false);
-        slotField.setPlaceholder(Component.literal("Optional slot - right-click to fill"));
-        slotField.setText(savedSlotValue);
-        slotField.setMaxLength(5);
-        slotField.setChangedListener(text -> {
-            savedSlotValue = text;
-            clearStatus();
-
-            try {
-                int stableSlot = Integer.parseInt(text);
-                int slotId = AutismInventoryHelper.resolveConfiguredHandlerSlot(MC, stableSlot);
-                ItemTarget slotTarget = getItemTargetFromSlot(slotId);
-                String itemName = slotTarget.editorText();
-                if (!itemName.isEmpty()) {
-                    savedItemTarget = slotTarget;
-                    savedItemNameValue = itemName;
-                    if (itemNameField != null) {
-                        itemNameField.setText(itemName);
-                    }
-                }
-            } catch (NumberFormatException ignored) {}
-        });
-        if (showsSlotItemRows()) {
-            textFields.add(slotField);
-        }
-
-        itemNameField = new AutismChatField(MC, MC.font, fieldX, getItemRowY(), fieldWidth, 16, false);
-        itemNameField.setPlaceholder(Component.literal("Optional item match").withStyle(style -> style.withColor(ChatFormatting.DARK_GRAY)));
-        itemNameField.setText(savedItemNameValue);
-        itemNameField.setMaxLength(50);
-        itemNameField.setDisplayTextProvider(value -> {
-            Component rich = savedItemTarget == null ? null : savedItemTarget.editorComponent(value);
-            return rich != null && value != null && value.equals(rich.getString()) ? rich.copy() : null;
-        });
-        itemNameField.setChangedListener(text -> {
-            savedItemNameValue = text;
-            if (savedItemTarget != null && !text.equals(savedItemTarget.editorText())) {
-                savedItemTarget = savedItemTarget.hasRichText()
-                        ? savedItemTarget.withEditedDisplay(text)
-                        : ItemTarget.fromLegacyEntry(text);
-            }
-            clearStatus();
-        });
-        if (showsSlotItemRows()) {
-            textFields.add(itemNameField);
-        }
-
-        int timesY = isCraftMode() ? getCraftAmountRowY() : getStandardTimesRowY();
-        int timesX = isCraftMode() ? getCraftAmountFieldX() : fieldX;
-        int timesWidth = isCraftMode() ? getCraftAmountFieldWidth() : fieldWidth;
-        timesField = new AutismChatField(MC, MC.font, timesX, timesY, timesWidth, 16, false);
-        timesField.setPlaceholder(Component.literal("1"));
-        timesField.setText(savedTimesValue);
-        timesField.setMaxLength(5);
-        timesField.setEditable(!(isCraftMode() && craftUseMaxAmount));
-        timesField.setChangedListener(text -> {
-            savedTimesValue = text;
-            if (isCraftMode() && craftPlanSelectedIndex >= 0 && craftPlanSelectedIndex < plannedCraftEntries.size()) {
-                try {
-                    int val = Integer.parseInt(text.replaceAll("[^0-9]", ""));
-                    plannedCraftEntries.get(craftPlanSelectedIndex).amount = Math.max(1, val);
-                } catch (Exception ignored) {}
-            }
-            clearStatus();
-        });
-        textFields.add(timesField);
-
-        if (isCraftMode()) {
-            int searchY = getCraftSearchY();
-            craftSearchField = new AutismChatField(MC, MC.font, panelX + 10, searchY, PANEL_WIDTH - 20, 16, false);
-            craftSearchField.setPlaceholder(Component.literal("Search crafting recipes..."));
-            craftSearchField.setText(savedCraftSearchValue);
-            craftSearchField.setChangedListener(text -> {
-                savedCraftSearchValue = text;
-                clearStatus();
-                updateCraftRecipeFilter(text, true);
-                saveState();
-            });
-            textFields.add(craftSearchField);
-            refreshCraftableRecipes(true);
-        } else {
-            craftSearchField = null;
-        }
-    }
-
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!visible) return false;
-
-        if (!uiDropdowns.isEmpty()) {
-            if (CompactDropdown.mouseClicked(uiDropdowns, mouseX, mouseY, button)) return true;
-            if (CompactDropdown.isMenuOpen(uiDropdowns)) return true;
-        }
-
-        if (button == 0 && mouseX >= panelX && mouseX <= panelX + PANEL_WIDTH &&
-            mouseY >= panelY && mouseY <= panelY + 20) {
-            AutismWindowLayout bounds = new AutismWindowLayout(panelX, panelY, PANEL_WIDTH, collapsed ? 18 : PANEL_HEIGHT, visible, collapsed);
-
-            if (isOverCollapseButton(mouseX, mouseY, bounds)) {
-                toggleCollapsed();
-                return true;
-            }
-
-            if (isOverCloseButton(mouseX, mouseY, bounds)) {
-                setVisible(false);
-                return true;
-            }
-
-            isDragging = true;
-            dragOffsetX = mouseX - panelX;
-            dragOffsetY = mouseY - panelY;
-            for (AutismChatField field : textFields) {
-                field.setFocused(false);
-            }
+   private static final Minecraft MC = Minecraft.getInstance();
+   private static final CompactTheme THEME = new CompactTheme();
+   private static AutismFabricatorOverlay sharedOverlay;
+   private int DEFAULT_PANEL_WIDTH = 236;
+   private int LINE_HEIGHT = 14;
+   private int CRAFT_LIST_HEIGHT = 84;
+   private static final int CRAFT_LIST_ROWS = 6;
+   private int CRAFT_PLAN_HEIGHT = 52;
+   private static final int CRAFT_PLAN_ROWS = 4;
+   private static final int SCROLLBAR_GUTTER = 8;
+   private int panelX = 220;
+   private int panelY = 5;
+   private int PANEL_WIDTH = this.DEFAULT_PANEL_WIDTH;
+   private int PANEL_HEIGHT = 392;
+   private int FIELD_WIDTH = 100;
+   private int BUTTON_HEIGHT = 20;
+   private int LABEL_WIDTH = 64;
+   private boolean isDragging = false;
+   private double dragOffsetX = 0.0;
+   private double dragOffsetY = 0.0;
+   private boolean collapsed = false;
+   private boolean visible = false;
+   private AbstractContainerScreen<?> parentScreen;
+   private final List<AutismChatField> textFields = new ArrayList<>();
+   private AutismChatField slotField;
+   private AutismChatField itemNameField;
+   private AutismChatField timesField;
+   private AutismChatField craftSearchField;
+   private int currentActionIndex = 0;
+   private final AutismFabricatorOverlay.FabricatorAction[] actions = AutismFabricatorOverlay.FabricatorAction.values();
+   private final List<String> actionLabels = Arrays.stream(this.actions).map(action -> action.displayName).toList();
+   private static final List<String> STANDARD_CLICK_LABELS = List.of("Left Click", "Right Click");
+   private static final List<String> PACKET_CLICK_LABELS = List.of("Left Click", "Right Click", "Quick Move");
+   private static final List<String> DROP_MODE_LABELS = List.of("Single", "Stack");
+   private final List<CompactDropdown> uiDropdowns = new ArrayList<>();
+   private CompactDropdown actionDropdown;
+   private CompactDropdown clickModeDropdown;
+   private CompactDropdown dropModeDropdown;
+   private int currentButtonIndex = 0;
+   private final String[] buttonTypes = new String[]{"Left Click", "Right Click", "Quick Move"};
+   private boolean dropWholeStack = false;
+   private AutismPacketClick.Target packetClickTarget = null;
+   private Integer selectedSlotId = null;
+   private String statusMessage = "";
+   private ChatFormatting statusColor = ChatFormatting.GRAY;
+   private long statusExpiresAtMs = 0L;
+   private final List<AutismCraftingHelper.CraftableRecipeOption> craftableRecipes = new ArrayList<>();
+   private List<AutismCraftingHelper.CraftableRecipeOption> filteredCraftableRecipes = new ArrayList<>();
+   private int readyCraftableRecipeCount = 0;
+   private int craftScrollOffset = 0;
+   private final ScrollState craftListScrollState = new ScrollState();
+   private AutismCraftingHelper.CraftableRecipeOption selectedCraftOption = null;
+   private ItemStack selectedCraftResult = ItemStack.EMPTY;
+   private final List<CraftAction.CraftEntry> plannedCraftEntries = new ArrayList<>();
+   private int craftPlanSelectedIndex = -1;
+   private int craftPlanScrollOffset = 0;
+   private final ScrollState craftPlanScrollState = new ScrollState();
+   private long lastCraftRefreshAt = 0L;
+   private volatile boolean craftExecutionInProgress = false;
+   private boolean craftUseMaxAmount = false;
+   private int activeScrollbarDrag = 0;
+   private int scrollbarGrabOffset = 0;
+   private static final int SCROLLBAR_NONE = 0;
+   private static final int SCROLLBAR_CRAFT_PLAN = 1;
+   private static final int SCROLLBAR_CRAFT_LIST = 2;
+   private String savedSlotValue = "0";
+   private String savedItemNameValue = "";
+   private ItemTarget savedItemTarget = new ItemTarget();
+   private String savedTimesValue = "1";
+   private String savedCraftSearchValue = "";
+   private int savedCraftSelectedRecipeId = -1;
+   private String savedCraftSelectedRecipeKey = "";
+   private AutismFabricatorOverlay.FabricatorAction currentAction = AutismFabricatorOverlay.FabricatorAction.CLICK;
+
+   private int getFieldWidth() {
+      return Math.max(108, this.PANEL_WIDTH - this.LABEL_WIDTH - 26);
+   }
+
+   private int getBottomButtonY() {
+      return this.panelY + this.PANEL_HEIGHT - this.BUTTON_HEIGHT - 24;
+   }
+
+   private int getStatusY() {
+      return Math.max(this.getInfoFloorY(), this.getActionInfoY() - 13);
+   }
+
+   private int getActionInfoY() {
+      return Math.max(this.getInfoFloorY() + 13, this.getBottomButtonY() - 4 - this.getActionDescriptionLines().size() * 10);
+   }
+
+   private List<String> getActionDescriptionLines() {
+      return UiContexts.textRenderer(MC.font).wrapFully(this.currentAction.getDescription(this.dropWholeStack), Math.max(1, this.PANEL_WIDTH - 20));
+   }
+
+   private int getInfoFloorY() {
+      return this.isCraftMode() ? this.getCraftListY() + this.CRAFT_LIST_HEIGHT + 14 : this.getStandardTimesRowY() + 22;
+   }
+
+   private int requiredPanelHeightForInfoRows(int floorY) {
+      int relativeFloor = Math.max(0, floorY - this.panelY);
+      return relativeFloor + 13 + this.getActionDescriptionLines().size() * 10 + 4 + this.BUTTON_HEIGHT + 24;
+   }
+
+   private boolean isCraftMode() {
+      return this.currentAction.isCraftAction();
+   }
+
+   private boolean showsTargetFields() {
+      return !this.isCraftMode();
+   }
+
+   private boolean showsSlotItemRows() {
+      return this.showsTargetFields() && !this.currentAction.isPacketAction();
+   }
+
+   private int getActionRowY() {
+      return this.panelY + 30;
+   }
+
+   private int getSlotRowY() {
+      return this.getActionRowY() + 28;
+   }
+
+   private int getItemRowY() {
+      return this.getSlotRowY() + (this.showsSlotItemRows() ? 28 : 0);
+   }
+
+   private int getOptionRowY() {
+      return this.getItemRowY() + (this.showsSlotItemRows() ? 28 : 0);
+   }
+
+   private int getStandardTimesRowY() {
+      return !this.isClickSelectorRelevant() && !this.isDropModeRelevant() ? this.getItemRowY() + 28 : this.getOptionRowY() + 28;
+   }
+
+   private int getCraftSearchY() {
+      return this.getCraftSearchLabelY() + 12;
+   }
+
+   private int getCraftAmountRowY() {
+      return this.getCraftSummaryY() + 16;
+   }
+
+   private int getCraftAmountToggleWidth() {
+      return 78;
+   }
+
+   private int getCraftAmountFieldX() {
+      return this.panelX + this.LABEL_WIDTH + 15;
+   }
+
+   private int getCraftAmountToggleX() {
+      return this.getCraftAmountFieldX() + this.getCraftAmountFieldWidth() + 4;
+   }
+
+   private int getCraftAddButtonWidth() {
+      return 44;
+   }
+
+   private int getCraftAmountFieldWidth() {
+      return Math.max(48, this.getFieldWidth() - this.getCraftAmountToggleWidth() - this.getCraftAddButtonWidth() - 8);
+   }
+
+   private int getCraftAddButtonX() {
+      return this.getCraftAmountToggleX() + this.getCraftAmountToggleWidth() + 4;
+   }
+
+   private int getCraftPlanHeaderY() {
+      return this.getSlotRowY() + 3;
+   }
+
+   private int getCraftPlanListY() {
+      return this.getSlotRowY() + 16;
+   }
+
+   private int getCraftSummaryY() {
+      return this.getCraftPlanListY() + this.CRAFT_PLAN_HEIGHT + 4;
+   }
+
+   private int getCraftSearchLabelY() {
+      return this.getCraftAmountRowY() + 24;
+   }
+
+   private boolean isClickSelectorRelevant() {
+      return this.currentAction.usesClickSelector();
+   }
+
+   private int getClickSelectorOptionCount() {
+      return this.currentAction.isPacketAction() ? AutismPacketClick.Mode.values().length : 2;
+   }
+
+   private AutismPacketClick.Mode getCurrentPacketMode() {
+      return AutismPacketClick.Mode.byIndex(this.currentButtonIndex);
+   }
+
+   private boolean isDropModeRelevant() {
+      return this.currentAction.usesDropToggle();
+   }
+
+   private int getEffectiveButton() {
+      if (this.currentAction.isPacketAction()) {
+         return this.getCurrentPacketMode().button;
+      } else if (this.currentAction.usesDropToggle()) {
+         return this.dropWholeStack ? 1 : 0;
+      } else {
+         AutismDropAction packetAction = this.currentAction.toPacketAction(this.dropWholeStack);
+         return packetAction.usesFixedButton() ? packetAction.getButton() : Math.min(this.currentButtonIndex, 1);
+      }
+   }
+
+   private String getClickSelectorLabel() {
+      if (this.currentAction.isPacketAction()) {
+         return this.getCurrentPacketMode().displayName;
+      } else if (this.isClickSelectorRelevant()) {
+         return this.buttonTypes[Math.min(this.currentButtonIndex, 1)];
+      } else if (this.isDropModeRelevant()) {
+         return this.dropWholeStack ? "Whole Stack" : "Single Item";
+      } else {
+         return "Auto";
+      }
+   }
+
+   private void drawOverlayButton(
+      GuiGraphicsExtractor context, int x, int y, int w, int h, String label, CompactOverlayButton.Variant variant, boolean enabled, int mouseX, int mouseY
+   ) {
+      CompactOverlayControls.action(context, MC.font, x, y, w, h, label, variant, enabled, mouseX, mouseY);
+   }
+
+   private void drawOverlayToggleButton(
+      GuiGraphicsExtractor context, int x, int y, int w, int h, String label, boolean enabled, String animationKey, int mouseX, int mouseY
+   ) {
+      CompactOverlayControls.toggle(context, MC.font, x, y, w, h, label, enabled, animationKey, mouseX, mouseY);
+   }
+
+   public AutismFabricatorOverlay(AbstractContainerScreen<?> parentScreen) {
+      this.parentScreen = parentScreen;
+      this.applyPresetMetrics();
+      this.PANEL_WIDTH = this.DEFAULT_PANEL_WIDTH;
+      this.PANEL_HEIGHT = this.craftModePanelHeight();
+   }
+
+   public static synchronized AutismFabricatorOverlay getSharedOverlay(AbstractContainerScreen<?> parentScreen) {
+      if (sharedOverlay == null) {
+         sharedOverlay = new AutismFabricatorOverlay(parentScreen);
+         sharedOverlay.restoreState();
+      } else {
+         sharedOverlay.parentScreen = parentScreen;
+      }
+
+      return sharedOverlay;
+   }
+
+   @Override
+   public int getMinWidth() {
+      return this.DEFAULT_PANEL_WIDTH;
+   }
+
+   @Override
+   public int getMinHeight() {
+      return this.standardPanelHeight();
+   }
+
+   @Override
+   public AutismWindowLayout getBounds() {
+      return new AutismWindowLayout(this.panelX, this.panelY, this.PANEL_WIDTH, this.PANEL_HEIGHT, this.visible, this.collapsed);
+   }
+
+   @Override
+   public void setBounds(AutismWindowLayout bounds) {
+      if (bounds != null) {
+         AutismWindowLayout clamped = this.clampToScreen(this, bounds);
+         this.panelX = clamped.x;
+         this.panelY = clamped.y;
+         this.PANEL_WIDTH = clamped.width;
+         this.PANEL_HEIGHT = clamped.height;
+         this.visible = clamped.visible;
+         this.collapsed = clamped.collapsed;
+         if (this.visible) {
+            this.initWidgets();
+         }
+      }
+   }
+
+   public void toggle() {
+      this.setVisible(!this.visible);
+   }
+
+   @Override
+   public void setVisible(boolean visible) {
+      this.visible = visible;
+      if (visible) {
+         this.initWidgets();
+         AutismOverlayManager.get().bringToFront(this);
+      } else {
+         this.clearWidgets();
+      }
+
+      this.saveState();
+   }
+
+   @Override
+   public boolean isVisible() {
+      return this.visible;
+   }
+
+   @Override
+   public boolean isCollapsed() {
+      return this.collapsed;
+   }
+
+   @Override
+   public void setCollapsed(boolean collapsed) {
+      if (this.collapsed != collapsed) {
+         this.collapsed = collapsed;
+         if (collapsed) {
+            this.clearHiddenInteractionState();
+         }
+
+         this.saveLayout();
+      }
+   }
+
+   @Override
+   public boolean usesSharedHeaderClickCollapse() {
+      return true;
+   }
+
+   @Override
+   public boolean isMouseOver(double mouseX, double mouseY) {
+      if (!this.visible) {
+         return false;
+      } else {
+         int panelHeight = this.collapsed ? 18 : this.PANEL_HEIGHT;
+         return mouseX >= this.panelX && mouseX <= this.panelX + this.PANEL_WIDTH && mouseY >= this.panelY && mouseY <= this.panelY + panelHeight;
+      }
+   }
+
+   @Override
+   public boolean isOverDragBar(double mouseX, double mouseY) {
+      if (!this.visible) {
+         return false;
+      } else {
+         AutismWindowLayout bounds = this.getBounds();
+         return mouseX >= this.panelX
+            && mouseX <= this.panelX + this.PANEL_WIDTH
+            && mouseY >= this.panelY
+            && mouseY <= this.panelY + 18
+            && !this.isOverWindowControl(mouseX, mouseY, bounds);
+      }
+   }
+
+   @Override
+   public boolean hasTextFieldFocused() {
+      for (AutismChatField field : this.textFields) {
+         if (field.isFocused()) {
             return true;
-        }
-
-        if (collapsed) return false;
-
-        MouseButtonEvent click = new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
-
-        boolean clickedField = false;
-
-        for (AutismChatField field : textFields) {
-            boolean wasClicked = field.mouseClicked(click, false);
-            if (wasClicked) {
-                field.setFocused(true);
-                clickedField = true;
-            } else {
-                field.setFocused(false);
-            }
-        }
-
-        if (clickedField) return true;
-
-        if (isCraftMode()) {
-            refreshCraftableRecipes(false);
-            int listX = getCraftListX();
-            int listWidth = getCraftListWidth();
-            int planContentWidth = getCraftPlanContentWidth();
-            int recipeContentWidth = getCraftListContentWidth();
-            int planHeaderY = getCraftPlanHeaderY();
-            int planListY = getCraftPlanListY();
-            int listY = getCraftListY();
-
-            if (button == 0) {
-                CompactScrollbar.Metrics craftPlanScrollbar = getCraftPlanScrollbarMetrics();
-                if (craftPlanScrollbar.hasScroll() && craftPlanScrollbar.contains((int) mouseX, (int) mouseY)) {
-                    activeScrollbarDrag = SCROLLBAR_CRAFT_PLAN;
-                    scrollbarGrabOffset = Math.max(0, (int) mouseY - craftPlanScrollbar.thumbY());
-                    craftPlanScrollOffset = toRowScroll(craftPlanScrollbar, (int) mouseY, scrollbarGrabOffset, 13, Math.max(0, plannedCraftEntries.size() - CRAFT_PLAN_ROWS));
-                    craftPlanScrollState.jumpTo(craftPlanScrollOffset * 13, Math.max(0, plannedCraftEntries.size() * 13 - CRAFT_PLAN_HEIGHT));
-                    saveState();
-                    return true;
-                }
-
-                CompactScrollbar.Metrics craftListScrollbar = getCraftListScrollbarMetrics();
-                if (craftListScrollbar.hasScroll() && craftListScrollbar.contains((int) mouseX, (int) mouseY)) {
-                    activeScrollbarDrag = SCROLLBAR_CRAFT_LIST;
-                    scrollbarGrabOffset = Math.max(0, (int) mouseY - craftListScrollbar.thumbY());
-                    craftScrollOffset = toRowScroll(craftListScrollbar, (int) mouseY, scrollbarGrabOffset, LINE_HEIGHT, Math.max(0, filteredCraftableRecipes.size() - CRAFT_LIST_ROWS));
-                    craftListScrollState.jumpTo(craftScrollOffset * LINE_HEIGHT, Math.max(0, filteredCraftableRecipes.size() * LINE_HEIGHT - CRAFT_LIST_HEIGHT));
-                    saveState();
-                    return true;
-                }
-            }
-
-            if (!plannedCraftEntries.isEmpty()
-                && mouseX >= panelX + PANEL_WIDTH - 74 && mouseX < panelX + PANEL_WIDTH - 10
-                && mouseY >= planHeaderY - 2 && mouseY < planHeaderY + 10
-                && button == 0) {
-                plannedCraftEntries.clear();
-                craftPlanSelectedIndex = -1;
-                craftPlanScrollOffset = 0;
-                craftPlanScrollState.jumpTo(0, 0);
-                clearStatus();
-                saveState();
-                return true;
-            }
-
-            if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= planListY && mouseY <= planListY + CRAFT_PLAN_HEIGHT && button == 0) {
-                int maxPlanScrollPx = Math.max(0, plannedCraftEntries.size() * 13 - CRAFT_PLAN_HEIGHT);
-                int drawPlanScroll = craftPlanScrollState.tick(0.0f, maxPlanScrollPx);
-                int firstIndex = drawPlanScroll / 13;
-                int rowY = planListY - (drawPlanScroll % 13);
-                for (int index = firstIndex; index < plannedCraftEntries.size() && rowY < planListY + CRAFT_PLAN_HEIGHT; index++, rowY += 13) {
-                    if (mouseY < rowY || mouseY >= rowY + 12) continue;
-                    if (mouseX >= listX + planContentWidth - 16 && mouseX < listX + planContentWidth - 2) {
-                        removePlannedCraftEntry(index);
-                        return true;
-                    }
-                    if (mouseX >= listX && mouseX < listX + planContentWidth) {
-                        if (craftPlanSelectedIndex == index) {
-                            selectCraftPlanEntry(-1);
-                        } else {
-                            selectCraftPlanEntry(index);
-                        }
-                        for (AutismChatField field : textFields) field.setFocused(false);
-                        return true;
-                    }
-                }
-                if (mouseX >= listX && mouseX < listX + planContentWidth) {
-                    selectCraftPlanEntry(-1);
-                    for (AutismChatField field : textFields) field.setFocused(false);
-                    return true;
-                }
-            }
-
-            if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= listY && mouseY <= listY + CRAFT_LIST_HEIGHT && button == 0) {
-                int maxRecipeScrollPx = Math.max(0, filteredCraftableRecipes.size() * LINE_HEIGHT - CRAFT_LIST_HEIGHT);
-                int drawRecipeScroll = craftListScrollState.tick(0.0f, maxRecipeScrollPx);
-                int firstIndex = drawRecipeScroll / LINE_HEIGHT;
-                int rowY = listY - (drawRecipeScroll % LINE_HEIGHT);
-                for (int index = firstIndex; index < filteredCraftableRecipes.size() && rowY < listY + CRAFT_LIST_HEIGHT; index++, rowY += LINE_HEIGHT) {
-                    if (mouseX >= listX && mouseX < listX + recipeContentWidth && mouseY >= rowY && mouseY < rowY + LINE_HEIGHT) {
-                        selectCraftRecipe(filteredCraftableRecipes.get(index));
-                        addOrUpdatePlannedCraftEntry();
-                        for (AutismChatField field : textFields) field.setFocused(false);
-                        return true;
-                    }
-                }
-                if (mouseX >= listX && mouseX < listX + recipeContentWidth) {
-                    clearCraftRecipeSelection();
-                    for (AutismChatField field : textFields) field.setFocused(false);
-                    saveState();
-                    return true;
-                }
-            }
-        }
-
-        if (isCraftMode()) {
-            int toggleX = getCraftAmountToggleX();
-            int toggleY = getCraftAmountRowY();
-            int toggleW = getCraftAmountToggleWidth();
-            if (mouseY >= toggleY && mouseY < toggleY + 16 && mouseX >= toggleX && mouseX < toggleX + toggleW && (button == 0 || button == 1)) {
-                craftUseMaxAmount = !craftUseMaxAmount;
-                if (timesField != null) timesField.setEditable(!craftUseMaxAmount);
-                if (craftPlanSelectedIndex >= 0 && craftPlanSelectedIndex < plannedCraftEntries.size()) {
-                    plannedCraftEntries.get(craftPlanSelectedIndex).useMaxAmount = craftUseMaxAmount;
-                }
-                clearStatus();
-                saveState();
-                for (AutismChatField field : textFields) field.setFocused(false);
-                return true;
-            }
-        }
-
-        int btnY = getBottomButtonY();
-        int btnArea = PANEL_WIDTH - 20;
-        int gap = 2;
-        int bw = (btnArea - gap * 2) / 3;
-        int bx = panelX + 10;
-        if (mouseY >= btnY && mouseY < btnY + BUTTON_HEIGHT && button == 0) {
-            if (mouseX >= bx && mouseX < bx + bw) {
-                send(false);
-                for (AutismChatField field : textFields) field.setFocused(false);
-                return true;
-            }
-            bx += bw + gap;
-            if (mouseX >= bx && mouseX < bx + bw) {
-                send(true);
-                for (AutismChatField field : textFields) field.setFocused(false);
-                return true;
-            }
-            bx += bw + gap;
-            if (mouseX >= bx && mouseX < bx + bw) {
-
-                AutismMacroEditorOverlay macroEditor = null;
-                for (IAutismOverlay ov : AutismOverlayManager.get().getOverlays()) {
-                    if (ov instanceof AutismMacroEditorOverlay) {
-                        macroEditor = (AutismMacroEditorOverlay) ov;
-                        break;
-                    }
-                }
-                if (macroEditor != null && macroEditor.isVisible()) {
-                    sendToMacro(macroEditor);
-                } else {
-                    setStatus("Open a macro editor first!", ChatFormatting.RED);
-                }
-                for (AutismChatField field : textFields) field.setFocused(false);
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        CompactDropdown.mouseReleased(uiDropdowns);
-        if (button == 0 && activeScrollbarDrag != SCROLLBAR_NONE) {
-            activeScrollbarDrag = SCROLLBAR_NONE;
-            saveState();
-            return true;
-        }
-        if (button == 0) {
-            if (isDragging) {
-                saveState();
-            }
-            isDragging = false;
-        }
-        return false;
-    }
-
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
-        if (CompactDropdown.mouseDragged(uiDropdowns, mouseX, mouseY, button)) return true;
-        if (activeScrollbarDrag == SCROLLBAR_CRAFT_PLAN) {
-            craftPlanScrollOffset = toRowScroll(getCraftPlanScrollbarMetrics(), (int) mouseY, scrollbarGrabOffset, 13, Math.max(0, plannedCraftEntries.size() - CRAFT_PLAN_ROWS));
-            craftPlanScrollState.jumpTo(craftPlanScrollOffset * 13, Math.max(0, plannedCraftEntries.size() * 13 - CRAFT_PLAN_HEIGHT));
-            return true;
-        }
-        if (activeScrollbarDrag == SCROLLBAR_CRAFT_LIST) {
-            craftScrollOffset = toRowScroll(getCraftListScrollbarMetrics(), (int) mouseY, scrollbarGrabOffset, LINE_HEIGHT, Math.max(0, filteredCraftableRecipes.size() - CRAFT_LIST_ROWS));
-            craftListScrollState.jumpTo(craftScrollOffset * LINE_HEIGHT, Math.max(0, filteredCraftableRecipes.size() * LINE_HEIGHT - CRAFT_LIST_HEIGHT));
-            return true;
-        }
-        if (isDragging) {
-            AutismWindowLayout nextBounds = clampToScreen(this,
-                new AutismWindowLayout((int) (mouseX - dragOffsetX), (int) (mouseY - dragOffsetY),
-                    PANEL_WIDTH, PANEL_HEIGHT, visible, collapsed));
-            panelX = nextBounds.x;
-            panelY = nextBounds.y;
-            initWidgets();
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
-        if (!visible || collapsed) return false;
-        if (!uiDropdowns.isEmpty()
-                && (CompactDropdown.isMenuOpen(uiDropdowns)
-                    || CompactDropdown.isInsideOpenMenu(uiDropdowns, mouseX, mouseY))) {
-            if (CompactDropdown.mouseScrolled(uiDropdowns, mouseX, mouseY, amount)) return true;
-        }
-        if (isCraftMode()) {
-            int planX = getCraftListX();
-            int planY = getCraftPlanListY();
-            int listWidth = getCraftListWidth();
-            if (mouseX >= planX && mouseX <= planX + listWidth && mouseY >= planY && mouseY <= planY + CRAFT_PLAN_HEIGHT) {
-            int maxPlanScroll = Math.max(0, plannedCraftEntries.size() - CRAFT_PLAN_ROWS);
-            craftPlanScrollOffset = Math.max(0, Math.min(maxPlanScroll, craftPlanScrollOffset - (int) Math.signum(amount)));
-            craftPlanScrollState.setTarget(craftPlanScrollOffset * 13, Math.max(0, plannedCraftEntries.size() * 13 - CRAFT_PLAN_HEIGHT));
-            saveState();
-            return true;
-        }
-
-            int listX = getCraftListX();
-            int listY = getCraftListY();
-            if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= listY && mouseY <= listY + CRAFT_LIST_HEIGHT) {
-            int maxScroll = Math.max(0, filteredCraftableRecipes.size() - CRAFT_LIST_ROWS);
-            craftScrollOffset = Math.max(0, Math.min(maxScroll, craftScrollOffset - (int) Math.signum(amount)));
-            craftListScrollState.setTarget(craftScrollOffset * LINE_HEIGHT, Math.max(0, filteredCraftableRecipes.size() * LINE_HEIGHT - CRAFT_LIST_HEIGHT));
-            saveState();
-            return true;
-        }
-        }
-        return false;
-    }
-
-    private String getItemNameFromSlot(int slotId) {
-        ItemTarget target = getItemTargetFromSlot(slotId);
-        return target.editorText();
-    }
-
-    private ItemTarget getItemTargetFromSlot(int slotId) {
-        AbstractContainerMenu handler = getActiveHandler();
-        if (handler == null || slotId < 0 || slotId >= handler.slots.size()) return new ItemTarget();
-
-        Slot slot = handler.slots.get(slotId);
-        if (slot == null || slot.getItem().isEmpty()) return new ItemTarget();
-
-        int visibleSlot = AutismInventoryHelper.toUserVisibleSlot(MC, slot.index);
-        return ItemTarget.capture(slot.getItem(), visibleSlot);
-    }
-
-    private void refreshCraftableRecipes(boolean force) {
-        if (!isCraftMode() || MC.player == null || MC.level == null) return;
-        long now = System.currentTimeMillis();
-        if (!force && now - lastCraftRefreshAt < AutismCraftingHelper.CRAFT_REFRESH_DEBOUNCE_MS) return;
-        lastCraftRefreshAt = now;
-
-        craftableRecipes.clear();
-        filteredCraftableRecipes = new ArrayList<>();
-
-        craftableRecipes.addAll(AutismCraftingHelper.getCraftableRecipes(MC));
-        readyCraftableRecipeCount = 0;
-        for (AutismCraftingHelper.CraftableRecipeOption option : craftableRecipes) {
-            if (option.craftableNow) readyCraftableRecipeCount++;
-        }
-        updateCraftRecipeFilter(craftSearchField != null ? craftSearchField.getText() : savedCraftSearchValue, false);
-        clearSelectedCraftIfInvalid();
-        restoreSelectedCraftIfNeeded();
-    }
-
-    private void updateCraftRecipeFilter(String query, boolean resetScroll) {
-        savedCraftSearchValue = query == null ? "" : query;
-        filteredCraftableRecipes = AutismCraftingHelper.filterRecipes(craftableRecipes, query);
-        int maxScroll = Math.max(0, filteredCraftableRecipes.size() - CRAFT_LIST_ROWS);
-        craftScrollOffset = resetScroll ? 0 : Math.max(0, Math.min(maxScroll, craftScrollOffset));
-    }
-
-    private void clearSelectedCraftIfInvalid() {
-        if (selectedCraftOption == null) return;
-        for (AutismCraftingHelper.CraftableRecipeOption option : craftableRecipes) {
-            if ((!option.recipeKey.isBlank() && option.recipeKey.equalsIgnoreCase(selectedCraftOption.recipeKey))
-                || (option.recipeId >= 0 && option.recipeId == selectedCraftOption.recipeId)
-                || (option.syncedRecipeId >= 0 && option.syncedRecipeId == selectedCraftOption.syncedRecipeId)) {
-                selectedCraftOption = option;
-                selectedCraftResult = option.result.copy();
-                savedCraftSelectedRecipeId = option.recipeId;
-                savedCraftSelectedRecipeKey = option.recipeKey;
-                return;
-            }
-        }
-        selectedCraftOption = null;
-        selectedCraftResult = ItemStack.EMPTY;
-        savedCraftSelectedRecipeId = -1;
-        savedCraftSelectedRecipeKey = "";
-    }
-
-    private void restoreSelectedCraftIfNeeded() {
-        if ((savedCraftSelectedRecipeKey == null || savedCraftSelectedRecipeKey.isBlank()) && savedCraftSelectedRecipeId < 0) return;
-        if (selectedCraftOption != null) {
-            if (!savedCraftSelectedRecipeKey.isBlank() && savedCraftSelectedRecipeKey.equalsIgnoreCase(selectedCraftOption.recipeKey)) return;
-            if (savedCraftSelectedRecipeId >= 0 && (selectedCraftOption.recipeId == savedCraftSelectedRecipeId || selectedCraftOption.syncedRecipeId == savedCraftSelectedRecipeId)) return;
-        }
-        for (AutismCraftingHelper.CraftableRecipeOption option : craftableRecipes) {
-            if ((!savedCraftSelectedRecipeKey.isBlank() && savedCraftSelectedRecipeKey.equalsIgnoreCase(option.recipeKey))
-                || (savedCraftSelectedRecipeId >= 0 && option.recipeId == savedCraftSelectedRecipeId)
-                || (savedCraftSelectedRecipeId >= 0 && option.syncedRecipeId == savedCraftSelectedRecipeId)) {
-                selectedCraftOption = option;
-                selectedCraftResult = option.result.copy();
-                savedItemTarget = ItemTarget.capture(option.result, -1);
-                savedItemNameValue = option.label;
-                savedCraftSelectedRecipeKey = option.recipeKey;
-                savedCraftSelectedRecipeId = option.recipeId;
-                if (itemNameField != null) itemNameField.setText(savedItemNameValue);
-                return;
-            }
-        }
-    }
-
-    private int getCraftListY() {
-        return getCraftSearchY() + 24;
-    }
-
-    private int getCraftListX() {
-        return panelX + 10;
-    }
-
-    private int getCraftListWidth() {
-        return PANEL_WIDTH - 20;
-    }
-
-    private int getCraftPlanContentWidth() {
-        return Math.max(40, getCraftListWidth() - (getCraftPlanScrollbarMetrics().hasScroll() ? SCROLLBAR_GUTTER : 0));
-    }
-
-    private int getCraftListContentWidth() {
-        return Math.max(40, getCraftListWidth() - (getCraftListScrollbarMetrics().hasScroll() ? SCROLLBAR_GUTTER : 0));
-    }
-
-    private CompactScrollbar.Metrics getCraftPlanScrollbarMetrics() {
-        int listX = getCraftListX();
-        int listY = getCraftPlanListY();
-        int listWidth = getCraftListWidth();
-        int contentHeight = plannedCraftEntries.size() * 13;
-        int maxScroll = Math.max(0, contentHeight - CRAFT_PLAN_HEIGHT);
-        return CompactScrollbar.compute(
-            contentHeight,
-            CRAFT_PLAN_HEIGHT,
-            listX + listWidth - 5,
-            listY,
-            3,
-            CRAFT_PLAN_HEIGHT,
-            craftPlanScrollState.tick(0.0f, maxScroll)
-        );
-    }
-
-    private CompactScrollbar.Metrics getCraftListScrollbarMetrics() {
-        int listX = getCraftListX();
-        int listY = getCraftListY();
-        int listWidth = getCraftListWidth();
-        int contentHeight = filteredCraftableRecipes.size() * LINE_HEIGHT;
-        int maxScroll = Math.max(0, contentHeight - CRAFT_LIST_HEIGHT);
-        return CompactScrollbar.compute(
-            contentHeight,
-            CRAFT_LIST_HEIGHT,
-            listX + listWidth - 5,
-            listY,
-            3,
-            CRAFT_LIST_HEIGHT,
-            craftListScrollState.tick(0.0f, maxScroll)
-        );
-    }
-
-    private int toRowScroll(CompactScrollbar.Metrics metrics, int mouseY, int grabOffset, int rowHeight, int maxScrollRows) {
-        int pixelScroll = CompactScrollbar.scrollFromThumb(metrics, mouseY, grabOffset);
-        return Math.max(0, Math.min(maxScrollRows, Math.round(pixelScroll / (float) rowHeight)));
-    }
-
-    private void selectCraftRecipe(AutismCraftingHelper.CraftableRecipeOption option) {
-        if (option == null) return;
-        selectedCraftOption = option;
-        selectedCraftResult = option.result.copy();
-        savedItemTarget = ItemTarget.capture(option.result, -1);
-        savedItemNameValue = option.label;
-        savedCraftSelectedRecipeId = option.recipeId;
-        savedCraftSelectedRecipeKey = option.recipeKey;
-        if (itemNameField != null) itemNameField.setText(savedItemNameValue);
-        setStatus(
-            "Selected craft: " + option.label + " | " + (option.craftSource == AutismCraftingHelper.CraftSource.TABLE_3X3 ? "Table" : "2x2") + " | " + AutismCraftingHelper.getAvailabilityLabel(option),
-            option.craftableNow ? ChatFormatting.GREEN : ChatFormatting.RED
-        );
-        saveState();
-    }
-
-    private void clearCraftRecipeSelection() {
-        craftPlanSelectedIndex = -1;
-        selectedCraftOption = null;
-        selectedCraftResult = ItemStack.EMPTY;
-        savedItemTarget = new ItemTarget();
-        savedCraftSelectedRecipeId = -1;
-        savedCraftSelectedRecipeKey = "";
-    }
-
-    private AutismCraftingHelper.CraftableRecipeOption resolveCraftOption(CraftAction.CraftEntry entry) {
-        if (entry == null) return null;
-        return AutismCraftingHelper.findInList(craftableRecipes, entry.recipeKey, entry.recipeId);
-    }
-
-    private CraftAction.CraftEntry buildConfiguredCraftEntry() {
-        if (selectedCraftOption == null || selectedCraftResult.isEmpty()) return null;
-        int configuredAmount = parseConfiguredCraftAmount();
-        if (configuredAmount <= 0) return null;
-        return CraftAction.CraftEntry.fromOption(selectedCraftOption, configuredAmount, craftUseMaxAmount);
-    }
-
-    private CraftAction.CraftEntry getSelectedPlannedEntry() {
-        if (craftPlanSelectedIndex < 0 || craftPlanSelectedIndex >= plannedCraftEntries.size()) return null;
-        return plannedCraftEntries.get(craftPlanSelectedIndex);
-    }
-
-    private void selectCraftPlanEntry(int index) {
-        if (index < 0 || index >= plannedCraftEntries.size()) {
-            craftPlanSelectedIndex = -1;
-            selectedCraftOption = null;
-            selectedCraftResult = ItemStack.EMPTY;
-            savedCraftSelectedRecipeId = -1;
-            savedCraftSelectedRecipeKey = "";
-            saveState();
-            return;
-        }
-
-        craftPlanSelectedIndex = index;
-        CraftAction.CraftEntry entry = plannedCraftEntries.get(index);
-        if (entry != null) {
-            craftUseMaxAmount = entry.useMaxAmount;
-            savedTimesValue = String.valueOf(Math.max(1, entry.amount));
-            if (timesField != null) {
-                timesField.setText(savedTimesValue);
-                timesField.setEditable(!craftUseMaxAmount);
-            }
-            AutismCraftingHelper.CraftableRecipeOption option = resolveCraftOption(entry);
-            if (option != null) {
-                selectCraftRecipe(option);
-            } else {
-                savedCraftSelectedRecipeId = entry.recipeId;
-                savedCraftSelectedRecipeKey = entry.recipeKey;
-                selectedCraftOption = null;
-                selectedCraftResult = ItemStack.EMPTY;
-            }
-        }
-        saveState();
-    }
-
-    private void addOrUpdatePlannedCraftEntry() {
-        CraftAction.CraftEntry draft = buildConfiguredCraftEntry();
-        if (draft == null) {
-            setStatus("Select a recipe and amount first", ChatFormatting.RED);
-            return;
-        }
-
-        int existingIndex = -1;
-        for (int i = 0; i < plannedCraftEntries.size(); i++) {
-            CraftAction.CraftEntry existing = plannedCraftEntries.get(i);
-            if (existing == null) continue;
-            if ((!draft.recipeKey.isBlank() && draft.recipeKey.equalsIgnoreCase(existing.recipeKey))
-                || (draft.recipeId >= 0 && draft.recipeId == existing.recipeId)) {
-                existingIndex = i;
-                break;
-            }
-        }
-
-        if (craftPlanSelectedIndex >= 0 && craftPlanSelectedIndex < plannedCraftEntries.size()) {
-            plannedCraftEntries.set(craftPlanSelectedIndex, draft);
-        } else if (existingIndex >= 0) {
-            plannedCraftEntries.set(existingIndex, draft);
-            craftPlanSelectedIndex = existingIndex;
-        } else {
-            plannedCraftEntries.add(draft);
-            craftPlanSelectedIndex = plannedCraftEntries.size() - 1;
-        }
-
-        int maxPlanScroll = Math.max(0, plannedCraftEntries.size() - CRAFT_PLAN_ROWS);
-        craftPlanScrollOffset = Math.max(0, Math.min(maxPlanScroll, craftPlanSelectedIndex));
-        saveState();
-    }
-
-    private void removePlannedCraftEntry(int index) {
-        if (index < 0 || index >= plannedCraftEntries.size()) return;
-        plannedCraftEntries.remove(index);
-        if (craftPlanSelectedIndex == index) craftPlanSelectedIndex = -1;
-        else if (craftPlanSelectedIndex > index) craftPlanSelectedIndex--;
-        craftPlanScrollOffset = Math.max(0, Math.min(Math.max(0, plannedCraftEntries.size() - CRAFT_PLAN_ROWS), craftPlanScrollOffset));
-        saveState();
-    }
-
-    private List<CraftAction.CraftEntry> getActiveCraftEntries() {
-        if (!plannedCraftEntries.isEmpty()) {
-            List<CraftAction.CraftEntry> copies = new ArrayList<>(plannedCraftEntries.size());
-            for (CraftAction.CraftEntry entry : plannedCraftEntries) {
-                if (entry != null && entry.hasRecipe()) copies.add(entry.copy());
-            }
-            return copies;
-        }
-
-        CraftAction.CraftEntry draft = buildConfiguredCraftEntry();
-        return draft == null ? List.of() : List.of(draft);
-    }
-
-    private CraftAction buildCraftPlanAction() {
-        List<CraftAction.CraftEntry> activeEntries = getActiveCraftEntries();
-        if (activeEntries.isEmpty()) return null;
-        CraftAction action = new CraftAction();
-        action.setEntries(activeEntries);
-        return action;
-    }
-
-    private Component getCraftPlanRowLabel(CraftAction.CraftEntry entry) {
-        if (entry == null || !entry.hasRecipe()) return Component.literal("(empty)");
-        AutismCraftingHelper.CraftableRecipeOption option = resolveCraftOption(entry);
-        String amount = entry.useMaxAmount ? "Max" : "x" + Math.max(1, entry.amount);
-        Component resultName = option != null ? option.result.getHoverName().copy() : Component.literal(entry.resultName);
-        return Component.empty().append(resultName).append(Component.literal(" | " + amount + (option != null && option.craftableNow ? " | x" + option.maxCraftsNow : "")));
-    }
-
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (!visible || collapsed) return false;
-
-        boolean anyFocused = false;
-        for (AutismChatField field : textFields) {
-            if (field.isFocused()) {
-                anyFocused = true;
-                break;
-            }
-        }
-
-        if (anyFocused) {
-            if (keyCode == 256) {
-                for (AutismChatField field : textFields) {
-                    field.setFocused(false);
-                }
-                return true;
-            }
-            KeyEvent input = new KeyEvent(keyCode, scanCode, modifiers);
-            for (AutismChatField field : textFields) {
-                if (field.isFocused()) {
-                    field.keyPressed(input);
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
-    @Override
-    public boolean charTyped(char chr, int modifiers) {
-        int codepoint = (int) chr;
-        if (!visible || collapsed) return false;
-
-        CharacterEvent input = new CharacterEvent(codepoint, 0);
-        for (AutismChatField field : textFields) {
-            if (field.isFocused() && field.charTyped(input)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-        if (!visible) return;
-        expireTransientStatus();
-        uiDropdowns.clear();
-
-        int panelHeight = PANEL_HEIGHT;
-        AutismWindowLayout bounds = new AutismWindowLayout(panelX, panelY, PANEL_WIDTH, panelHeight, visible, collapsed);
-        renderWindowFrame(context, mouseX, mouseY, bounds, "Fabricator", collapsed, isDragging);
-        boolean clipBody = beginWindowBodyClip(context, bounds, collapsed);
-        if (!clipBody) {
-            renderWindowInactiveOverlay(context, bounds, collapsed, isDragging);
-            return;
-        }
-
-        try {
-        int labelX = panelX + 10;
-        int fieldX = panelX + LABEL_WIDTH + 15;
-        int fieldWidth = getFieldWidth();
-
-        AutismText.draw(context, MC.font, "Action", AutismText.Tone.MUTED, labelX, getActionRowY() + 3, false);
-
-        if (actionDropdown == null) {
-            actionDropdown = new CompactDropdown(fieldX, getActionRowY(), fieldWidth, 16, actionLabels, currentActionIndex, idx -> {
-                if (idx >= 0 && idx < actions.length && idx != currentActionIndex) {
-                    currentActionIndex = idx;
-                    currentAction = actions[idx];
-                    clearStatus();
-                    initWidgets();
-                    saveState();
-                }
-            });
-        }
-        actionDropdown.setBounds(fieldX, getActionRowY(), fieldWidth, 16)
-                .setOptions(actionLabels)
-                .setSelectedIndex(currentActionIndex);
-        uiDropdowns.add(actionDropdown);
-
-        for (AutismChatField field : textFields) {
-            field.render(context, mouseX, mouseY, delta);
-        }
-
-        if (showsSlotItemRows()) {
-            AutismText.draw(context, MC.font, "Slot", AutismText.Tone.MUTED, labelX, getSlotRowY() + 3, false);
-            AutismText.draw(context, MC.font, "Item", AutismText.Tone.MUTED, labelX, getItemRowY() + 3, false);
-        }
-
-        if (showsTargetFields()) {
-            if (isClickSelectorRelevant() || isDropModeRelevant()) {
-                AutismText.draw(context, MC.font, isDropModeRelevant() ? "Drop Mode" : "Click", AutismText.Tone.MUTED, labelX, getOptionRowY() + 3, false);
-                if (isClickSelectorRelevant()) {
-                    boolean packetMode = currentAction.isPacketAction();
-                    java.util.List<String> options = packetMode ? PACKET_CLICK_LABELS : STANDARD_CLICK_LABELS;
-                    int clamped = Math.min(currentButtonIndex, options.size() - 1);
-                    if (clickModeDropdown == null) {
-                        clickModeDropdown = new CompactDropdown(fieldX, getOptionRowY(), fieldWidth, 16, options, clamped, idx -> {
-                            if (idx >= 0 && idx < 3) {
-                                currentButtonIndex = idx;
-                                clearStatus();
-                                saveState();
-                            }
-                        });
-                    }
-                    clickModeDropdown.setBounds(fieldX, getOptionRowY(), fieldWidth, 16)
-                            .setOptions(options)
-                            .setSelectedIndex(clamped);
-                    uiDropdowns.add(clickModeDropdown);
-                } else {
-                    java.util.List<String> options = DROP_MODE_LABELS;
-                    int sel = dropWholeStack ? 1 : 0;
-                    if (dropModeDropdown == null) {
-                        dropModeDropdown = new CompactDropdown(fieldX, getOptionRowY(), fieldWidth, 16, options, sel, idx -> {
-                            dropWholeStack = (idx == 1);
-                            clearStatus();
-                            saveState();
-                        });
-                    }
-                    dropModeDropdown.setBounds(fieldX, getOptionRowY(), fieldWidth, 16)
-                            .setOptions(options)
-                            .setSelectedIndex(sel);
-                    uiDropdowns.add(dropModeDropdown);
-                }
-            }
-
-            AutismText.draw(context, MC.font, getTimesLabel(), AutismText.Tone.MUTED, labelX, getStandardTimesRowY() + 3, false);
-        } else {
-            refreshCraftableRecipes(false);
-            int listX = getCraftListX();
-            int listWidth = getCraftListWidth();
-
-            CompactListRenderer.drawHeader(context, MC.font, "Craft Plan", labelX, getCraftPlanHeaderY());
-            if (!plannedCraftEntries.isEmpty()) {
-                CompactListRenderer.drawHeaderAction(context, MC.font, "Clear All", true, listX, listWidth, getCraftPlanHeaderY(), mouseX, mouseY);
-            }
-
-            int planListY = getCraftPlanListY();
-            int planContentWidth = getCraftPlanContentWidth();
-            CompactListRenderer.drawFrame(context, listX, planListY, listWidth, CRAFT_PLAN_HEIGHT, craftPlanSelectedIndex >= 0);
-            if (plannedCraftEntries.isEmpty()) {
-                CompactListRenderer.drawEmptyState(context, MC.font, "(no plan - pick recipe and Add)", listX, planListY + 2, planContentWidth);
-            } else {
-                int maxPlanScrollPx = Math.max(0, plannedCraftEntries.size() * 13 - CRAFT_PLAN_HEIGHT);
-                craftPlanScrollOffset = Math.max(0, Math.min(craftPlanScrollOffset, Math.max(0, plannedCraftEntries.size() - CRAFT_PLAN_ROWS)));
-                craftPlanScrollState.setTarget(craftPlanScrollOffset * 13, maxPlanScrollPx);
-                int drawPlanScroll = craftPlanScrollState.tick(delta, maxPlanScrollPx);
-                autismclient.gui.vanillaui.UiScissorStack.global().push(context,
-                    autismclient.gui.vanillaui.UiBounds.of(listX + 1, planListY + 1, Math.max(0, listWidth - 2), Math.max(0, CRAFT_PLAN_HEIGHT - 2)));
-                int startIndex = drawPlanScroll / 13;
-                int rowY = planListY - (drawPlanScroll % 13);
-                for (int index = startIndex; index < plannedCraftEntries.size() && rowY < planListY + CRAFT_PLAN_HEIGHT; index++, rowY += 13) {
-                    boolean hovered = mouseX >= listX && mouseX < listX + planContentWidth && mouseY >= rowY && mouseY < rowY + 12;
-                    boolean selected = index == craftPlanSelectedIndex;
-                    CompactListRenderer.drawRow(
-                        context,
-                        MC.font,
-                        getCraftPlanRowLabel(plannedCraftEntries.get(index)),
-                        listX,
-                        rowY,
-                        planContentWidth,
-                        12,
-                        hovered,
-                        selected,
-                        CompactListRenderer.RowTone.NORMAL,
-                        true
-                    );
-                    boolean removeHovered = mouseX >= listX + planContentWidth - 16 && mouseX < listX + planContentWidth - 2 && mouseY >= rowY && mouseY < rowY + 12;
-                    CompactListRenderer.drawDeleteButton(context, listX + planContentWidth - 14, rowY, 12, removeHovered);
-                }
-                autismclient.gui.vanillaui.UiScissorStack.global().pop(context);
-            }
-            CompactScrollbar.Metrics craftPlanScrollbar = getCraftPlanScrollbarMetrics();
-            CompactScrollbar.draw(context, craftPlanScrollbar, craftPlanScrollbar.contains(mouseX, mouseY), activeScrollbarDrag == SCROLLBAR_CRAFT_PLAN);
-
-            if (selectedCraftResult.isEmpty()) {
-                AutismText.draw(context, MC.font, "Recipe: none selected", AutismText.Tone.MUTED, listX, getCraftSummaryY(), false);
-            } else {
-                Component summaryText = Component.empty()
-                    .append(selectedCraftResult.getHoverName().copy())
-                    .append(Component.literal(" x" + selectedCraftResult.getCount()
-                        + (selectedCraftOption != null && selectedCraftOption.craftableNow ? " | x" + selectedCraftOption.maxCraftsNow : "")));
-            AutismText.draw(context, MC.font, summaryText.getString(), AutismColors.textMuted(), listX, getCraftSummaryY(), false);
-            }
-
-            AutismText.draw(context, MC.font, "Amount", AutismText.Tone.MUTED, labelX, getCraftAmountRowY() + 3, false);
-            drawOverlayToggleButton(context, getCraftAmountToggleX(), getCraftAmountRowY(), getCraftAmountToggleWidth(), 16,
-                "Use Max", craftUseMaxAmount, "fabricator:use-max", mouseX, mouseY);
-
-            CompactListRenderer.drawHeader(context, MC.font, "Recipes", listX, getCraftSearchLabelY());
-
-            int listY = getCraftListY();
-            int recipeContentWidth = getCraftListContentWidth();
-            CompactListRenderer.drawFrame(context, listX, listY, listWidth, CRAFT_LIST_HEIGHT, selectedCraftOption != null);
-            autismclient.gui.vanillaui.UiScissorStack.global().push(context,
-                autismclient.gui.vanillaui.UiBounds.of(listX + 1, listY + 1, Math.max(0, listWidth - 2), Math.max(0, CRAFT_LIST_HEIGHT - 2)));
-
-            if (filteredCraftableRecipes.isEmpty()) {
-                String emptyText = MC.player != null && MC.level != null
-                    ? "No crafting recipes match this search."
-                    : "Join a world to load crafting recipes.";
-                CompactListRenderer.drawEmptyState(context, MC.font, emptyText, listX, listY + 4, recipeContentWidth);
-            } else {
-                int maxRecipeScrollPx = Math.max(0, filteredCraftableRecipes.size() * LINE_HEIGHT - CRAFT_LIST_HEIGHT);
-                craftScrollOffset = Math.max(0, Math.min(craftScrollOffset, Math.max(0, filteredCraftableRecipes.size() - CRAFT_LIST_ROWS)));
-                craftListScrollState.setTarget(craftScrollOffset * LINE_HEIGHT, maxRecipeScrollPx);
-                int drawRecipeScroll = craftListScrollState.tick(delta, maxRecipeScrollPx);
-                int startIndex = drawRecipeScroll / LINE_HEIGHT;
-                int rowY = listY - (drawRecipeScroll % LINE_HEIGHT);
-                for (int index = startIndex; index < filteredCraftableRecipes.size() && rowY < listY + CRAFT_LIST_HEIGHT; index++, rowY += LINE_HEIGHT) {
-                    AutismCraftingHelper.CraftableRecipeOption option = filteredCraftableRecipes.get(index);
-                    boolean hovered = mouseX >= listX && mouseX <= listX + recipeContentWidth && mouseY >= rowY && mouseY < rowY + LINE_HEIGHT;
-                    boolean selected = selectedCraftOption != null && option.recipeKey.equalsIgnoreCase(selectedCraftOption.recipeKey);
-                    Component richLabel = Component.empty()
-                        .append(option.result.getHoverName().copy())
-                        .append(Component.literal(" x" + option.result.getCount() + " | " + AutismCraftingHelper.getAvailabilityLabel(option)));
-                    CompactListRenderer.drawRow(
-                        context,
-                        MC.font,
-                        richLabel,
-                        listX + 2,
-                        rowY,
-                        recipeContentWidth - 2,
-                        LINE_HEIGHT,
-                        hovered,
-                        selected,
-                        option.craftableNow ? CompactListRenderer.RowTone.READY : CompactListRenderer.RowTone.MISSING,
-                        true
-                    );
-                    CompactListRenderer.drawDivider(context, listX + 2, rowY + LINE_HEIGHT - 1, recipeContentWidth - 2);
-                }
-            }
-
-            autismclient.gui.vanillaui.UiScissorStack.global().pop(context);
-            CompactScrollbar.Metrics craftListScrollbar = getCraftListScrollbarMetrics();
-            CompactScrollbar.draw(context, craftListScrollbar, craftListScrollbar.contains(mouseX, mouseY), activeScrollbarDrag == SCROLLBAR_CRAFT_LIST);
-            String recipeCountLine = AutismText.trimToWidth(
-                MC.font,
-                readyCraftableRecipeCount + " ready / " + craftableRecipes.size() + " total",
-                listWidth,
-                AutismText.Tone.MUTED
-            );
-            AutismText.draw(context, MC.font, recipeCountLine, AutismText.Tone.MUTED, listX, listY + CRAFT_LIST_HEIGHT + 2, false);
-        }
-
-        int btnY = getBottomButtonY();
-        int btnArea = PANEL_WIDTH - 20;
-        int gap = 2;
-        int bw = (btnArea - gap * 2) / 3;
-        int bx = panelX + 10;
-        String sendLabel = isCraftMode() ? (craftExecutionInProgress ? "Crafting..." : "Craft") : "Send";
-        drawOverlayButton(context, bx, btnY, bw, BUTTON_HEIGHT, sendLabel, CompactOverlayButton.Variant.SECONDARY, true, mouseX, mouseY);
-        bx += bw + gap;
-        drawOverlayButton(context, bx, btnY, bw, BUTTON_HEIGHT, "Queue", CompactOverlayButton.Variant.SECONDARY, true, mouseX, mouseY);
-        bx += bw + gap;
-        drawOverlayButton(context, bx, btnY, bw, BUTTON_HEIGHT, "Macro", CompactOverlayButton.Variant.SECONDARY, true, mouseX, mouseY);
-
-        int infoWidth = PANEL_WIDTH - 20;
-        int statusY = getStatusY();
-        if (statusY + 9 < btnY) {
-            if (!statusMessage.isEmpty()) {
-                Integer colorInt = statusColor.getColor();
-                int color = colorInt != null ? colorInt | 0xFF000000 : 0xFFFFFFFF;
-                UiText.drawFitted(context, MC.font, statusMessage, THEME.fontFor(UiTone.BODY),
-                    color, panelX + 10, statusY, infoWidth, true);
-            } else {
-                UiText.drawFitted(context, MC.font, getTargetSummary(), THEME.fontFor(UiTone.MUTED),
-                    THEME.color(UiTone.MUTED), panelX + 10, statusY, infoWidth, false);
-            }
-        }
-
-        List<String> actionLines = getActionDescriptionLines();
-        for (int i = 0; i < actionLines.size(); i++) {
-            int lineY = getActionInfoY() + i * 10;
-            if (lineY + 9 >= btnY) break;
-            AutismText.draw(context, MC.font, actionLines.get(i), AutismText.Tone.MUTED, panelX + 10, lineY, false);
-        }
-
-        if (!uiDropdowns.isEmpty()) {
-            CompactDropdown.renderButtons(context, MC.font, uiDropdowns, mouseX, mouseY);
-        }
-        } finally {
-            endWindowBodyClip(context, clipBody);
-            renderWindowInactiveOverlay(context, bounds, collapsed, isDragging);
-        }
-        if (!uiDropdowns.isEmpty() && CompactDropdown.isMenuOpen(uiDropdowns)) {
-            context.nextStratum();
-            CompactDropdown.renderOpenMenu(context, MC.font, uiDropdowns, mouseX, mouseY);
-        }
-    }
-
-    private FabricatorAction currentAction = FabricatorAction.CLICK;
-
-    private void cycleAction() {
-        currentActionIndex = (currentActionIndex + 1) % actions.length;
-        currentAction = actions[currentActionIndex];
-        clearStatus();
-        initWidgets();
-        saveState();
-    }
-
-    private void cycleActionBackwards() {
-        currentActionIndex = (currentActionIndex - 1 + actions.length) % actions.length;
-        currentAction = actions[currentActionIndex];
-        clearStatus();
-        initWidgets();
-        saveState();
-    }
-
-    private void clearWidgets() {
-        textFields.clear();
-        craftSearchField = null;
-    }
-
-    public void onSlotClick(Slot slot, int button) {
-        if (slot == null) return;
-        if (isCraftMode()) return;
-
-        int stableSlotId = AutismInventoryHelper.toUserVisibleSlot(MC, slot.index);
-        ItemTarget clickedTarget = getItemTargetFromSlot(slot.index);
-        String itemName = clickedTarget.editorText();
-
-        if (currentAction.isPacketAction()) {
-            AbstractContainerMenu handler = getActiveHandler();
-            if (handler == null) {
-                setStatus("No container is open to capture", ChatFormatting.RED);
-                return;
-            }
-            String screenTitle = parentScreen != null ? parentScreen.getTitle().getString() : "";
-            String menuClass = handler.getClass().getName();
-            packetClickTarget = new AutismPacketClick.Target(
-                handler.containerId,
-                handler.getStateId(),
-                slot.index,
-                stableSlotId,
-                screenTitle,
-                menuClass,
-                itemName == null ? "" : itemName,
-                getCurrentPacketMode(),
-                System.currentTimeMillis()
-            );
-            setStatus("Captured Packet " + packetClickTarget.summary(), ChatFormatting.GREEN);
-            saveState();
-            return;
-        }
-
-        selectedSlotId = stableSlotId;
-        savedSlotValue = String.valueOf(stableSlotId);
-        if (slotField != null) slotField.setText(savedSlotValue);
-
-        if (!itemName.isEmpty()) {
-            savedItemTarget = clickedTarget;
-            savedItemNameValue = itemName;
-            if (itemNameField != null) itemNameField.setText(itemName);
-            setStatus("Selected slot " + stableSlotId + ": " + itemName, ChatFormatting.GREEN);
-        } else {
-            savedItemTarget = new ItemTarget();
-            savedItemNameValue = "";
-            if (itemNameField != null) itemNameField.setText("");
-            setStatus("Selected slot " + stableSlotId + " (Empty)", ChatFormatting.YELLOW);
-        }
-
-        saveState();
-    }
-    private void sendToMacro(AutismMacroEditorOverlay macroEditor) {
-        try {
-            if (isCraftMode()) {
-                CraftAction craftAction = buildCraftPlanAction();
-                if (craftAction == null || !craftAction.hasEntries()) {
-                    setStatus("Select a recipe or add a craft entry first!", ChatFormatting.RED);
-                    return;
-                }
-                macroEditor.addAction(craftAction);
-                return;
-            }
-
-            Integer enteredSlot = parseEnteredSlot();
-            String itemName = getEnteredItemName();
-            int repeats = resolveRepeatCount(-1);
-            if (repeats <= 0) return;
-
-            if (enteredSlot == null && itemName.isEmpty()) {
-                if (!currentAction.isPacketAction()) {
-                    setStatus("Pick a slot or enter an item name first!", ChatFormatting.RED);
-                    return;
-                }
-            }
-
-            if (currentAction.isPacketAction()) {
-                AutismPacketClick.Target target = getEffectivePacketClickTarget();
-                if (target == null) {
-                    setStatus("Right-click a GUI slot to capture a Packet target first!", ChatFormatting.RED);
-                    return;
-                }
-                PacketClickAction action = new PacketClickAction(target, repeats, false);
-                macroEditor.addAction(action);
-                setStatus("Added Packet Click action to macro!", ChatFormatting.GREEN);
-                return;
-            }
-
-            AbstractContainerMenu handler = getActiveHandler();
-            int resolvedSlot = enteredSlot == null ? -1 : AutismInventoryHelper.resolveConfiguredHandlerSlot(MC, enteredSlot);
-            if (enteredSlot != null && !isValidHandlerSlot(handler, resolvedSlot)) {
-                setStatus("Slot " + enteredSlot + " is not available in this screen!", ChatFormatting.RED);
-                return;
-            }
-
-            if (currentAction == FabricatorAction.DROP) {
-                autismclient.util.macro.DropAction dropAction = new autismclient.util.macro.DropAction();
-                dropAction.useHandlerSlots = true;
-                dropAction.mode = dropWholeStack
-                    ? autismclient.util.macro.DropAction.DropMode.ALL
-                    : autismclient.util.macro.DropAction.DropMode.TIMES;
-                dropAction.dropCount = dropWholeStack ? 0 : repeats;
-                String entry = enteredSlot != null
-                    ? ("#" + enteredSlot + (!itemName.isEmpty() ? "|" + itemName : ""))
-                    : itemName;
-                if (!entry.isBlank()) {
-                    ItemTarget target = buildEnteredItemTarget(enteredSlot, itemName);
-                    entry = target.toLegacyEntry();
-                    dropAction.itemTargets.add(target);
-                    dropAction.itemNames.add(entry);
-                    dropAction.itemCounts.add(dropWholeStack ? 0 : repeats);
-                }
-                macroEditor.addAction(dropAction);
-                setStatus("Added Drop action to macro!", ChatFormatting.GREEN);
-                return;
-            }
-
-            autismclient.util.macro.ItemAction itemAction = new autismclient.util.macro.ItemAction();
-            itemAction.actionIndex = currentAction.toPacketAction(dropWholeStack).ordinal();
-            itemAction.button = getEffectiveButton();
-            itemAction.times = repeats;
-
-            if (enteredSlot != null) {
-                itemAction.useSlot = true;
-                itemAction.targetSlot = enteredSlot;
-            }
-
+         }
+      }
+
+      return false;
+   }
+
+   @Override
+   public void clearTextFieldFocus() {
+      for (AutismChatField field : this.textFields) {
+         field.setFocused(false);
+      }
+   }
+
+   public void saveState() {
+      AutismSharedState shared = AutismSharedState.get();
+      shared.setFabricatorOverlayVisible(this.visible);
+      shared.setFabricatorOverlayX(this.panelX);
+      shared.setFabricatorOverlayY(this.panelY);
+      shared.setFabricatorSlotValue(this.savedSlotValue);
+      shared.setFabricatorItemNameValue(this.savedItemNameValue);
+      shared.setFabricatorTimesValue(this.savedTimesValue);
+      shared.setFabricatorActionIndex(this.currentActionIndex);
+      shared.setFabricatorButtonIndex(this.currentButtonIndex);
+      shared.setFabricatorDropWholeStack(this.dropWholeStack);
+      shared.setFabricatorCraftUseMaxAmount(this.craftUseMaxAmount);
+      shared.setFabricatorCraftSearchValue(this.savedCraftSearchValue);
+      shared.setFabricatorCraftSelectedRecipeId(this.savedCraftSelectedRecipeId);
+      shared.setFabricatorCraftSelectedRecipeKey(this.savedCraftSelectedRecipeKey);
+      shared.setFabricatorCraftScrollOffset(this.craftScrollOffset);
+      shared.setFabricatorCraftPlanEntries(this.plannedCraftEntries);
+      shared.setFabricatorCraftPlanSelectedIndex(this.craftPlanSelectedIndex);
+      shared.setFabricatorCraftPlanScrollOffset(this.craftPlanScrollOffset);
+      this.saveLayout();
+   }
+
+   public void restoreState() {
+      AutismSharedState shared = AutismSharedState.get();
+      this.restoreLayout();
+      this.visible = shared.isFabricatorOverlayVisible();
+      this.panelX = shared.getFabricatorOverlayX();
+      this.panelY = shared.getFabricatorOverlayY();
+      this.savedSlotValue = shared.getFabricatorSlotValue();
+      this.savedItemNameValue = shared.getFabricatorItemNameValue();
+      this.savedTimesValue = shared.getFabricatorTimesValue();
+      this.currentActionIndex = shared.getFabricatorActionIndex();
+      this.currentButtonIndex = shared.getFabricatorButtonIndex();
+      this.dropWholeStack = shared.isFabricatorDropWholeStack();
+      this.craftUseMaxAmount = shared.isFabricatorCraftUseMaxAmount();
+      this.savedCraftSearchValue = shared.getFabricatorCraftSearchValue();
+      this.savedCraftSelectedRecipeId = shared.getFabricatorCraftSelectedRecipeId();
+      this.savedCraftSelectedRecipeKey = shared.getFabricatorCraftSelectedRecipeKey();
+      this.craftScrollOffset = shared.getFabricatorCraftScrollOffset();
+      this.craftListScrollState.restore(this.craftScrollOffset * this.LINE_HEIGHT);
+      this.plannedCraftEntries.clear();
+      this.plannedCraftEntries.addAll(shared.getFabricatorCraftPlanEntries());
+      this.craftPlanSelectedIndex = shared.getFabricatorCraftPlanSelectedIndex();
+      this.craftPlanScrollOffset = shared.getFabricatorCraftPlanScrollOffset();
+      this.craftPlanScrollState.restore(this.craftPlanScrollOffset * 13);
+      this.selectedCraftOption = null;
+      this.selectedCraftResult = ItemStack.EMPTY;
+      if (this.currentActionIndex < 0 || this.currentActionIndex >= this.actions.length) {
+         this.currentActionIndex = 0;
+      }
+
+      this.currentAction = this.actions[this.currentActionIndex];
+      if (this.currentButtonIndex < 0 || this.currentButtonIndex >= this.buttonTypes.length) {
+         this.currentButtonIndex = 0;
+      }
+
+      if (this.visible) {
+         this.initWidgets();
+      }
+   }
+
+   private void initWidgets() {
+      this.clearWidgets();
+      if (!this.isDragging) {
+         this.PANEL_HEIGHT = this.isCraftMode() ? this.craftModePanelHeight() : this.standardPanelHeight();
+      }
+
+      int fieldX = this.panelX + this.LABEL_WIDTH + 15;
+      int fieldWidth = this.getFieldWidth();
+      this.currentAction = this.actions[this.currentActionIndex];
+      this.slotField = new AutismChatField(MC, MC.font, fieldX, this.getSlotRowY(), fieldWidth, 16, false);
+      this.slotField.setPlaceholder(Component.literal("Optional slot - right-click to fill"));
+      this.slotField.setText(this.savedSlotValue);
+      this.slotField.setMaxLength(5);
+      this.slotField.setChangedListener(text -> {
+         this.savedSlotValue = text;
+         this.clearStatus();
+
+         try {
+            int stableSlot = Integer.parseInt(text);
+            int slotId = AutismInventoryHelper.resolveConfiguredHandlerSlot(MC, stableSlot);
+            ItemTarget slotTarget = this.getItemTargetFromSlot(slotId);
+            String itemName = slotTarget.editorText();
             if (!itemName.isEmpty()) {
-                ItemTarget target = buildEnteredItemTarget(enteredSlot, itemName);
-                itemAction.itemTargets.add(target);
-                itemAction.itemNames.add(target.toLegacyEntry());
-                itemAction.itemTimes.add(repeats);
-                itemAction.itemActionIdx.add(itemAction.actionIndex);
-                itemAction.itemButtons.add(itemAction.button);
+               this.savedItemTarget = slotTarget;
+               this.savedItemNameValue = itemName;
+               if (this.itemNameField != null) {
+                  this.itemNameField.setText(itemName);
+               }
+            }
+         } catch (NumberFormatException var6x) {
+         }
+      });
+      if (this.showsSlotItemRows()) {
+         this.textFields.add(this.slotField);
+      }
+
+      this.itemNameField = new AutismChatField(MC, MC.font, fieldX, this.getItemRowY(), fieldWidth, 16, false);
+      this.itemNameField.setPlaceholder(Component.literal("Optional item match").withStyle(style -> style.withColor(ChatFormatting.DARK_GRAY)));
+      this.itemNameField.setText(this.savedItemNameValue);
+      this.itemNameField.setMaxLength(50);
+      this.itemNameField.setDisplayTextProvider(value -> {
+         Component rich = this.savedItemTarget == null ? null : this.savedItemTarget.editorComponent(value);
+         return rich != null && value != null && value.equals(rich.getString()) ? rich.copy() : null;
+      });
+      this.itemNameField.setChangedListener(text -> {
+         this.savedItemNameValue = text;
+         if (this.savedItemTarget != null && !text.equals(this.savedItemTarget.editorText())) {
+            this.savedItemTarget = this.savedItemTarget.hasRichText() ? this.savedItemTarget.withEditedDisplay(text) : ItemTarget.fromLegacyEntry(text);
+         }
+
+         this.clearStatus();
+      });
+      if (this.showsSlotItemRows()) {
+         this.textFields.add(this.itemNameField);
+      }
+
+      int timesY = this.isCraftMode() ? this.getCraftAmountRowY() : this.getStandardTimesRowY();
+      int timesX = this.isCraftMode() ? this.getCraftAmountFieldX() : fieldX;
+      int timesWidth = this.isCraftMode() ? this.getCraftAmountFieldWidth() : fieldWidth;
+      this.timesField = new AutismChatField(MC, MC.font, timesX, timesY, timesWidth, 16, false);
+      this.timesField.setPlaceholder(Component.literal("1"));
+      this.timesField.setText(this.savedTimesValue);
+      this.timesField.setMaxLength(5);
+      this.timesField.setEditable(!this.isCraftMode() || !this.craftUseMaxAmount);
+      this.timesField.setChangedListener(text -> {
+         this.savedTimesValue = text;
+         if (this.isCraftMode() && this.craftPlanSelectedIndex >= 0 && this.craftPlanSelectedIndex < this.plannedCraftEntries.size()) {
+            try {
+               int val = Integer.parseInt(text.replaceAll("[^0-9]", ""));
+               this.plannedCraftEntries.get(this.craftPlanSelectedIndex).amount = Math.max(1, val);
+            } catch (Exception var3x) {
+            }
+         }
+
+         this.clearStatus();
+      });
+      this.textFields.add(this.timesField);
+      if (this.isCraftMode()) {
+         int searchY = this.getCraftSearchY();
+         this.craftSearchField = new AutismChatField(MC, MC.font, this.panelX + 10, searchY, this.PANEL_WIDTH - 20, 16, false);
+         this.craftSearchField.setPlaceholder(Component.literal("Search crafting recipes..."));
+         this.craftSearchField.setText(this.savedCraftSearchValue);
+         this.craftSearchField.setChangedListener(text -> {
+            this.savedCraftSearchValue = text;
+            this.clearStatus();
+            this.updateCraftRecipeFilter(text, true);
+            this.saveState();
+         });
+         this.textFields.add(this.craftSearchField);
+         this.refreshCraftableRecipes(true);
+      } else {
+         this.craftSearchField = null;
+      }
+   }
+
+   @Override
+   public boolean mouseClicked(double mouseX, double mouseY, int button) {
+      if (!this.visible) {
+         return false;
+      } else {
+         if (!this.uiDropdowns.isEmpty()) {
+            if (CompactDropdown.mouseClicked(this.uiDropdowns, mouseX, mouseY, button)) {
+               return true;
             }
 
-            macroEditor.addAction(itemAction);
-            setStatus("Added " + currentAction.displayName + " action to macro!", ChatFormatting.GREEN);
-        } catch (NumberFormatException e) {
-            setStatus("Invalid value", ChatFormatting.RED);
-        }
-    }
+            if (CompactDropdown.isMenuOpen(this.uiDropdowns)) {
+               return true;
+            }
+         }
 
-    private ItemTarget buildEnteredItemTarget(Integer enteredSlot, String itemName) {
-        String safeName = itemName == null ? "" : itemName.trim();
-        ItemTarget target = savedItemTarget != null && safeName.equals(savedItemTarget.editorText())
-                ? savedItemTarget.copy()
-                : ItemTarget.fromLegacyEntry(safeName);
-        if (enteredSlot != null) target.slot = enteredSlot;
-        return target;
-    }
+         if (button == 0 && mouseX >= this.panelX && mouseX <= this.panelX + this.PANEL_WIDTH && mouseY >= this.panelY && mouseY <= this.panelY + 20) {
+            AutismWindowLayout bounds = new AutismWindowLayout(
+               this.panelX, this.panelY, this.PANEL_WIDTH, this.collapsed ? 18 : this.PANEL_HEIGHT, this.visible, this.collapsed
+            );
+            if (this.isOverCollapseButton(mouseX, mouseY, bounds)) {
+               this.toggleCollapsed();
+               return true;
+            } else if (this.isOverCloseButton(mouseX, mouseY, bounds)) {
+               this.setVisible(false);
+               return true;
+            } else {
+               this.isDragging = true;
+               this.dragOffsetX = mouseX - this.panelX;
+               this.dragOffsetY = mouseY - this.panelY;
 
-    private AutismPacketClick.Target getEffectivePacketClickTarget() {
-        if (packetClickTarget == null) return null;
-        return packetClickTarget.withMode(getCurrentPacketMode());
-    }
+               for (AutismChatField field : this.textFields) {
+                  field.setFocused(false);
+               }
 
-    private Packet<?> buildPacketClickPacket() {
-        AutismPacketClick.Target target = getEffectivePacketClickTarget();
-        return target == null ? null : target.buildPacket();
-    }
+               return true;
+            }
+         } else if (this.collapsed) {
+            return false;
+         } else {
+            MouseButtonEvent click = new MouseButtonEvent(mouseX, mouseY, new net.minecraft.client.input.MouseButtonInfo(button, 0));
+            boolean clickedField = false;
 
-    private net.minecraft.network.protocol.Packet<?> buildFabricatedPacket(int slot) {
-        if (currentAction.isPacketAction()) {
-            return buildPacketClickPacket();
-        }
-        if (MC.player == null) return null;
-        net.minecraft.world.inventory.AbstractContainerMenu handler = MC.player.containerMenu;
-        if (handler == null) return null;
+            for (AutismChatField field : this.textFields) {
+               boolean wasClicked = field.mouseClicked(click, false);
+               if (wasClicked) {
+                  field.setFocused(true);
+                  clickedField = true;
+               } else {
+                  field.setFocused(false);
+               }
+            }
 
-        net.minecraft.world.inventory.ClickType actionType = currentAction.toPacketAction(dropWholeStack).toClickType();
-        return new net.minecraft.network.protocol.game.ServerboundContainerClickPacket(
-            handler.containerId, handler.getStateId(),
-            (short) slot, (byte) getEffectiveButton(), actionType,
-            new it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap<>(),
-            net.minecraft.network.HashedStack.EMPTY
-        );
-    }
+            if (clickedField) {
+               return true;
+            } else {
+               if (this.isCraftMode()) {
+                  this.refreshCraftableRecipes(false);
+                  int listX = this.getCraftListX();
+                  int listWidth = this.getCraftListWidth();
+                  int planContentWidth = this.getCraftPlanContentWidth();
+                  int recipeContentWidth = this.getCraftListContentWidth();
+                  int planHeaderY = this.getCraftPlanHeaderY();
+                  int planListY = this.getCraftPlanListY();
+                  int listY = this.getCraftListY();
+                  if (button == 0) {
+                     CompactScrollbar.Metrics craftPlanScrollbar = this.getCraftPlanScrollbarMetrics();
+                     if (craftPlanScrollbar.hasScroll() && craftPlanScrollbar.contains((int)mouseX, (int)mouseY)) {
+                        this.activeScrollbarDrag = 1;
+                        this.scrollbarGrabOffset = Math.max(0, (int)mouseY - craftPlanScrollbar.thumbY());
+                        this.craftPlanScrollOffset = this.toRowScroll(
+                           craftPlanScrollbar, (int)mouseY, this.scrollbarGrabOffset, 13, Math.max(0, this.plannedCraftEntries.size() - 4)
+                        );
+                        this.craftPlanScrollState
+                           .jumpTo(this.craftPlanScrollOffset * 13, Math.max(0, this.plannedCraftEntries.size() * 13 - this.CRAFT_PLAN_HEIGHT));
+                        this.saveState();
+                        return true;
+                     }
 
-    private void send(boolean queue) {
-        if (isCraftMode()) {
-            sendCraft(queue);
+                     CompactScrollbar.Metrics craftListScrollbar = this.getCraftListScrollbarMetrics();
+                     if (craftListScrollbar.hasScroll() && craftListScrollbar.contains((int)mouseX, (int)mouseY)) {
+                        this.activeScrollbarDrag = 2;
+                        this.scrollbarGrabOffset = Math.max(0, (int)mouseY - craftListScrollbar.thumbY());
+                        this.craftScrollOffset = this.toRowScroll(
+                           craftListScrollbar, (int)mouseY, this.scrollbarGrabOffset, this.LINE_HEIGHT, Math.max(0, this.filteredCraftableRecipes.size() - 6)
+                        );
+                        this.craftListScrollState
+                           .jumpTo(
+                              this.craftScrollOffset * this.LINE_HEIGHT,
+                              Math.max(0, this.filteredCraftableRecipes.size() * this.LINE_HEIGHT - this.CRAFT_LIST_HEIGHT)
+                           );
+                        this.saveState();
+                        return true;
+                     }
+                  }
+
+                  if (!this.plannedCraftEntries.isEmpty()
+                     && mouseX >= this.panelX + this.PANEL_WIDTH - 74
+                     && mouseX < this.panelX + this.PANEL_WIDTH - 10
+                     && mouseY >= planHeaderY - 2
+                     && mouseY < planHeaderY + 10
+                     && button == 0) {
+                     this.plannedCraftEntries.clear();
+                     this.craftPlanSelectedIndex = -1;
+                     this.craftPlanScrollOffset = 0;
+                     this.craftPlanScrollState.jumpTo(0, 0);
+                     this.clearStatus();
+                     this.saveState();
+                     return true;
+                  }
+
+                  if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= planListY && mouseY <= planListY + this.CRAFT_PLAN_HEIGHT && button == 0) {
+                     int maxPlanScrollPx = Math.max(0, this.plannedCraftEntries.size() * 13 - this.CRAFT_PLAN_HEIGHT);
+                     int drawPlanScroll = this.craftPlanScrollState.tick(0.0F, maxPlanScrollPx);
+                     int firstIndex = drawPlanScroll / 13;
+                     int rowY = planListY - drawPlanScroll % 13;
+
+                     for (int index = firstIndex; index < this.plannedCraftEntries.size() && rowY < planListY + this.CRAFT_PLAN_HEIGHT; rowY += 13) {
+                        if (!(mouseY < rowY) && !(mouseY >= rowY + 12)) {
+                           if (mouseX >= listX + planContentWidth - 16 && mouseX < listX + planContentWidth - 2) {
+                              this.removePlannedCraftEntry(index);
+                              return true;
+                           }
+
+                           if (mouseX >= listX && mouseX < listX + planContentWidth) {
+                              if (this.craftPlanSelectedIndex == index) {
+                                 this.selectCraftPlanEntry(-1);
+                              } else {
+                                 this.selectCraftPlanEntry(index);
+                              }
+
+                              for (AutismChatField fieldx : this.textFields) {
+                                 fieldx.setFocused(false);
+                              }
+
+                              return true;
+                           }
+                        }
+
+                        index++;
+                     }
+
+                     if (mouseX >= listX && mouseX < listX + planContentWidth) {
+                        this.selectCraftPlanEntry(-1);
+
+                        for (AutismChatField fieldx : this.textFields) {
+                           fieldx.setFocused(false);
+                        }
+
+                        return true;
+                     }
+                  }
+
+                  if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= listY && mouseY <= listY + this.CRAFT_LIST_HEIGHT && button == 0) {
+                     int maxRecipeScrollPx = Math.max(0, this.filteredCraftableRecipes.size() * this.LINE_HEIGHT - this.CRAFT_LIST_HEIGHT);
+                     int drawRecipeScroll = this.craftListScrollState.tick(0.0F, maxRecipeScrollPx);
+                     int firstIndex = drawRecipeScroll / this.LINE_HEIGHT;
+                     int rowY = listY - drawRecipeScroll % this.LINE_HEIGHT;
+
+                     for (int index = firstIndex;
+                        index < this.filteredCraftableRecipes.size() && rowY < listY + this.CRAFT_LIST_HEIGHT;
+                        rowY += this.LINE_HEIGHT
+                     ) {
+                        if (mouseX >= listX && mouseX < listX + recipeContentWidth && mouseY >= rowY && mouseY < rowY + this.LINE_HEIGHT) {
+                           this.selectCraftRecipe(this.filteredCraftableRecipes.get(index));
+                           this.addOrUpdatePlannedCraftEntry();
+
+                           for (AutismChatField fieldx : this.textFields) {
+                              fieldx.setFocused(false);
+                           }
+
+                           return true;
+                        }
+
+                        index++;
+                     }
+
+                     if (mouseX >= listX && mouseX < listX + recipeContentWidth) {
+                        this.clearCraftRecipeSelection();
+
+                        for (AutismChatField fieldx : this.textFields) {
+                           fieldx.setFocused(false);
+                        }
+
+                        this.saveState();
+                        return true;
+                     }
+                  }
+               }
+
+               if (this.isCraftMode()) {
+                  int toggleX = this.getCraftAmountToggleX();
+                  int toggleY = this.getCraftAmountRowY();
+                  int toggleW = this.getCraftAmountToggleWidth();
+                  if (mouseY >= toggleY && mouseY < toggleY + 16 && mouseX >= toggleX && mouseX < toggleX + toggleW && (button == 0 || button == 1)) {
+                     this.craftUseMaxAmount = !this.craftUseMaxAmount;
+                     if (this.timesField != null) {
+                        this.timesField.setEditable(!this.craftUseMaxAmount);
+                     }
+
+                     if (this.craftPlanSelectedIndex >= 0 && this.craftPlanSelectedIndex < this.plannedCraftEntries.size()) {
+                        this.plannedCraftEntries.get(this.craftPlanSelectedIndex).useMaxAmount = this.craftUseMaxAmount;
+                     }
+
+                     this.clearStatus();
+                     this.saveState();
+
+                     for (AutismChatField fieldx : this.textFields) {
+                        fieldx.setFocused(false);
+                     }
+
+                     return true;
+                  }
+               }
+
+               int btnY = this.getBottomButtonY();
+               int btnArea = this.PANEL_WIDTH - 20;
+               int gap = 2;
+               int bw = (btnArea - gap * 2) / 3;
+               int bx = this.panelX + 10;
+               if (mouseY >= btnY && mouseY < btnY + this.BUTTON_HEIGHT && button == 0) {
+                  if (mouseX >= bx && mouseX < bx + bw) {
+                     this.send(false);
+
+                     for (AutismChatField fieldx : this.textFields) {
+                        fieldx.setFocused(false);
+                     }
+
+                     return true;
+                  }
+
+                  bx += bw + gap;
+                  if (mouseX >= bx && mouseX < bx + bw) {
+                     this.send(true);
+
+                     for (AutismChatField fieldx : this.textFields) {
+                        fieldx.setFocused(false);
+                     }
+
+                     return true;
+                  }
+
+                  bx += bw + gap;
+                  if (mouseX >= bx && mouseX < bx + bw) {
+                     AutismMacroEditorOverlay macroEditor = null;
+
+                     for (IAutismOverlay ov : AutismOverlayManager.get().getOverlays()) {
+                        if (ov instanceof AutismMacroEditorOverlay) {
+                           macroEditor = (AutismMacroEditorOverlay)ov;
+                           break;
+                        }
+                     }
+
+                     if (macroEditor != null && macroEditor.isVisible()) {
+                        this.sendToMacro(macroEditor);
+                     } else {
+                        this.setStatus("Open a macro editor first!", ChatFormatting.RED);
+                     }
+
+                     for (AutismChatField fieldx : this.textFields) {
+                        fieldx.setFocused(false);
+                     }
+
+                     return true;
+                  }
+               }
+
+               return false;
+            }
+         }
+      }
+   }
+
+   @Override
+   public boolean mouseReleased(double mouseX, double mouseY, int button) {
+      CompactDropdown.mouseReleased(this.uiDropdowns);
+      if (button == 0 && this.activeScrollbarDrag != 0) {
+         this.activeScrollbarDrag = 0;
+         this.saveState();
+         return true;
+      } else {
+         if (button == 0) {
+            if (this.isDragging) {
+               this.saveState();
+            }
+
+            this.isDragging = false;
+         }
+
+         return false;
+      }
+   }
+
+   @Override
+   public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+      if (CompactDropdown.mouseDragged(this.uiDropdowns, mouseX, mouseY, button)) {
+         return true;
+      } else if (this.activeScrollbarDrag == 1) {
+         this.craftPlanScrollOffset = this.toRowScroll(
+            this.getCraftPlanScrollbarMetrics(), (int)mouseY, this.scrollbarGrabOffset, 13, Math.max(0, this.plannedCraftEntries.size() - 4)
+         );
+         this.craftPlanScrollState.jumpTo(this.craftPlanScrollOffset * 13, Math.max(0, this.plannedCraftEntries.size() * 13 - this.CRAFT_PLAN_HEIGHT));
+         return true;
+      } else if (this.activeScrollbarDrag == 2) {
+         this.craftScrollOffset = this.toRowScroll(
+            this.getCraftListScrollbarMetrics(), (int)mouseY, this.scrollbarGrabOffset, this.LINE_HEIGHT, Math.max(0, this.filteredCraftableRecipes.size() - 6)
+         );
+         this.craftListScrollState
+            .jumpTo(this.craftScrollOffset * this.LINE_HEIGHT, Math.max(0, this.filteredCraftableRecipes.size() * this.LINE_HEIGHT - this.CRAFT_LIST_HEIGHT));
+         return true;
+      } else if (this.isDragging) {
+         AutismWindowLayout nextBounds = this.clampToScreen(
+            this,
+            new AutismWindowLayout(
+               (int)(mouseX - this.dragOffsetX), (int)(mouseY - this.dragOffsetY), this.PANEL_WIDTH, this.PANEL_HEIGHT, this.visible, this.collapsed
+            )
+         );
+         this.panelX = nextBounds.x;
+         this.panelY = nextBounds.y;
+         this.initWidgets();
+         return true;
+      } else {
+         return false;
+      }
+   }
+
+   @Override
+   public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+      if (this.visible && !this.collapsed) {
+         if (!this.uiDropdowns.isEmpty()
+            && (CompactDropdown.isMenuOpen(this.uiDropdowns) || CompactDropdown.isInsideOpenMenu(this.uiDropdowns, mouseX, mouseY))
+            && CompactDropdown.mouseScrolled(this.uiDropdowns, mouseX, mouseY, amount)) {
+            return true;
+         } else {
+            if (this.isCraftMode()) {
+               int planX = this.getCraftListX();
+               int planY = this.getCraftPlanListY();
+               int listWidth = this.getCraftListWidth();
+               if (mouseX >= planX && mouseX <= planX + listWidth && mouseY >= planY && mouseY <= planY + this.CRAFT_PLAN_HEIGHT) {
+                  int maxPlanScroll = Math.max(0, this.plannedCraftEntries.size() - 4);
+                  this.craftPlanScrollOffset = Math.max(0, Math.min(maxPlanScroll, this.craftPlanScrollOffset - (int)Math.signum(amount)));
+                  this.craftPlanScrollState
+                     .setTarget(this.craftPlanScrollOffset * 13, Math.max(0, this.plannedCraftEntries.size() * 13 - this.CRAFT_PLAN_HEIGHT));
+                  this.saveState();
+                  return true;
+               }
+
+               int listX = this.getCraftListX();
+               int listY = this.getCraftListY();
+               if (mouseX >= listX && mouseX <= listX + listWidth && mouseY >= listY && mouseY <= listY + this.CRAFT_LIST_HEIGHT) {
+                  int maxScroll = Math.max(0, this.filteredCraftableRecipes.size() - 6);
+                  this.craftScrollOffset = Math.max(0, Math.min(maxScroll, this.craftScrollOffset - (int)Math.signum(amount)));
+                  this.craftListScrollState
+                     .setTarget(
+                        this.craftScrollOffset * this.LINE_HEIGHT,
+                        Math.max(0, this.filteredCraftableRecipes.size() * this.LINE_HEIGHT - this.CRAFT_LIST_HEIGHT)
+                     );
+                  this.saveState();
+                  return true;
+               }
+            }
+
+            return false;
+         }
+      } else {
+         return false;
+      }
+   }
+
+   private String getItemNameFromSlot(int slotId) {
+      ItemTarget target = this.getItemTargetFromSlot(slotId);
+      return target.editorText();
+   }
+
+   private ItemTarget getItemTargetFromSlot(int slotId) {
+      AbstractContainerMenu handler = this.getActiveHandler();
+      if (handler != null && slotId >= 0 && slotId < handler.slots.size()) {
+         Slot slot = (Slot)handler.slots.get(slotId);
+         if (slot != null && !slot.getItem().isEmpty()) {
+            int visibleSlot = AutismInventoryHelper.toUserVisibleSlot(MC, slot.index);
+            return ItemTarget.capture(slot.getItem(), visibleSlot);
+         } else {
+            return new ItemTarget();
+         }
+      } else {
+         return new ItemTarget();
+      }
+   }
+
+   private void refreshCraftableRecipes(boolean force) {
+      if (this.isCraftMode() && MC.player != null && MC.level != null) {
+         long now = System.currentTimeMillis();
+         if (force || now - this.lastCraftRefreshAt >= 350L) {
+            this.lastCraftRefreshAt = now;
+            this.craftableRecipes.clear();
+            this.filteredCraftableRecipes = new ArrayList<>();
+            this.craftableRecipes.addAll(AutismCraftingHelper.getCraftableRecipes(MC));
+            this.readyCraftableRecipeCount = 0;
+
+            for (AutismCraftingHelper.CraftableRecipeOption option : this.craftableRecipes) {
+               if (option.craftableNow) {
+                  this.readyCraftableRecipeCount++;
+               }
+            }
+
+            this.updateCraftRecipeFilter(this.craftSearchField != null ? this.craftSearchField.getText() : this.savedCraftSearchValue, false);
+            this.clearSelectedCraftIfInvalid();
+            this.restoreSelectedCraftIfNeeded();
+         }
+      }
+   }
+
+   private void updateCraftRecipeFilter(String query, boolean resetScroll) {
+      this.savedCraftSearchValue = query == null ? "" : query;
+      this.filteredCraftableRecipes = AutismCraftingHelper.filterRecipes(this.craftableRecipes, query);
+      int maxScroll = Math.max(0, this.filteredCraftableRecipes.size() - 6);
+      this.craftScrollOffset = resetScroll ? 0 : Math.max(0, Math.min(maxScroll, this.craftScrollOffset));
+   }
+
+   private void clearSelectedCraftIfInvalid() {
+      if (this.selectedCraftOption != null) {
+         for (AutismCraftingHelper.CraftableRecipeOption option : this.craftableRecipes) {
+            if (!option.recipeKey.isBlank() && option.recipeKey.equalsIgnoreCase(this.selectedCraftOption.recipeKey)
+               || option.recipeId >= 0 && option.recipeId == this.selectedCraftOption.recipeId
+               || option.syncedRecipeId >= 0 && option.syncedRecipeId == this.selectedCraftOption.syncedRecipeId) {
+               this.selectedCraftOption = option;
+               this.selectedCraftResult = option.result.copy();
+               this.savedCraftSelectedRecipeId = option.recipeId;
+               this.savedCraftSelectedRecipeKey = option.recipeKey;
+               return;
+            }
+         }
+
+         this.selectedCraftOption = null;
+         this.selectedCraftResult = ItemStack.EMPTY;
+         this.savedCraftSelectedRecipeId = -1;
+         this.savedCraftSelectedRecipeKey = "";
+      }
+   }
+
+   private void restoreSelectedCraftIfNeeded() {
+      if (this.savedCraftSelectedRecipeKey != null && !this.savedCraftSelectedRecipeKey.isBlank() || this.savedCraftSelectedRecipeId >= 0) {
+         if (this.selectedCraftOption != null) {
+            if (!this.savedCraftSelectedRecipeKey.isBlank() && this.savedCraftSelectedRecipeKey.equalsIgnoreCase(this.selectedCraftOption.recipeKey)) {
+               return;
+            }
+
+            if (this.savedCraftSelectedRecipeId >= 0
+               && (
+                  this.selectedCraftOption.recipeId == this.savedCraftSelectedRecipeId
+                     || this.selectedCraftOption.syncedRecipeId == this.savedCraftSelectedRecipeId
+               )) {
+               return;
+            }
+         }
+
+         for (AutismCraftingHelper.CraftableRecipeOption option : this.craftableRecipes) {
+            if (!this.savedCraftSelectedRecipeKey.isBlank() && this.savedCraftSelectedRecipeKey.equalsIgnoreCase(option.recipeKey)
+               || this.savedCraftSelectedRecipeId >= 0 && option.recipeId == this.savedCraftSelectedRecipeId
+               || this.savedCraftSelectedRecipeId >= 0 && option.syncedRecipeId == this.savedCraftSelectedRecipeId) {
+               this.selectedCraftOption = option;
+               this.selectedCraftResult = option.result.copy();
+               this.savedItemTarget = ItemTarget.capture(option.result, -1);
+               this.savedItemNameValue = option.label;
+               this.savedCraftSelectedRecipeKey = option.recipeKey;
+               this.savedCraftSelectedRecipeId = option.recipeId;
+               if (this.itemNameField != null) {
+                  this.itemNameField.setText(this.savedItemNameValue);
+               }
+
+               return;
+            }
+         }
+      }
+   }
+
+   private int getCraftListY() {
+      return this.getCraftSearchY() + 24;
+   }
+
+   private int getCraftListX() {
+      return this.panelX + 10;
+   }
+
+   private int getCraftListWidth() {
+      return this.PANEL_WIDTH - 20;
+   }
+
+   private int getCraftPlanContentWidth() {
+      return Math.max(40, this.getCraftListWidth() - (this.getCraftPlanScrollbarMetrics().hasScroll() ? 8 : 0));
+   }
+
+   private int getCraftListContentWidth() {
+      return Math.max(40, this.getCraftListWidth() - (this.getCraftListScrollbarMetrics().hasScroll() ? 8 : 0));
+   }
+
+   private CompactScrollbar.Metrics getCraftPlanScrollbarMetrics() {
+      int listX = this.getCraftListX();
+      int listY = this.getCraftPlanListY();
+      int listWidth = this.getCraftListWidth();
+      int contentHeight = this.plannedCraftEntries.size() * 13;
+      int maxScroll = Math.max(0, contentHeight - this.CRAFT_PLAN_HEIGHT);
+      return CompactScrollbar.compute(
+         contentHeight, this.CRAFT_PLAN_HEIGHT, listX + listWidth - 5, listY, 3, this.CRAFT_PLAN_HEIGHT, this.craftPlanScrollState.tick(0.0F, maxScroll)
+      );
+   }
+
+   private CompactScrollbar.Metrics getCraftListScrollbarMetrics() {
+      int listX = this.getCraftListX();
+      int listY = this.getCraftListY();
+      int listWidth = this.getCraftListWidth();
+      int contentHeight = this.filteredCraftableRecipes.size() * this.LINE_HEIGHT;
+      int maxScroll = Math.max(0, contentHeight - this.CRAFT_LIST_HEIGHT);
+      return CompactScrollbar.compute(
+         contentHeight, this.CRAFT_LIST_HEIGHT, listX + listWidth - 5, listY, 3, this.CRAFT_LIST_HEIGHT, this.craftListScrollState.tick(0.0F, maxScroll)
+      );
+   }
+
+   private int toRowScroll(CompactScrollbar.Metrics metrics, int mouseY, int grabOffset, int rowHeight, int maxScrollRows) {
+      int pixelScroll = CompactScrollbar.scrollFromThumb(metrics, mouseY, grabOffset);
+      return Math.max(0, Math.min(maxScrollRows, Math.round((float)pixelScroll / rowHeight)));
+   }
+
+   private void selectCraftRecipe(AutismCraftingHelper.CraftableRecipeOption option) {
+      if (option != null) {
+         this.selectedCraftOption = option;
+         this.selectedCraftResult = option.result.copy();
+         this.savedItemTarget = ItemTarget.capture(option.result, -1);
+         this.savedItemNameValue = option.label;
+         this.savedCraftSelectedRecipeId = option.recipeId;
+         this.savedCraftSelectedRecipeKey = option.recipeKey;
+         if (this.itemNameField != null) {
+            this.itemNameField.setText(this.savedItemNameValue);
+         }
+
+         this.setStatus(
+            "Selected craft: "
+               + option.label
+               + " | "
+               + (option.craftSource == AutismCraftingHelper.CraftSource.TABLE_3X3 ? "Table" : "2x2")
+               + " | "
+               + AutismCraftingHelper.getAvailabilityLabel(option),
+            option.craftableNow ? ChatFormatting.GREEN : ChatFormatting.RED
+         );
+         this.saveState();
+      }
+   }
+
+   private void clearCraftRecipeSelection() {
+      this.craftPlanSelectedIndex = -1;
+      this.selectedCraftOption = null;
+      this.selectedCraftResult = ItemStack.EMPTY;
+      this.savedItemTarget = new ItemTarget();
+      this.savedCraftSelectedRecipeId = -1;
+      this.savedCraftSelectedRecipeKey = "";
+   }
+
+   private AutismCraftingHelper.CraftableRecipeOption resolveCraftOption(CraftAction.CraftEntry entry) {
+      return entry == null ? null : AutismCraftingHelper.findInList(this.craftableRecipes, entry.recipeKey, entry.recipeId);
+   }
+
+   private CraftAction.CraftEntry buildConfiguredCraftEntry() {
+      if (this.selectedCraftOption != null && !this.selectedCraftResult.isEmpty()) {
+         int configuredAmount = this.parseConfiguredCraftAmount();
+         return configuredAmount <= 0 ? null : CraftAction.CraftEntry.fromOption(this.selectedCraftOption, configuredAmount, this.craftUseMaxAmount);
+      } else {
+         return null;
+      }
+   }
+
+   private CraftAction.CraftEntry getSelectedPlannedEntry() {
+      return this.craftPlanSelectedIndex >= 0 && this.craftPlanSelectedIndex < this.plannedCraftEntries.size()
+         ? this.plannedCraftEntries.get(this.craftPlanSelectedIndex)
+         : null;
+   }
+
+   private void selectCraftPlanEntry(int index) {
+      if (index >= 0 && index < this.plannedCraftEntries.size()) {
+         this.craftPlanSelectedIndex = index;
+         CraftAction.CraftEntry entry = this.plannedCraftEntries.get(index);
+         if (entry != null) {
+            this.craftUseMaxAmount = entry.useMaxAmount;
+            this.savedTimesValue = String.valueOf(Math.max(1, entry.amount));
+            if (this.timesField != null) {
+               this.timesField.setText(this.savedTimesValue);
+               this.timesField.setEditable(!this.craftUseMaxAmount);
+            }
+
+            AutismCraftingHelper.CraftableRecipeOption option = this.resolveCraftOption(entry);
+            if (option != null) {
+               this.selectCraftRecipe(option);
+            } else {
+               this.savedCraftSelectedRecipeId = entry.recipeId;
+               this.savedCraftSelectedRecipeKey = entry.recipeKey;
+               this.selectedCraftOption = null;
+               this.selectedCraftResult = ItemStack.EMPTY;
+            }
+         }
+
+         this.saveState();
+      } else {
+         this.craftPlanSelectedIndex = -1;
+         this.selectedCraftOption = null;
+         this.selectedCraftResult = ItemStack.EMPTY;
+         this.savedCraftSelectedRecipeId = -1;
+         this.savedCraftSelectedRecipeKey = "";
+         this.saveState();
+      }
+   }
+
+   private void addOrUpdatePlannedCraftEntry() {
+      CraftAction.CraftEntry draft = this.buildConfiguredCraftEntry();
+      if (draft == null) {
+         this.setStatus("Select a recipe and amount first", ChatFormatting.RED);
+      } else {
+         int existingIndex = -1;
+
+         for (int i = 0; i < this.plannedCraftEntries.size(); i++) {
+            CraftAction.CraftEntry existing = this.plannedCraftEntries.get(i);
+            if (existing != null
+               && (
+                  !draft.recipeKey.isBlank() && draft.recipeKey.equalsIgnoreCase(existing.recipeKey)
+                     || draft.recipeId >= 0 && draft.recipeId == existing.recipeId
+               )) {
+               existingIndex = i;
+               break;
+            }
+         }
+
+         if (this.craftPlanSelectedIndex >= 0 && this.craftPlanSelectedIndex < this.plannedCraftEntries.size()) {
+            this.plannedCraftEntries.set(this.craftPlanSelectedIndex, draft);
+         } else if (existingIndex >= 0) {
+            this.plannedCraftEntries.set(existingIndex, draft);
+            this.craftPlanSelectedIndex = existingIndex;
+         } else {
+            this.plannedCraftEntries.add(draft);
+            this.craftPlanSelectedIndex = this.plannedCraftEntries.size() - 1;
+         }
+
+         int maxPlanScroll = Math.max(0, this.plannedCraftEntries.size() - 4);
+         this.craftPlanScrollOffset = Math.max(0, Math.min(maxPlanScroll, this.craftPlanSelectedIndex));
+         this.saveState();
+      }
+   }
+
+   private void removePlannedCraftEntry(int index) {
+      if (index >= 0 && index < this.plannedCraftEntries.size()) {
+         this.plannedCraftEntries.remove(index);
+         if (this.craftPlanSelectedIndex == index) {
+            this.craftPlanSelectedIndex = -1;
+         } else if (this.craftPlanSelectedIndex > index) {
+            this.craftPlanSelectedIndex--;
+         }
+
+         this.craftPlanScrollOffset = Math.max(0, Math.min(Math.max(0, this.plannedCraftEntries.size() - 4), this.craftPlanScrollOffset));
+         this.saveState();
+      }
+   }
+
+   private List<CraftAction.CraftEntry> getActiveCraftEntries() {
+      if (!this.plannedCraftEntries.isEmpty()) {
+         List<CraftAction.CraftEntry> copies = new ArrayList<>(this.plannedCraftEntries.size());
+
+         for (CraftAction.CraftEntry entry : this.plannedCraftEntries) {
+            if (entry != null && entry.hasRecipe()) {
+               copies.add(entry.copy());
+            }
+         }
+
+         return copies;
+      } else {
+         CraftAction.CraftEntry draft = this.buildConfiguredCraftEntry();
+         return draft == null ? List.of() : List.of(draft);
+      }
+   }
+
+   private CraftAction buildCraftPlanAction() {
+      List<CraftAction.CraftEntry> activeEntries = this.getActiveCraftEntries();
+      if (activeEntries.isEmpty()) {
+         return null;
+      } else {
+         CraftAction action = new CraftAction();
+         action.setEntries(activeEntries);
+         return action;
+      }
+   }
+
+   private Component getCraftPlanRowLabel(CraftAction.CraftEntry entry) {
+      if (entry != null && entry.hasRecipe()) {
+         AutismCraftingHelper.CraftableRecipeOption option = this.resolveCraftOption(entry);
+         String amount = entry.useMaxAmount ? "Max" : "x" + Math.max(1, entry.amount);
+         Component resultName = option != null ? option.result.getHoverName().copy() : Component.literal(entry.resultName);
+         return Component.empty()
+            .append(resultName)
+            .append(Component.literal(" | " + amount + (option != null && option.craftableNow ? " | x" + option.maxCraftsNow : "")));
+      } else {
+         return Component.literal("(empty)");
+      }
+   }
+
+   @Override
+   public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+      if (this.visible && !this.collapsed) {
+         boolean anyFocused = false;
+
+         for (AutismChatField field : this.textFields) {
+            if (field.isFocused()) {
+               anyFocused = true;
+               break;
+            }
+         }
+
+         if (anyFocused) {
+            if (keyCode == 256) {
+               for (AutismChatField fieldx : this.textFields) {
+                  fieldx.setFocused(false);
+               }
+
+               return true;
+            }
+
+            KeyEvent input = new KeyEvent(keyCode, scanCode, modifiers);
+
+            for (AutismChatField fieldx : this.textFields) {
+               if (fieldx.isFocused()) {
+                  fieldx.keyPressed(input);
+                  return true;
+               }
+            }
+         }
+
+         return false;
+      } else {
+         return false;
+      }
+   }
+
+   @Override
+   public boolean charTyped(char chr, int modifiers) {
+      if (this.visible && !this.collapsed) {
+         CharacterEvent input = new CharacterEvent(chr, 0);
+
+         for (AutismChatField field : this.textFields) {
+            if (field.isFocused() && field.charTyped(input)) {
+               return true;
+            }
+         }
+
+         return false;
+      } else {
+         return false;
+      }
+   }
+
+   @Override
+   public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+      if (this.visible) {
+         this.expireTransientStatus();
+         this.uiDropdowns.clear();
+         int panelHeight = this.PANEL_HEIGHT;
+         AutismWindowLayout bounds = new AutismWindowLayout(this.panelX, this.panelY, this.PANEL_WIDTH, panelHeight, this.visible, this.collapsed);
+         this.renderWindowFrame(context, mouseX, mouseY, bounds, "Fabricator", this.collapsed, this.isDragging);
+         boolean clipBody = this.beginWindowBodyClip(context, bounds, this.collapsed);
+         if (!clipBody) {
+            this.renderWindowInactiveOverlay(context, bounds, this.collapsed, this.isDragging);
+         } else {
+            try {
+               int labelX = this.panelX + 10;
+               int fieldX = this.panelX + this.LABEL_WIDTH + 15;
+               int fieldWidth = this.getFieldWidth();
+               AutismText.draw(context, MC.font, "Action", AutismText.Tone.MUTED, labelX, this.getActionRowY() + 3, false);
+               if (this.actionDropdown == null) {
+                  this.actionDropdown = new CompactDropdown(fieldX, this.getActionRowY(), fieldWidth, 16, this.actionLabels, this.currentActionIndex, idx -> {
+                     if (idx >= 0 && idx < this.actions.length && idx != this.currentActionIndex) {
+                        this.currentActionIndex = idx;
+                        this.currentAction = this.actions[idx];
+                        this.clearStatus();
+                        this.initWidgets();
+                        this.saveState();
+                     }
+                  });
+               }
+
+               this.actionDropdown
+                  .setBounds(fieldX, this.getActionRowY(), fieldWidth, 16)
+                  .setOptions(this.actionLabels)
+                  .setSelectedIndex(this.currentActionIndex);
+               this.uiDropdowns.add(this.actionDropdown);
+
+               for (AutismChatField field : this.textFields) {
+                  field.render(context, mouseX, mouseY, delta);
+               }
+
+               if (this.showsSlotItemRows()) {
+                  AutismText.draw(context, MC.font, "Slot", AutismText.Tone.MUTED, labelX, this.getSlotRowY() + 3, false);
+                  AutismText.draw(context, MC.font, "Item", AutismText.Tone.MUTED, labelX, this.getItemRowY() + 3, false);
+               }
+
+               if (this.showsTargetFields()) {
+                  if (this.isClickSelectorRelevant() || this.isDropModeRelevant()) {
+                     AutismText.draw(
+                        context, MC.font, this.isDropModeRelevant() ? "Drop Mode" : "Click", AutismText.Tone.MUTED, labelX, this.getOptionRowY() + 3, false
+                     );
+                     if (this.isClickSelectorRelevant()) {
+                        boolean packetMode = this.currentAction.isPacketAction();
+                        List<String> options = packetMode ? PACKET_CLICK_LABELS : STANDARD_CLICK_LABELS;
+                        int clamped = Math.min(this.currentButtonIndex, options.size() - 1);
+                        if (this.clickModeDropdown == null) {
+                           this.clickModeDropdown = new CompactDropdown(fieldX, this.getOptionRowY(), fieldWidth, 16, options, clamped, idx -> {
+                              if (idx >= 0 && idx < 3) {
+                                 this.currentButtonIndex = idx;
+                                 this.clearStatus();
+                                 this.saveState();
+                              }
+                           });
+                        }
+
+                        this.clickModeDropdown.setBounds(fieldX, this.getOptionRowY(), fieldWidth, 16).setOptions(options).setSelectedIndex(clamped);
+                        this.uiDropdowns.add(this.clickModeDropdown);
+                     } else {
+                        List<String> options = DROP_MODE_LABELS;
+                        int sel = this.dropWholeStack ? 1 : 0;
+                        if (this.dropModeDropdown == null) {
+                           this.dropModeDropdown = new CompactDropdown(fieldX, this.getOptionRowY(), fieldWidth, 16, options, sel, idx -> {
+                              this.dropWholeStack = idx == 1;
+                              this.clearStatus();
+                              this.saveState();
+                           });
+                        }
+
+                        this.dropModeDropdown.setBounds(fieldX, this.getOptionRowY(), fieldWidth, 16).setOptions(options).setSelectedIndex(sel);
+                        this.uiDropdowns.add(this.dropModeDropdown);
+                     }
+                  }
+
+                  AutismText.draw(context, MC.font, this.getTimesLabel(), AutismText.Tone.MUTED, labelX, this.getStandardTimesRowY() + 3, false);
+               } else {
+                  this.refreshCraftableRecipes(false);
+                  int listX = this.getCraftListX();
+                  int listWidth = this.getCraftListWidth();
+                  CompactListRenderer.drawHeader(context, MC.font, "Craft Plan", labelX, this.getCraftPlanHeaderY());
+                  if (!this.plannedCraftEntries.isEmpty()) {
+                     CompactListRenderer.drawHeaderAction(context, MC.font, "Clear All", true, listX, listWidth, this.getCraftPlanHeaderY(), mouseX, mouseY);
+                  }
+
+                  int planListY = this.getCraftPlanListY();
+                  int planContentWidth = this.getCraftPlanContentWidth();
+                  CompactListRenderer.drawFrame(context, listX, planListY, listWidth, this.CRAFT_PLAN_HEIGHT, this.craftPlanSelectedIndex >= 0);
+                  if (this.plannedCraftEntries.isEmpty()) {
+                     CompactListRenderer.drawEmptyState(context, MC.font, "(no plan - pick recipe and Add)", listX, planListY + 2, planContentWidth);
+                  } else {
+                     int maxPlanScrollPx = Math.max(0, this.plannedCraftEntries.size() * 13 - this.CRAFT_PLAN_HEIGHT);
+                     this.craftPlanScrollOffset = Math.max(0, Math.min(this.craftPlanScrollOffset, Math.max(0, this.plannedCraftEntries.size() - 4)));
+                     this.craftPlanScrollState.setTarget(this.craftPlanScrollOffset * 13, maxPlanScrollPx);
+                     int drawPlanScroll = this.craftPlanScrollState.tick(delta, maxPlanScrollPx);
+                     UiScissorStack.global()
+                        .push(context, UiBounds.of(listX + 1, planListY + 1, Math.max(0, listWidth - 2), Math.max(0, this.CRAFT_PLAN_HEIGHT - 2)));
+                     int startIndex = drawPlanScroll / 13;
+                     int rowY = planListY - drawPlanScroll % 13;
+
+                     for (int index = startIndex; index < this.plannedCraftEntries.size() && rowY < planListY + this.CRAFT_PLAN_HEIGHT; rowY += 13) {
+                        boolean hovered = mouseX >= listX && mouseX < listX + planContentWidth && mouseY >= rowY && mouseY < rowY + 12;
+                        boolean selected = index == this.craftPlanSelectedIndex;
+                        CompactListRenderer.drawRow(
+                           context,
+                           MC.font,
+                           this.getCraftPlanRowLabel(this.plannedCraftEntries.get(index)),
+                           listX,
+                           rowY,
+                           planContentWidth,
+                           12,
+                           hovered,
+                           selected,
+                           CompactListRenderer.RowTone.NORMAL,
+                           true
+                        );
+                        boolean removeHovered = mouseX >= listX + planContentWidth - 16
+                           && mouseX < listX + planContentWidth - 2
+                           && mouseY >= rowY
+                           && mouseY < rowY + 12;
+                        CompactListRenderer.drawDeleteButton(context, listX + planContentWidth - 14, rowY, 12, removeHovered);
+                        index++;
+                     }
+
+                     UiScissorStack.global().pop(context);
+                  }
+
+                  CompactScrollbar.Metrics craftPlanScrollbar = this.getCraftPlanScrollbarMetrics();
+                  CompactScrollbar.draw(context, craftPlanScrollbar, craftPlanScrollbar.contains(mouseX, mouseY), this.activeScrollbarDrag == 1);
+                  if (this.selectedCraftResult.isEmpty()) {
+                     AutismText.draw(context, MC.font, "Recipe: none selected", AutismText.Tone.MUTED, listX, this.getCraftSummaryY(), false);
+                  } else {
+                     Component summaryText = Component.empty()
+                        .append(this.selectedCraftResult.getHoverName().copy())
+                        .append(
+                           Component.literal(
+                              " x"
+                                 + this.selectedCraftResult.getCount()
+                                 + (
+                                    this.selectedCraftOption != null && this.selectedCraftOption.craftableNow
+                                       ? " | x" + this.selectedCraftOption.maxCraftsNow
+                                       : ""
+                                 )
+                           )
+                        );
+                     AutismText.draw(context, MC.font, summaryText.getString(), AutismColors.textMuted(), listX, this.getCraftSummaryY(), false);
+                  }
+
+                  AutismText.draw(context, MC.font, "Amount", AutismText.Tone.MUTED, labelX, this.getCraftAmountRowY() + 3, false);
+                  this.drawOverlayToggleButton(
+                     context,
+                     this.getCraftAmountToggleX(),
+                     this.getCraftAmountRowY(),
+                     this.getCraftAmountToggleWidth(),
+                     16,
+                     "Use Max",
+                     this.craftUseMaxAmount,
+                     "fabricator:use-max",
+                     mouseX,
+                     mouseY
+                  );
+                  CompactListRenderer.drawHeader(context, MC.font, "Recipes", listX, this.getCraftSearchLabelY());
+                  int listY = this.getCraftListY();
+                  int recipeContentWidth = this.getCraftListContentWidth();
+                  CompactListRenderer.drawFrame(context, listX, listY, listWidth, this.CRAFT_LIST_HEIGHT, this.selectedCraftOption != null);
+                  UiScissorStack.global().push(context, UiBounds.of(listX + 1, listY + 1, Math.max(0, listWidth - 2), Math.max(0, this.CRAFT_LIST_HEIGHT - 2)));
+                  if (this.filteredCraftableRecipes.isEmpty()) {
+                     String emptyText = MC.player != null && MC.level != null
+                        ? "No crafting recipes match this search."
+                        : "Join a world to load crafting recipes.";
+                     CompactListRenderer.drawEmptyState(context, MC.font, emptyText, listX, listY + 4, recipeContentWidth);
+                  } else {
+                     int maxRecipeScrollPx = Math.max(0, this.filteredCraftableRecipes.size() * this.LINE_HEIGHT - this.CRAFT_LIST_HEIGHT);
+                     this.craftScrollOffset = Math.max(0, Math.min(this.craftScrollOffset, Math.max(0, this.filteredCraftableRecipes.size() - 6)));
+                     this.craftListScrollState.setTarget(this.craftScrollOffset * this.LINE_HEIGHT, maxRecipeScrollPx);
+                     int drawRecipeScroll = this.craftListScrollState.tick(delta, maxRecipeScrollPx);
+                     int startIndex = drawRecipeScroll / this.LINE_HEIGHT;
+                     int rowY = listY - drawRecipeScroll % this.LINE_HEIGHT;
+
+                     for (int index = startIndex;
+                        index < this.filteredCraftableRecipes.size() && rowY < listY + this.CRAFT_LIST_HEIGHT;
+                        rowY += this.LINE_HEIGHT
+                     ) {
+                        AutismCraftingHelper.CraftableRecipeOption option = this.filteredCraftableRecipes.get(index);
+                        boolean hovered = mouseX >= listX && mouseX <= listX + recipeContentWidth && mouseY >= rowY && mouseY < rowY + this.LINE_HEIGHT;
+                        boolean selected = this.selectedCraftOption != null && option.recipeKey.equalsIgnoreCase(this.selectedCraftOption.recipeKey);
+                        Component richLabel = Component.empty()
+                           .append(option.result.getHoverName().copy())
+                           .append(Component.literal(" x" + option.result.getCount() + " | " + AutismCraftingHelper.getAvailabilityLabel(option)));
+                        CompactListRenderer.drawRow(
+                           context,
+                           MC.font,
+                           richLabel,
+                           listX + 2,
+                           rowY,
+                           recipeContentWidth - 2,
+                           this.LINE_HEIGHT,
+                           hovered,
+                           selected,
+                           option.craftableNow ? CompactListRenderer.RowTone.READY : CompactListRenderer.RowTone.MISSING,
+                           true
+                        );
+                        CompactListRenderer.drawDivider(context, listX + 2, rowY + this.LINE_HEIGHT - 1, recipeContentWidth - 2);
+                        index++;
+                     }
+                  }
+
+                  UiScissorStack.global().pop(context);
+                  CompactScrollbar.Metrics craftListScrollbar = this.getCraftListScrollbarMetrics();
+                  CompactScrollbar.draw(context, craftListScrollbar, craftListScrollbar.contains(mouseX, mouseY), this.activeScrollbarDrag == 2);
+                  String recipeCountLine = AutismText.trimToWidth(
+                     MC.font, this.readyCraftableRecipeCount + " ready / " + this.craftableRecipes.size() + " total", listWidth, AutismText.Tone.MUTED
+                  );
+                  AutismText.draw(context, MC.font, recipeCountLine, AutismText.Tone.MUTED, listX, listY + this.CRAFT_LIST_HEIGHT + 2, false);
+               }
+
+               int btnY = this.getBottomButtonY();
+               int btnArea = this.PANEL_WIDTH - 20;
+               int gap = 2;
+               int bw = (btnArea - gap * 2) / 3;
+               int bx = this.panelX + 10;
+               String sendLabel = this.isCraftMode() ? (this.craftExecutionInProgress ? "Crafting..." : "Craft") : "Send";
+               this.drawOverlayButton(context, bx, btnY, bw, this.BUTTON_HEIGHT, sendLabel, CompactOverlayButton.Variant.SECONDARY, true, mouseX, mouseY);
+               bx += bw + gap;
+               this.drawOverlayButton(context, bx, btnY, bw, this.BUTTON_HEIGHT, "Queue", CompactOverlayButton.Variant.SECONDARY, true, mouseX, mouseY);
+               bx += bw + gap;
+               this.drawOverlayButton(context, bx, btnY, bw, this.BUTTON_HEIGHT, "Macro", CompactOverlayButton.Variant.SECONDARY, true, mouseX, mouseY);
+               int infoWidth = this.PANEL_WIDTH - 20;
+               int statusY = this.getStatusY();
+               if (statusY + 9 < btnY) {
+                  if (!this.statusMessage.isEmpty()) {
+                     int color = chatFormattingColor(this.statusColor);
+                     UiText.drawFitted(context, MC.font, this.statusMessage, THEME.fontFor(UiTone.BODY), color, this.panelX + 10, statusY, infoWidth, true);
+                  } else {
+                     UiText.drawFitted(
+                        context,
+                        MC.font,
+                        this.getTargetSummary(),
+                        THEME.fontFor(UiTone.MUTED),
+                        THEME.color(UiTone.MUTED),
+                        this.panelX + 10,
+                        statusY,
+                        infoWidth,
+                        false
+                     );
+                  }
+               }
+
+               List<String> actionLines = this.getActionDescriptionLines();
+
+               for (int i = 0; i < actionLines.size(); i++) {
+                  int lineY = this.getActionInfoY() + i * 10;
+                  if (lineY + 9 >= btnY) {
+                     break;
+                  }
+
+                  AutismText.draw(context, MC.font, actionLines.get(i), AutismText.Tone.MUTED, this.panelX + 10, lineY, false);
+               }
+
+               if (!this.uiDropdowns.isEmpty()) {
+                  CompactDropdown.renderButtons(context, MC.font, this.uiDropdowns, mouseX, mouseY);
+               }
+            } finally {
+               this.endWindowBodyClip(context, clipBody);
+               this.renderWindowInactiveOverlay(context, bounds, this.collapsed, this.isDragging);
+            }
+
+            if (!this.uiDropdowns.isEmpty() && CompactDropdown.isMenuOpen(this.uiDropdowns)) {
+               context.nextStratum();
+               CompactDropdown.renderOpenMenu(context, MC.font, this.uiDropdowns, mouseX, mouseY);
+            }
+         }
+      }
+   }
+
+   private static int chatFormattingColor(ChatFormatting formatting) {
+      if (formatting == null) {
+         return -1;
+      } else {
+         return switch (formatting) {
+            case BLACK -> -16777216;
+            case DARK_BLUE -> -16777046;
+            case DARK_GREEN -> -16733696;
+            case DARK_AQUA -> -16733526;
+            case DARK_RED -> -5636096;
+            case DARK_PURPLE -> -5635926;
+            case GOLD -> -22016;
+            case GRAY -> -5592406;
+            case DARK_GRAY -> -11184811;
+            case BLUE -> -11184641;
+            case GREEN -> -11141291;
+            case AQUA -> -11141121;
+            case RED -> -43691;
+            case LIGHT_PURPLE -> -43521;
+            case YELLOW -> -171;
+            case WHITE -> -1;
+            default -> -1;
+         };
+      }
+   }
+
+   private void cycleAction() {
+      this.currentActionIndex = (this.currentActionIndex + 1) % this.actions.length;
+      this.currentAction = this.actions[this.currentActionIndex];
+      this.clearStatus();
+      this.initWidgets();
+      this.saveState();
+   }
+
+   private void cycleActionBackwards() {
+      this.currentActionIndex = (this.currentActionIndex - 1 + this.actions.length) % this.actions.length;
+      this.currentAction = this.actions[this.currentActionIndex];
+      this.clearStatus();
+      this.initWidgets();
+      this.saveState();
+   }
+
+   private void clearWidgets() {
+      this.textFields.clear();
+      this.craftSearchField = null;
+   }
+
+   public void onSlotClick(Slot slot, int button) {
+      if (slot != null) {
+         if (!this.isCraftMode()) {
+            int stableSlotId = AutismInventoryHelper.toUserVisibleSlot(MC, slot.index);
+            ItemTarget clickedTarget = this.getItemTargetFromSlot(slot.index);
+            String itemName = clickedTarget.editorText();
+            if (this.currentAction.isPacketAction()) {
+               AbstractContainerMenu handler = this.getActiveHandler();
+               if (handler == null) {
+                  this.setStatus("No container is open to capture", ChatFormatting.RED);
+               } else {
+                  String screenTitle = this.parentScreen != null ? this.parentScreen.getTitle().getString() : "";
+                  String menuClass = handler.getClass().getName();
+                  this.packetClickTarget = new AutismPacketClick.Target(
+                     handler.containerId,
+                     handler.getStateId(),
+                     slot.index,
+                     stableSlotId,
+                     screenTitle,
+                     menuClass,
+                     itemName == null ? "" : itemName,
+                     this.getCurrentPacketMode(),
+                     System.currentTimeMillis()
+                  );
+                  this.setStatus("Captured Packet " + this.packetClickTarget.summary(), ChatFormatting.GREEN);
+                  this.saveState();
+               }
+            } else {
+               this.selectedSlotId = stableSlotId;
+               this.savedSlotValue = String.valueOf(stableSlotId);
+               if (this.slotField != null) {
+                  this.slotField.setText(this.savedSlotValue);
+               }
+
+               if (!itemName.isEmpty()) {
+                  this.savedItemTarget = clickedTarget;
+                  this.savedItemNameValue = itemName;
+                  if (this.itemNameField != null) {
+                     this.itemNameField.setText(itemName);
+                  }
+
+                  this.setStatus("Selected slot " + stableSlotId + ": " + itemName, ChatFormatting.GREEN);
+               } else {
+                  this.savedItemTarget = new ItemTarget();
+                  this.savedItemNameValue = "";
+                  if (this.itemNameField != null) {
+                     this.itemNameField.setText("");
+                  }
+
+                  this.setStatus("Selected slot " + stableSlotId + " (Empty)", ChatFormatting.YELLOW);
+               }
+
+               this.saveState();
+            }
+         }
+      }
+   }
+
+   private void sendToMacro(AutismMacroEditorOverlay macroEditor) {
+      try {
+         if (this.isCraftMode()) {
+            CraftAction craftAction = this.buildCraftPlanAction();
+            if (craftAction != null && craftAction.hasEntries()) {
+               macroEditor.addAction(craftAction);
+               return;
+            }
+
+            this.setStatus("Select a recipe or add a craft entry first!", ChatFormatting.RED);
             return;
-        }
+         }
 
-        if (currentAction.isPacketAction()) {
-            sendPacketClick(queue);
+         Integer enteredSlot = this.parseEnteredSlot();
+         String itemName = this.getEnteredItemName();
+         int repeats = this.resolveRepeatCount(-1);
+         if (repeats <= 0) {
             return;
-        }
+         }
 
-        try {
-            int slot = resolveTargetSlotForBuild();
-            if (slot < 0) return;
-            int repeats = resolveRepeatCount(slot);
-            if (repeats <= 0) return;
+         if (enteredSlot == null && itemName.isEmpty() && !this.currentAction.isPacketAction()) {
+            this.setStatus("Pick a slot or enter an item name first!", ChatFormatting.RED);
+            return;
+         }
+
+         if (this.currentAction.isPacketAction()) {
+            AutismPacketClick.Target target = this.getEffectivePacketClickTarget();
+            if (target == null) {
+               this.setStatus("Right-click a GUI slot to capture a Packet target first!", ChatFormatting.RED);
+               return;
+            }
+
+            PacketClickAction action = new PacketClickAction(target, repeats, false);
+            macroEditor.addAction(action);
+            this.setStatus("Added Packet Click action to macro!", ChatFormatting.GREEN);
+            return;
+         }
+
+         AbstractContainerMenu handler = this.getActiveHandler();
+         int resolvedSlot = enteredSlot == null ? -1 : AutismInventoryHelper.resolveConfiguredHandlerSlot(MC, enteredSlot);
+         if (enteredSlot != null && !this.isValidHandlerSlot(handler, resolvedSlot)) {
+            this.setStatus("Slot " + enteredSlot + " is not available in this screen!", ChatFormatting.RED);
+            return;
+         }
+
+         if (this.currentAction == AutismFabricatorOverlay.FabricatorAction.DROP) {
+            DropAction dropAction = new DropAction();
+            dropAction.useHandlerSlots = true;
+            dropAction.mode = this.dropWholeStack ? DropAction.DropMode.ALL : DropAction.DropMode.TIMES;
+            dropAction.dropCount = this.dropWholeStack ? 0 : repeats;
+            String entry = enteredSlot != null ? "#" + enteredSlot + (!itemName.isEmpty() ? "|" + itemName : "") : itemName;
+            if (!entry.isBlank()) {
+               ItemTarget target = this.buildEnteredItemTarget(enteredSlot, itemName);
+               entry = target.toLegacyEntry();
+               dropAction.itemTargets.add(target);
+               dropAction.itemNames.add(entry);
+               dropAction.itemCounts.add(this.dropWholeStack ? 0 : repeats);
+            }
+
+            macroEditor.addAction(dropAction);
+            this.setStatus("Added Drop action to macro!", ChatFormatting.GREEN);
+            return;
+         }
+
+         ItemAction itemAction = new ItemAction();
+         itemAction.actionIndex = this.currentAction.toPacketAction(this.dropWholeStack).ordinal();
+         itemAction.button = this.getEffectiveButton();
+         itemAction.times = repeats;
+         if (enteredSlot != null) {
+            itemAction.useSlot = true;
+            itemAction.targetSlot = enteredSlot;
+         }
+
+         if (!itemName.isEmpty()) {
+            ItemTarget target = this.buildEnteredItemTarget(enteredSlot, itemName);
+            itemAction.itemTargets.add(target);
+            itemAction.itemNames.add(target.toLegacyEntry());
+            itemAction.itemTimes.add(repeats);
+            itemAction.itemActionIdx.add(itemAction.actionIndex);
+            itemAction.itemButtons.add(itemAction.button);
+         }
+
+         macroEditor.addAction(itemAction);
+         this.setStatus("Added " + this.currentAction.displayName + " action to macro!", ChatFormatting.GREEN);
+      } catch (NumberFormatException var10) {
+         this.setStatus("Invalid value", ChatFormatting.RED);
+      }
+   }
+
+   private ItemTarget buildEnteredItemTarget(Integer enteredSlot, String itemName) {
+      String safeName = itemName == null ? "" : itemName.trim();
+      ItemTarget target = this.savedItemTarget != null && safeName.equals(this.savedItemTarget.editorText())
+         ? this.savedItemTarget.copy()
+         : ItemTarget.fromLegacyEntry(safeName);
+      if (enteredSlot != null) {
+         target.slot = enteredSlot;
+      }
+
+      return target;
+   }
+
+   private AutismPacketClick.Target getEffectivePacketClickTarget() {
+      return this.packetClickTarget == null ? null : this.packetClickTarget.withMode(this.getCurrentPacketMode());
+   }
+
+   private Packet<?> buildPacketClickPacket() {
+      AutismPacketClick.Target target = this.getEffectivePacketClickTarget();
+      return target == null ? null : target.buildPacket();
+   }
+
+   private Packet<?> buildFabricatedPacket(int slot) {
+      if (this.currentAction.isPacketAction()) {
+         return this.buildPacketClickPacket();
+      } else if (MC.player == null) {
+         return null;
+      } else {
+         AbstractContainerMenu handler = MC.player.containerMenu;
+         if (handler == null) {
+            return null;
+         } else {
+            ClickType actionType = this.currentAction.toPacketAction(this.dropWholeStack).toClickType();
+            return autismclient.util.AutismPacketCompat.click(
+               handler.containerId, handler.getStateId(), (short)slot, (byte)this.getEffectiveButton(), actionType
+            );
+         }
+      }
+   }
+
+   private void send(boolean queue) {
+      if (this.isCraftMode()) {
+         this.sendCraft(queue);
+      } else if (this.currentAction.isPacketAction()) {
+         this.sendPacketClick(queue);
+      } else {
+         try {
+            int slot = this.resolveTargetSlotForBuild();
+            if (slot < 0) {
+               return;
+            }
+
+            int repeats = this.resolveRepeatCount(slot);
+            if (repeats <= 0) {
+               return;
+            }
 
             ClientPacketListener handler = MC.getConnection();
-            if (handler == null) return;
+            if (handler == null) {
+               return;
+            }
 
-            if (currentAction == FabricatorAction.DROP && !queue) {
-                int queuedCount = AutismSharedState.get().flushDelayedPackets(handler);
-                int sent = AutismDropHelper.dropFromHandlerSlot(MC, slot, dropWholeStack ? 0 : repeats);
-                if (sent <= 0) {
-                    setStatus("Nothing to drop", ChatFormatting.YELLOW);
-                } else if (queuedCount > 0) {
-                    setStatus("Sent " + queuedCount + " queued + drop action", ChatFormatting.GREEN);
-                } else {
-                    setStatus(dropWholeStack ? "Dropped stack" : "Dropped " + repeats + " item(s)", ChatFormatting.GREEN);
-                }
-                return;
+            if (this.currentAction == AutismFabricatorOverlay.FabricatorAction.DROP && !queue) {
+               int queuedCount = AutismSharedState.get().flushDelayedPackets(handler);
+               int sent = AutismDropHelper.dropFromHandlerSlot(MC, slot, this.dropWholeStack ? 0 : repeats);
+               if (sent <= 0) {
+                  this.setStatus("Nothing to drop", ChatFormatting.YELLOW);
+               } else if (queuedCount > 0) {
+                  this.setStatus("Sent " + queuedCount + " queued + drop action", ChatFormatting.GREEN);
+               } else {
+                  this.setStatus(this.dropWholeStack ? "Dropped stack" : "Dropped " + repeats + " item(s)", ChatFormatting.GREEN);
+               }
+
+               return;
             }
 
             if (!queue) {
-                AutismSharedState.get().flushDelayedPackets(handler);
-                net.minecraft.world.inventory.ClickType actionType = currentAction.toPacketAction(dropWholeStack).toClickType();
-                int effectiveButton = getEffectiveButton();
-                for (int i = 0; i < repeats; i++) {
-                    AutismInventoryClickHelper.click(MC, slot, effectiveButton, actionType);
-                }
-                return;
+               AutismSharedState.get().flushDelayedPackets(handler);
+               ClickType actionType = this.currentAction.toPacketAction(this.dropWholeStack).toClickType();
+               int effectiveButton = this.getEffectiveButton();
+
+               for (int i = 0; i < repeats; i++) {
+                  AutismInventoryClickHelper.click(MC, slot, effectiveButton, actionType);
+               }
+
+               return;
             }
 
-            sendFabricatedPackets(slot, repeats, queue, handler);
+            this.sendFabricatedPackets(slot, repeats, queue, handler);
+         } catch (NumberFormatException var8) {
+            this.setStatus("Invalid number format", ChatFormatting.RED);
+         }
+      }
+   }
 
-        } catch (NumberFormatException e) {
-            setStatus("Invalid number format", ChatFormatting.RED);
-        }
-    }
+   private void sendPacketClick(boolean queue) {
+      try {
+         AutismPacketClick.Target target = this.getEffectivePacketClickTarget();
+         if (target == null) {
+            this.setStatus("Right-click a GUI slot to capture a Packet target first", ChatFormatting.RED);
+            return;
+         }
 
-    private void sendPacketClick(boolean queue) {
-        try {
-            AutismPacketClick.Target target = getEffectivePacketClickTarget();
-            if (target == null) {
-                setStatus("Right-click a GUI slot to capture a Packet target first", ChatFormatting.RED);
-                return;
-            }
+         int repeats = this.resolveRepeatCount(-1);
+         if (repeats <= 0) {
+            return;
+         }
 
-            int repeats = resolveRepeatCount(-1);
-            if (repeats <= 0) return;
+         ClientPacketListener handler = MC.getConnection();
+         if (handler == null) {
+            this.setStatus("No network connection", ChatFormatting.RED);
+            return;
+         }
 
-            ClientPacketListener handler = MC.getConnection();
-            if (handler == null) {
-                setStatus("No network connection", ChatFormatting.RED);
-                return;
-            }
+         List<Packet<?>> packets = new ArrayList<>(repeats);
 
-            List<Packet<?>> packets = new ArrayList<>(repeats);
-            for (int i = 0; i < repeats; i++) {
-                packets.add(target.buildPacket());
-            }
+         for (int i = 0; i < repeats; i++) {
+            packets.add(target.buildPacket());
+         }
 
-            if (queue) {
-                for (Packet<?> packet : packets) {
-                    AutismSharedState.get().enqueueExactPacket(packet);
-                }
-                setStatus("Queued " + packets.size() + " exact Packet Click(s)", ChatFormatting.GREEN);
-                return;
-            }
-
-            int queuedCount = AutismSharedState.get().flushDelayedPackets(handler);
+         if (queue) {
             for (Packet<?> packet : packets) {
-                AutismSharedState.get().sendPacketBypassDelay(handler, packet);
+               AutismSharedState.get().enqueueExactPacket(packet);
             }
-            if (queuedCount > 0) {
-                setStatus("Sent " + queuedCount + " queued + " + packets.size() + " exact Packet Click(s)", ChatFormatting.GREEN);
-            } else {
-                setStatus("Sent " + packets.size() + " exact Packet Click(s)", ChatFormatting.GREEN);
-            }
-        } catch (NumberFormatException e) {
-            setStatus("Invalid number format", ChatFormatting.RED);
-        }
-    }
 
-    private void sendCraft(boolean queue) {
-        List<CraftAction.CraftEntry> entries = getActiveCraftEntries();
-        if (entries.isEmpty()) {
-            setStatus("Select a recipe or add a craft entry first", ChatFormatting.RED);
+            this.setStatus("Queued " + packets.size() + " exact Packet Click(s)", ChatFormatting.GREEN);
             return;
-        }
+         }
 
-        if (queue) {
-            for (CraftAction.CraftEntry entry : entries) {
-                AutismCraftingHelper.CraftableRecipeOption option = AutismCraftingHelper.findCraftableRecipe(MC, entry.recipeKey);
-                if (option == null) option = AutismCraftingHelper.findCraftableRecipe(MC, entry.recipeId);
-                if (option == null) {
-                    String msg = "Recipe not found: " + entry.resultName;
-                    setStatus(msg, ChatFormatting.RED);
-                    AutismClientMessaging.sendPrefixed("§c" + msg);
-                    return;
-                }
-                int desiredAmount = AutismCraftingHelper.getEffectiveRequestedOutput(option, entry.amount, entry.useMaxAmount);
-                if (desiredAmount <= 0) {
-                    String msg = "No space or materials for " + entry.resultName;
-                    setStatus(msg, ChatFormatting.RED);
-                    AutismClientMessaging.sendPrefixed("§c" + msg);
-                    return;
-                }
+         int queuedCount = AutismSharedState.get().flushDelayedPackets(handler);
 
-                List<Packet<?>> packets = AutismCraftingHelper.buildCraftSequence(MC, entry.recipeKey, entry.recipeId, desiredAmount);
-                if (packets.isEmpty()) {
-                    String msg = option.hasSyncedRecipe()
-                        ? "Failed to build craft queue for " + entry.resultName
-                        : "Manual queue cannot be built safely for " + entry.resultName + "; use Craft instead.";
-                    setStatus(msg, ChatFormatting.RED);
-                    AutismClientMessaging.sendPrefixed("§c" + msg);
-                    return;
-                }
+         for (Packet<?> packet : packets) {
+            AutismSharedState.get().sendPacketBypassDelay(handler, packet);
+         }
 
-                for (Packet<?> packet : packets) {
-                    AutismSharedState.get().enqueuePacket(packet);
-                }
+         if (queuedCount > 0) {
+            this.setStatus("Sent " + queuedCount + " queued + " + packets.size() + " exact Packet Click(s)", ChatFormatting.GREEN);
+         } else {
+            this.setStatus("Sent " + packets.size() + " exact Packet Click(s)", ChatFormatting.GREEN);
+         }
+      } catch (NumberFormatException var9) {
+         this.setStatus("Invalid number format", ChatFormatting.RED);
+      }
+   }
+
+   private void sendCraft(boolean queue) {
+      List<CraftAction.CraftEntry> entries = this.getActiveCraftEntries();
+      if (entries.isEmpty()) {
+         this.setStatus("Select a recipe or add a craft entry first", ChatFormatting.RED);
+      } else if (!queue) {
+         if (this.craftExecutionInProgress) {
+            this.setStatus("A craft is already running", ChatFormatting.YELLOW);
+         } else {
+            this.craftExecutionInProgress = true;
+            Thread craftThread = new Thread(() -> {
+               AutismCraftingHelper.CraftExecutionResult result = null;
+
+               for (CraftAction.CraftEntry entryx : entries) {
+                  AutismCraftingHelper.CraftableRecipeOption optionx = AutismCraftingHelper.findCraftableRecipe(MC, entryx.recipeKey);
+                  if (optionx == null) {
+                     optionx = AutismCraftingHelper.findCraftableRecipe(MC, entryx.recipeId);
+                  }
+
+                  if (optionx == null) {
+                     result = AutismCraftingHelper.CraftExecutionResult.failure("Recipe not found: " + entryx.resultName);
+                     break;
+                  }
+
+                  int desiredAmountx = AutismCraftingHelper.getEffectiveRequestedOutput(optionx, entryx.amount, entryx.useMaxAmount);
+                  if (desiredAmountx <= 0) {
+                     result = AutismCraftingHelper.CraftExecutionResult.failure("No space or materials for " + entryx.resultName + ".");
+                     break;
+                  }
+
+                  result = AutismCraftingHelper.executeCraftImmediately(MC, entryx.recipeKey, entryx.recipeId, desiredAmountx);
+                  if (!result.success) {
+                     break;
+                  }
+               }
+
+               this.craftExecutionInProgress = false;
+               AutismCraftingHelper.CraftExecutionResult finalResult = result;
+               if (finalResult != null && !finalResult.success) {
+                  MC.execute(() -> {
+                     this.setStatus(finalResult.message, ChatFormatting.RED);
+                     AutismClientMessaging.sendPrefixed("§c" + finalResult.message);
+                  });
+               }
+            }, "Autism-Fabricator-Craft");
+            craftThread.setDaemon(true);
+            craftThread.start();
+         }
+      } else {
+         for (CraftAction.CraftEntry entry : entries) {
+            AutismCraftingHelper.CraftableRecipeOption option = AutismCraftingHelper.findCraftableRecipe(MC, entry.recipeKey);
+            if (option == null) {
+               option = AutismCraftingHelper.findCraftableRecipe(MC, entry.recipeId);
             }
-            return;
-        }
 
-        if (craftExecutionInProgress) {
-            setStatus("A craft is already running", ChatFormatting.YELLOW);
-            return;
-        }
-
-        craftExecutionInProgress = true;
-        Thread craftThread = new Thread(() -> {
-            AutismCraftingHelper.CraftExecutionResult result = null;
-            for (CraftAction.CraftEntry entry : entries) {
-                AutismCraftingHelper.CraftableRecipeOption option = AutismCraftingHelper.findCraftableRecipe(MC, entry.recipeKey);
-                if (option == null) option = AutismCraftingHelper.findCraftableRecipe(MC, entry.recipeId);
-                if (option == null) {
-                    result = AutismCraftingHelper.CraftExecutionResult.failure("Recipe not found: " + entry.resultName);
-                    break;
-                }
-                int desiredAmount = AutismCraftingHelper.getEffectiveRequestedOutput(option, entry.amount, entry.useMaxAmount);
-                if (desiredAmount <= 0) {
-                    result = AutismCraftingHelper.CraftExecutionResult.failure("No space or materials for " + entry.resultName + ".");
-                    break;
-                }
-
-                result = AutismCraftingHelper.executeCraftImmediately(MC, entry.recipeKey, entry.recipeId, desiredAmount);
-                if (!result.success) break;
+            if (option == null) {
+               String msg = "Recipe not found: " + entry.resultName;
+               this.setStatus(msg, ChatFormatting.RED);
+               AutismClientMessaging.sendPrefixed("§c" + msg);
+               return;
             }
-            craftExecutionInProgress = false;
-            AutismCraftingHelper.CraftExecutionResult finalResult = result;
-            if (finalResult != null && !finalResult.success) {
-                MC.execute(() -> {
-                    setStatus(finalResult.message, ChatFormatting.RED);
-                    AutismClientMessaging.sendPrefixed("§c" + finalResult.message);
-                });
+
+            int desiredAmount = AutismCraftingHelper.getEffectiveRequestedOutput(option, entry.amount, entry.useMaxAmount);
+            if (desiredAmount <= 0) {
+               String msg = "No space or materials for " + entry.resultName;
+               this.setStatus(msg, ChatFormatting.RED);
+               AutismClientMessaging.sendPrefixed("§c" + msg);
+               return;
             }
-        }, "Autism-Fabricator-Craft");
-        craftThread.setDaemon(true);
-        craftThread.start();
-    }
 
-    private void sendFabricatedPackets(int slot, int repeats, boolean queue, ClientPacketListener handler) {
-        List<Packet<?>> packets = buildFabricatedSequence(slot, repeats);
-        if (packets.isEmpty()) {
-            setStatus("Failed to build packet", ChatFormatting.RED);
-            return;
-        }
+            List<Packet<?>> packets = AutismCraftingHelper.buildCraftSequence(MC, entry.recipeKey, entry.recipeId, desiredAmount);
+            if (packets.isEmpty()) {
+               String msg = option.hasSyncedRecipe()
+                  ? "Failed to build craft queue for " + entry.resultName
+                  : "Manual queue cannot be built safely for " + entry.resultName + "; use Craft instead.";
+               this.setStatus(msg, ChatFormatting.RED);
+               AutismClientMessaging.sendPrefixed("§c" + msg);
+               return;
+            }
 
-        if (queue) {
             for (Packet<?> packet : packets) {
-                AutismSharedState.get().enqueuePacket(packet);
+               AutismSharedState.get().enqueuePacket(packet);
             }
-            setStatus("Queued " + packets.size() + " packet(s)", ChatFormatting.GREEN);
-            return;
-        }
+         }
+      }
+   }
 
-        int queuedCount = AutismSharedState.get().flushDelayedPackets(handler);
-        for (Packet<?> packet : packets) {
+   private void sendFabricatedPackets(int slot, int repeats, boolean queue, ClientPacketListener handler) {
+      List<Packet<?>> packets = this.buildFabricatedSequence(slot, repeats);
+      if (packets.isEmpty()) {
+         this.setStatus("Failed to build packet", ChatFormatting.RED);
+      } else if (queue) {
+         for (Packet<?> packet : packets) {
+            AutismSharedState.get().enqueuePacket(packet);
+         }
+
+         this.setStatus("Queued " + packets.size() + " packet(s)", ChatFormatting.GREEN);
+      } else {
+         int queuedCount = AutismSharedState.get().flushDelayedPackets(handler);
+
+         for (Packet<?> packet : packets) {
             AutismPacketSender.send(packet);
-        }
+         }
 
-        if (queuedCount > 0) {
-            setStatus("Sent " + queuedCount + " queued + " + packets.size() + " new packet(s)", ChatFormatting.GREEN);
-        } else {
-            setStatus("Sent " + packets.size() + " packet(s)", ChatFormatting.GREEN);
-        }
-    }
+         if (queuedCount > 0) {
+            this.setStatus("Sent " + queuedCount + " queued + " + packets.size() + " new packet(s)", ChatFormatting.GREEN);
+         } else {
+            this.setStatus("Sent " + packets.size() + " packet(s)", ChatFormatting.GREEN);
+         }
+      }
+   }
 
-    private void setStatus(String message, ChatFormatting color) {
-        this.statusMessage = message;
-        this.statusColor = color;
-        this.statusExpiresAtMs = 0L;
-    }
+   private void setStatus(String message, ChatFormatting color) {
+      this.statusMessage = message;
+      this.statusColor = color;
+      this.statusExpiresAtMs = 0L;
+   }
 
-    private void clearStatus() {
-        this.statusMessage = "";
-        this.statusColor = ChatFormatting.GRAY;
-        this.statusExpiresAtMs = 0L;
-    }
+   private void clearStatus() {
+      this.statusMessage = "";
+      this.statusColor = ChatFormatting.GRAY;
+      this.statusExpiresAtMs = 0L;
+   }
 
-    private void expireTransientStatus() {
-        if (statusExpiresAtMs <= 0L) return;
-        if (System.currentTimeMillis() >= statusExpiresAtMs) {
-            clearStatus();
-        }
-    }
+   private void expireTransientStatus() {
+      if (this.statusExpiresAtMs > 0L) {
+         if (System.currentTimeMillis() >= this.statusExpiresAtMs) {
+            this.clearStatus();
+         }
+      }
+   }
 
-    private String getTimesLabel() {
-        if (isCraftMode()) return "Amount";
-        if (isDropModeRelevant() && !dropWholeStack) return "Items";
-        return "Times";
-    }
+   private String getTimesLabel() {
+      if (this.isCraftMode()) {
+         return "Amount";
+      } else {
+         return this.isDropModeRelevant() && !this.dropWholeStack ? "Items" : "Times";
+      }
+   }
 
-    private String getTargetSummary() {
-        if (isCraftMode()) {
-            String planInfo = plannedCraftEntries.isEmpty()
-                ? "Plan: none"
-                : "Plan: " + plannedCraftEntries.size() + " entr" + (plannedCraftEntries.size() == 1 ? "y" : "ies");
-            if (selectedCraftResult.isEmpty()) return planInfo + " | Recipe: none selected";
-            String source = selectedCraftOption != null && selectedCraftOption.craftSource == AutismCraftingHelper.CraftSource.TABLE_3X3 ? "Table" : "2x2";
-            String availability = selectedCraftOption != null ? AutismCraftingHelper.getAvailabilityLabel(selectedCraftOption) : "Unavailable";
-            String amountMode = craftUseMaxAmount
-                ? "Max"
-                : "x" + Math.max(1, parseConfiguredCraftAmount());
-            return planInfo + " | Recipe: " + selectedCraftResult.getHoverName().getString() + " | " + source + " | " + availability + " | " + amountMode;
-        }
-
-        if (currentAction.isPacketAction()) {
-            AutismPacketClick.Target target = getEffectivePacketClickTarget();
-            return target == null
-                ? "Packet: right-click a GUI slot to capture"
-                : "Packet: " + target.summary();
-        }
-
-        Integer slot = parseEnteredSlot();
-        String itemName = getEnteredItemName();
-        if (slot != null && !itemName.isEmpty()) {
+   private String getTargetSummary() {
+      if (this.isCraftMode()) {
+         String planInfo = this.plannedCraftEntries.isEmpty()
+            ? "Plan: none"
+            : "Plan: " + this.plannedCraftEntries.size() + " entr" + (this.plannedCraftEntries.size() == 1 ? "y" : "ies");
+         if (this.selectedCraftResult.isEmpty()) {
+            return planInfo + " | Recipe: none selected";
+         } else {
+            String source = this.selectedCraftOption != null && this.selectedCraftOption.craftSource == AutismCraftingHelper.CraftSource.TABLE_3X3
+               ? "Table"
+               : "2x2";
+            String availability = this.selectedCraftOption != null ? AutismCraftingHelper.getAvailabilityLabel(this.selectedCraftOption) : "Unavailable";
+            String amountMode = this.craftUseMaxAmount ? "Max" : "x" + Math.max(1, this.parseConfiguredCraftAmount());
+            return planInfo + " | Recipe: " + this.selectedCraftResult.getHoverName().getString() + " | " + source + " | " + availability + " | " + amountMode;
+         }
+      } else if (this.currentAction.isPacketAction()) {
+         AutismPacketClick.Target target = this.getEffectivePacketClickTarget();
+         return target == null ? "Packet: right-click a GUI slot to capture" : "Packet: " + target.summary();
+      } else {
+         Integer slot = this.parseEnteredSlot();
+         String itemName = this.getEnteredItemName();
+         if (slot != null && !itemName.isEmpty()) {
             return "Target: '" + itemName + "' in exact slot " + slot;
-        }
-        if (slot != null) {
+         } else if (slot != null) {
             return "Target: exact slot " + slot;
-        }
-        if (!itemName.isEmpty()) {
-            return "Target: best matching '" + itemName + "'";
-        }
-        return "Target: choose a slot or enter an item name";
-    }
+         } else {
+            return !itemName.isEmpty() ? "Target: best matching '" + itemName + "'" : "Target: choose a slot or enter an item name";
+         }
+      }
+   }
 
-    private AbstractContainerMenu getActiveHandler() {
-        if (MC.player != null && MC.player.containerMenu != null) return MC.player.containerMenu;
-        return parentScreen != null ? ((autismclient.mixin.accessor.AbstractContainerScreenAccessor) parentScreen).autism$getMenu() : null;
-    }
+   private AbstractContainerMenu getActiveHandler() {
+      if (MC.player != null && MC.player.containerMenu != null) {
+         return MC.player.containerMenu;
+      } else {
+         return this.parentScreen != null ? ((AbstractContainerScreenAccessor)this.parentScreen).autism$getMenu() : null;
+      }
+   }
 
-    private Integer parseEnteredSlot() {
-        if (slotField == null) return null;
-        String text = slotField.getText().trim();
-        if (text.isEmpty()) return null;
-        try {
-            return Integer.parseInt(text);
-        } catch (NumberFormatException ignored) {
+   private Integer parseEnteredSlot() {
+      if (this.slotField == null) {
+         return null;
+      } else {
+         String text = this.slotField.getText().trim();
+         if (text.isEmpty()) {
             return null;
-        }
-    }
+         } else {
+            try {
+               return Integer.parseInt(text);
+            } catch (NumberFormatException var3) {
+               return null;
+            }
+         }
+      }
+   }
 
-    private String getEnteredItemName() {
-        return itemNameField == null ? "" : itemNameField.getText().trim();
-    }
+   private String getEnteredItemName() {
+      return this.itemNameField == null ? "" : this.itemNameField.getText().trim();
+   }
 
-    private boolean isValidHandlerSlot(AbstractContainerMenu handler, int slotId) {
-        return handler != null && slotId >= 0 && slotId < handler.slots.size();
-    }
+   private boolean isValidHandlerSlot(AbstractContainerMenu handler, int slotId) {
+      return handler != null && slotId >= 0 && slotId < handler.slots.size();
+   }
 
-    private boolean stackMatchesQuery(ItemStack stack, String query) {
-        if (stack == null || stack.isEmpty() || query == null || query.isBlank()) return false;
-        return ItemTarget.fromLegacyEntry(query).score(stack, -1) >= 0;
-    }
+   private boolean stackMatchesQuery(ItemStack stack, String query) {
+      return stack != null && !stack.isEmpty() && query != null && !query.isBlank() ? ItemTarget.fromLegacyEntry(query).score(stack, -1) >= 0 : false;
+   }
 
-    private boolean slotMatchesItemQuery(AbstractContainerMenu handler, int slotId, String itemQuery) {
-        if (!isValidHandlerSlot(handler, slotId)) return false;
-        Slot slot = handler.slots.get(slotId);
-        return slot != null && stackMatchesQuery(slot.getItem(), itemQuery);
-    }
+   private boolean slotMatchesItemQuery(AbstractContainerMenu handler, int slotId, String itemQuery) {
+      if (!this.isValidHandlerSlot(handler, slotId)) {
+         return false;
+      } else {
+         Slot slot = (Slot)handler.slots.get(slotId);
+         return slot != null && this.stackMatchesQuery(slot.getItem(), itemQuery);
+      }
+   }
 
-    private int resolveTargetSlotForBuild() {
-        AbstractContainerMenu handler = getActiveHandler();
-        if (handler == null) {
-            setStatus("No screen is open right now", ChatFormatting.RED);
+   private int resolveTargetSlotForBuild() {
+      AbstractContainerMenu handler = this.getActiveHandler();
+      if (handler == null) {
+         this.setStatus("No screen is open right now", ChatFormatting.RED);
+         return -1;
+      } else {
+         Integer enteredSlot = this.parseEnteredSlot();
+         String itemName = this.getEnteredItemName();
+         int resolvedSlot = enteredSlot == null ? -1 : AutismInventoryHelper.resolveConfiguredHandlerSlot(MC, enteredSlot);
+         if (enteredSlot != null && !this.isValidHandlerSlot(handler, resolvedSlot)) {
+            this.setStatus("Slot " + enteredSlot + " is not available in this screen", ChatFormatting.RED);
             return -1;
-        }
-
-        Integer enteredSlot = parseEnteredSlot();
-        String itemName = getEnteredItemName();
-        int resolvedSlot = enteredSlot == null ? -1 : AutismInventoryHelper.resolveConfiguredHandlerSlot(MC, enteredSlot);
-
-        if (enteredSlot != null && !isValidHandlerSlot(handler, resolvedSlot)) {
-            setStatus("Slot " + enteredSlot + " is not available in this screen", ChatFormatting.RED);
-            return -1;
-        }
-
-        if (enteredSlot != null && !itemName.isEmpty()) {
-            if (slotMatchesItemQuery(handler, resolvedSlot, itemName)) return resolvedSlot;
-            setStatus("Slot " + enteredSlot + " does not contain '" + itemName + "'", ChatFormatting.RED);
-            return -1;
-        }
-
-        if (enteredSlot != null) {
+         } else if (enteredSlot != null && !itemName.isEmpty()) {
+            if (this.slotMatchesItemQuery(handler, resolvedSlot, itemName)) {
+               return resolvedSlot;
+            } else {
+               this.setStatus("Slot " + enteredSlot + " does not contain '" + itemName + "'", ChatFormatting.RED);
+               return -1;
+            }
+         } else if (enteredSlot != null) {
             return resolvedSlot;
-        }
-
-        if (!itemName.isEmpty()) {
-            Integer foundSlot = findSlotByItemName(itemName);
+         } else if (!itemName.isEmpty()) {
+            Integer foundSlot = this.findSlotByItemName(itemName);
             if (foundSlot == null) {
-                setStatus("No item matching '" + itemName + "' found", ChatFormatting.RED);
-                return -1;
+               this.setStatus("No item matching '" + itemName + "' found", ChatFormatting.RED);
+               return -1;
+            } else {
+               return foundSlot;
             }
-            return foundSlot;
-        }
-
-        setStatus("Pick a slot or enter an item name first", ChatFormatting.RED);
-        return -1;
-    }
-
-    private int resolveRepeatCount(int slot) {
-        int value;
-        try {
-            value = Integer.parseInt(timesField.getText().trim());
-        } catch (NumberFormatException e) {
-            setStatus(currentAction.isCraftAction() ? "Invalid amount" : "Invalid repeat count", ChatFormatting.RED);
+         } else {
+            this.setStatus("Pick a slot or enter an item name first", ChatFormatting.RED);
             return -1;
-        }
+         }
+      }
+   }
 
-        if (value <= 0) {
-            setStatus(currentAction.isCraftAction() ? "Amount must be at least 1" : "Repeat count must be at least 1", ChatFormatting.RED);
+   private int resolveRepeatCount(int slot) {
+      int value;
+      try {
+         value = Integer.parseInt(this.timesField.getText().trim());
+      } catch (NumberFormatException var6) {
+         this.setStatus(this.currentAction.isCraftAction() ? "Invalid amount" : "Invalid repeat count", ChatFormatting.RED);
+         return -1;
+      }
+
+      if (value <= 0) {
+         this.setStatus(this.currentAction.isCraftAction() ? "Amount must be at least 1" : "Repeat count must be at least 1", ChatFormatting.RED);
+         return -1;
+      } else if (!this.currentAction.isCraftAction()) {
+         return value;
+      } else if (this.selectedCraftOption != null && !this.selectedCraftResult.isEmpty()) {
+         if (MC.player != null && MC.player.containerMenu instanceof CraftingMenu craftingHandler) {
+            int var7 = Math.max(1, this.selectedCraftResult.getCount());
+            return Math.max(1, (int)Math.ceil((double)value / var7));
+         } else {
+            this.setStatus("Open a crafting screen first", ChatFormatting.RED);
             return -1;
-        }
+         }
+      } else {
+         this.setStatus("Select a recipe first", ChatFormatting.RED);
+         return -1;
+      }
+   }
 
-        if (!currentAction.isCraftAction()) {
-            return value;
-        }
-
-        if (selectedCraftOption == null || selectedCraftResult.isEmpty()) {
-            setStatus("Select a recipe first", ChatFormatting.RED);
+   private int resolveCraftAmount() {
+      if (this.selectedCraftOption == null || this.selectedCraftResult.isEmpty()) {
+         this.setStatus("Select a recipe first", ChatFormatting.RED);
+         return -1;
+      } else if (this.craftUseMaxAmount) {
+         int maxAmount = this.selectedCraftOption.maxOutputNow;
+         if (maxAmount <= 0) {
+            this.setStatus(this.selectedCraftOption.hasMaterialsNow ? "No room to store crafted items" : "Missing materials", ChatFormatting.RED);
             return -1;
-        }
-
-        if (!(MC.player != null && MC.player.containerMenu instanceof CraftingMenu craftingHandler)) {
-            setStatus("Open a crafting screen first", ChatFormatting.RED);
-            return -1;
-        }
-
-        int outputPerCraft = Math.max(1, selectedCraftResult.getCount());
-        int repeats = Math.max(1, (int) Math.ceil((double) value / outputPerCraft));
-        return repeats;
-    }
-
-    private int resolveCraftAmount() {
-        if (selectedCraftOption == null || selectedCraftResult.isEmpty()) {
-            setStatus("Select a recipe first", ChatFormatting.RED);
-            return -1;
-        }
-
-        if (craftUseMaxAmount) {
-            int maxAmount = selectedCraftOption.maxOutputNow;
-            if (maxAmount <= 0) {
-                setStatus(selectedCraftOption.hasMaterialsNow ? "No room to store crafted items" : "Missing materials", ChatFormatting.RED);
-                return -1;
-            }
+         } else {
             return maxAmount;
-        }
-
-        int value = parseConfiguredCraftAmount();
-        if (value <= 0) {
-            setStatus("Invalid craft amount", ChatFormatting.RED);
+         }
+      } else {
+         int value = this.parseConfiguredCraftAmount();
+         if (value <= 0) {
+            this.setStatus("Invalid craft amount", ChatFormatting.RED);
             return -1;
-        }
-        return value;
-    }
+         } else {
+            return value;
+         }
+      }
+   }
 
-    private int parseConfiguredCraftAmount() {
-        if (timesField == null) return 1;
-        try {
-            int value = Integer.parseInt(timesField.getText().trim());
+   private int parseConfiguredCraftAmount() {
+      if (this.timesField == null) {
+         return 1;
+      } else {
+         try {
+            int value = Integer.parseInt(this.timesField.getText().trim());
             return Math.max(1, value);
-        } catch (NumberFormatException e) {
+         } catch (NumberFormatException var2) {
             return -1;
-        }
-    }
+         }
+      }
+   }
 
-    private List<Packet<?>> buildFabricatedSequence(int slot, int repeats) {
-        List<Packet<?>> packets = new ArrayList<>();
+   private List<Packet<?>> buildFabricatedSequence(int slot, int repeats) {
+      List<Packet<?>> packets = new ArrayList<>();
 
-        for (int i = 0; i < repeats; i++) {
-            Packet<?> built = buildFabricatedPacket(slot);
-            if (built == null) return List.of();
-            packets.add(normalizeFabricatorPacket(built));
-        }
+      for (int i = 0; i < repeats; i++) {
+         Packet<?> built = this.buildFabricatedPacket(slot);
+         if (built == null) {
+            return List.of();
+         }
 
-        return packets;
-    }
+         packets.add(this.normalizeFabricatorPacket(built));
+      }
 
-    private Packet<?> normalizeFabricatorPacket(Packet<?> packet) {
-        if (currentAction.isPacketAction()) return packet;
-        if (packet instanceof ServerboundContainerClickPacket clickSlotPacket) {
-            return PacketRegenerator.regenerate(clickSlotPacket);
-        }
-        return packet;
-    }
+      return packets;
+   }
 
-    private Integer findSlotByItemName(String searchName) {
-        if (searchName == null || searchName.trim().isEmpty()) {
+   private Packet<?> normalizeFabricatorPacket(Packet<?> packet) {
+      if (this.currentAction.isPacketAction()) {
+         return packet;
+      } else {
+         return packet instanceof ServerboundContainerClickPacket clickSlotPacket ? PacketRegenerator.regenerate(clickSlotPacket) : packet;
+      }
+   }
+
+   private Integer findSlotByItemName(String searchName) {
+      if (searchName != null && !searchName.trim().isEmpty()) {
+         AbstractContainerMenu handler = this.getActiveHandler();
+         if (handler == null) {
             return null;
-        }
+         } else {
+            ItemTarget target = ItemTarget.fromLegacyEntry(searchName);
+            Integer bestMatch = null;
+            int bestScore = -1;
 
-        AbstractContainerMenu handler = getActiveHandler();
-        if (handler == null) return null;
-
-        ItemTarget target = ItemTarget.fromLegacyEntry(searchName);
-        Integer bestMatch = null;
-        int bestScore = -1;
-
-        for (Slot slot : handler.slots) {
-            if (slot == null || slot.getItem().isEmpty()) continue;
-
-            int score = target.score(slot.getItem(), -1);
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestMatch = slot.index;
+            for (Slot slot : handler.slots) {
+               if (slot != null && !slot.getItem().isEmpty()) {
+                  int score = target.score(slot.getItem(), -1);
+                  if (score > bestScore) {
+                     bestScore = score;
+                     bestMatch = slot.index;
+                  }
+               }
             }
-        }
 
-        return bestScore >= 0 ? bestMatch : null;
-    }
+            return bestScore >= 0 ? bestMatch : null;
+         }
+      } else {
+         return null;
+      }
+   }
 
-    private void applyPresetMetrics() {
-        DEFAULT_PANEL_WIDTH = 236;
-        LINE_HEIGHT = 14;
-        CRAFT_LIST_HEIGHT = 84;
-        CRAFT_PLAN_HEIGHT = 52;
-        FIELD_WIDTH = 100;
-        BUTTON_HEIGHT = 20;
-        LABEL_WIDTH = 64;
-    }
+   private void applyPresetMetrics() {
+      this.DEFAULT_PANEL_WIDTH = 236;
+      this.LINE_HEIGHT = 14;
+      this.CRAFT_LIST_HEIGHT = 84;
+      this.CRAFT_PLAN_HEIGHT = 52;
+      this.FIELD_WIDTH = 100;
+      this.BUTTON_HEIGHT = 20;
+      this.LABEL_WIDTH = 64;
+   }
 
-    private int standardPanelHeight() {
-        return Math.max(240, requiredPanelHeightForInfoRows(getStandardTimesRowY() + 22));
-    }
+   private int standardPanelHeight() {
+      return Math.max(240, this.requiredPanelHeightForInfoRows(this.getStandardTimesRowY() + 22));
+   }
 
-    private int craftModePanelHeight() {
-        return Math.max(384, requiredPanelHeightForInfoRows(getCraftListY() + CRAFT_LIST_HEIGHT + 14));
-    }
+   private int craftModePanelHeight() {
+      return Math.max(384, this.requiredPanelHeightForInfoRows(this.getCraftListY() + this.CRAFT_LIST_HEIGHT + 14));
+   }
+
+   private static enum FabricatorAction {
+      CLICK("Click", "Use Left or Right on the resolved slot.") {
+         @Override
+         boolean usesClickSelector() {
+            return true;
+         }
+
+         @Override
+         AutismDropAction toPacketAction(boolean dropWholeStack) {
+            return AutismDropAction.PICKUP;
+         }
+      },
+      QUICK_MOVE("Quick Move", "Shift-click the resolved slot.") {
+         @Override
+         AutismDropAction toPacketAction(boolean dropWholeStack) {
+            return AutismDropAction.QUICK_MOVE;
+         }
+      },
+      PICKUP_ALL("Pick Up All", "Double-click the resolved slot. Usually needs you to hold a matching stack first.") {
+         @Override
+         AutismDropAction toPacketAction(boolean dropWholeStack) {
+            return AutismDropAction.PICKUP_ALL;
+         }
+      },
+      CRAFT_RESULT("Craft", "Choose a craftable item, set the total amount, then send, queue, or add it to a macro.") {
+         @Override
+         boolean isCraftAction() {
+            return true;
+         }
+
+         @Override
+         AutismDropAction toPacketAction(boolean dropWholeStack) {
+            return AutismDropAction.QUICK_MOVE;
+         }
+      },
+      DROP("Drop", "Drop from the resolved slot. If slot and item are both set, both must match.") {
+         @Override
+         boolean usesDropToggle() {
+            return true;
+         }
+
+         @Override
+         AutismDropAction toPacketAction(boolean dropWholeStack) {
+            return dropWholeStack ? AutismDropAction.DROP_STACK : AutismDropAction.DROP_ITEM;
+         }
+
+         @Override
+         String getDescription(boolean dropWholeStack) {
+            return dropWholeStack ? "Drops the whole stack from the selected slot." : "Drops one item at a time from the selected slot.";
+         }
+      },
+      PACKET("Packet", "Replay a captured slot click with the captured container id and state.") {
+         @Override
+         boolean usesClickSelector() {
+            return true;
+         }
+
+         @Override
+         boolean isPacketAction() {
+            return true;
+         }
+
+         @Override
+         AutismDropAction toPacketAction(boolean dropWholeStack) {
+            return AutismDropAction.PICKUP;
+         }
+      };
+
+      final String displayName;
+      final String description;
+
+      private FabricatorAction(String displayName, String description) {
+         this.displayName = displayName;
+         this.description = description;
+      }
+
+      boolean usesClickSelector() {
+         return false;
+      }
+
+      boolean usesDropToggle() {
+         return false;
+      }
+
+      boolean isCraftAction() {
+         return false;
+      }
+
+      boolean isPacketAction() {
+         return false;
+      }
+
+      String getDescription(boolean dropWholeStack) {
+         return this.description;
+      }
+
+      abstract AutismDropAction toPacketAction(boolean var1);
+   }
 }

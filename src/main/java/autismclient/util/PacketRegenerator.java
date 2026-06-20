@@ -101,17 +101,12 @@ public class PacketRegenerator {
                 int button = getFieldInt(packet, "button", byte.class, 0);
                 ClickType action = getFieldEnum(packet, ClickType.class);
 
-                it.unimi.dsi.fastutil.ints.Int2ObjectMap<net.minecraft.network.HashedStack> modifiedStacks =
-                    new it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap<>();
-
-                return new ServerboundContainerClickPacket(
+                return autismclient.util.AutismPacketCompat.click(
                     currentSyncId,
                     currentRevision,
                     (short) slot,
                     (byte) button,
-                    action,
-                    modifiedStacks,
-                    net.minecraft.network.HashedStack.EMPTY
+                    action
                 );
             } catch (Exception e) {
                 AutismClientAddon.LOG.error("[Autism] ClickSlot regeneration failed: {}", e.getMessage());

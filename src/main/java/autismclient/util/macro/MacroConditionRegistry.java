@@ -21,10 +21,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class MacroConditionRegistry {
 
     private static final List<PendingCondition> pendingConditions = Collections.synchronizedList(new ArrayList<>());
+
+    private static final AtomicLong inventorySyncRevision = new AtomicLong();
+
+    public static long inventorySyncRevision() {
+        return inventorySyncRevision.get();
+    }
+
+    public static void recordInventorySync() {
+        inventorySyncRevision.incrementAndGet();
+    }
 
     public static CompletableFuture<Void> waitForGui(String guiTitle) {
         Minecraft mc = Minecraft.getInstance();

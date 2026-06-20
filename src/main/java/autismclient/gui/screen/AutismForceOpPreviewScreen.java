@@ -166,12 +166,26 @@ public class AutismForceOpPreviewScreen extends Screen {
         UiText.draw(graphics, font, text, THEME.fontFor(UiTone.BODY), color, x, y, false);
     }
 
+    //? if >=1.21.9 {
     private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e); }
     private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e, d); }
     private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
     private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
+    //?} else {
+/*    private boolean autism$superKeyPressed(KeyEvent e) { return super.keyPressed(e.key(), e.scancode(), e.modifiers()); }
+    private boolean autism$superMouseClicked(MouseButtonEvent e, boolean d) { return super.mouseClicked(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e.x(), e.y(), e.button(), dx, dy); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean allowBypass) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean allowBypass = false;*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
 
@@ -201,14 +215,26 @@ public class AutismForceOpPreviewScreen extends Screen {
         return autism$superMouseClicked(event, allowBypass);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         draggingScroll = false;
         return autism$superMouseReleased(event);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dragX, double dragY) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (draggingScroll) {
@@ -240,8 +266,14 @@ public class AutismForceOpPreviewScreen extends Screen {
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent event) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent event = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
             onClose();
             return true;
@@ -274,4 +306,5 @@ public class AutismForceOpPreviewScreen extends Screen {
         return DirectLayout.centerPanel(screenHeight(), panelH(), 4);
     }
 }
+
 

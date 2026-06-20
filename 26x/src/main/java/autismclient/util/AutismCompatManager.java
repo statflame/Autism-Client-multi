@@ -187,6 +187,7 @@ public final class AutismCompatManager {
     }
 
     public static boolean sendBaritoneCommand(Minecraft mc, String command) {
+        if (PackHideState.isHardLocked()) return false;
         if (!isBaritoneAvailable() || mc == null || mc.getConnection() == null || command == null || command.isBlank()) {
             return false;
         }

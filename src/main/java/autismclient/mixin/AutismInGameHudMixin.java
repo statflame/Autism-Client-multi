@@ -36,11 +36,13 @@ import net.minecraft.client.DeltaTracker;
 
 @Mixin(Gui.class)
 public abstract class AutismInGameHudMixin {
-    @Unique private static final Minecraft MC = Minecraft.getInstance();
+    @Unique private static Minecraft MC;
     @Unique private static final int PACKUTIL_RIGHT_PANEL_W = 172;
 
     @Inject(method = "render", at = @At("TAIL"))
     private void yang$renderAutismQueue(GuiGraphics g, DeltaTracker deltaTracker, CallbackInfo ci) {
+        if (MC == null) MC = Minecraft.getInstance();
+        if (MC == null) return;
         GuiGraphicsExtractor context = (GuiGraphicsExtractor)(Object) g;
         if (!isAutismActive()) return;
         if (MacroExecutor.hasRenderWork()) MacroExecutor.onRender(1.0f);
@@ -58,7 +60,8 @@ public abstract class AutismInGameHudMixin {
         PackModule hud = PackModuleRegistry.get("hud");
         boolean nativeHudVisible = AutismHudManager.shouldRenderInGame(MC.screen, hud);
         boolean esp2dVisible = PackModuleRenderUtil.has2dEspWork();
-        boolean mainHudVisible = nativeHudVisible || macroRunning || queueVisible || captureActive || payloadStudyActive || esp2dVisible;
+        boolean tracerHudVisible = PackModuleRenderUtil.hasWorldTracerWork();
+        boolean mainHudVisible = nativeHudVisible || macroRunning || queueVisible || captureActive || payloadStudyActive || esp2dVisible || tracerHudVisible;
 
         AutismServerInfoOverlay serverInfoOverlay = null;
         boolean serverProbeBannerVisible = false;
@@ -130,7 +133,7 @@ public abstract class AutismInGameHudMixin {
                     false, true, false);
             }
 
-            if (esp2dVisible) PackModuleScreenRenderer.render(context);
+            if (esp2dVisible || tracerHudVisible) PackModuleScreenRenderer.render(context);
         };
 
         if (mainHudVisible) {

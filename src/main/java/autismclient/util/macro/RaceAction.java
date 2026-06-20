@@ -85,7 +85,11 @@ public class RaceAction implements MacroAction {
         label = tag.getStringOr("label", "Race");
         bodyCount = Math.max(0, tag.getIntOr("bodyCount", 0));
         timeoutMs = Math.max(0, tag.getIntOr("timeoutMs", 10_000));
+        //? if >=1.21.5 {
         conditionType = canonicalTriggerName(tag.getStringOr("conditionType", tag.getStringOr("triggerType", TriggerType.WAIT_PACKET.name())));
+        //?} else {
+        /*conditionType = canonicalTriggerName(tag.contains("conditionType") ? tag.getString("conditionType") : (tag.contains("triggerType") ? tag.getString("triggerType") : TriggerType.WAIT_PACKET.name()));
+        *///?}
         actionType = tag.getStringOr("actionType", MacroActionType.PACKET_CLICK.name());
         raceSteps = MacroStringList.fromTag(tag.getList("raceSteps").orElse(new ListTag()));
         raceSteps.removeIf(s -> s == null || s.isBlank());
@@ -110,9 +114,7 @@ public class RaceAction implements MacroAction {
         conditionType = conditionTypes.isEmpty() ? "" : conditionTypes.get(0);
         actionType = actionTypes.get(0);
 
-        MacroAction nested = tag.getCompound("triggerAction")
-            .map(autismclient.util.AutismMacro::createActionFromTag)
-            .orElse(null);
+        MacroAction nested = tag.getCompound("triggerAction").map(autismclient.util.AutismMacro::createActionFromTag).orElse(null);
         if (isConditionAction(nested)) {
             triggerAction = nested;
         }
@@ -592,6 +594,7 @@ public class RaceAction implements MacroAction {
 
     private static void copyStringList(CompoundTag from, CompoundTag to, String fromKey, String toKey) {
         ListTag out = new ListTag();
+        //? if >=1.21.5 {
         from.getList(fromKey).ifPresent(list -> {
             for (int i = 0; i < list.size(); i++) {
                 list.getString(i).ifPresent(s -> {
@@ -599,6 +602,13 @@ public class RaceAction implements MacroAction {
                 });
             }
         });
+        //?} else {
+        /*ListTag srcList = autismclient.util.AutismNbtCompat.list(from, fromKey);
+        for (int i = 0; i < srcList.size(); i++) {
+            String s = srcList.getString(i);
+            if (!s.isBlank()) out.add(StringTag.valueOf(s));
+        }
+        *///?}
         to.put(toKey, out);
     }
 

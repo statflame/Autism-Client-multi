@@ -283,8 +283,15 @@ public final class AutismAdminItemStructuredScreen extends Screen {
         }
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
         if (event.button() == 0 && closeBounds.contains(mx, my)) {
@@ -361,8 +368,14 @@ public final class AutismAdminItemStructuredScreen extends Screen {
         return false;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (direct == null) return false;
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
@@ -372,8 +385,14 @@ public final class AutismAdminItemStructuredScreen extends Screen {
             || modifier.mouseReleased(direct, mx, my, event.button());
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (direct == null) return false;
         int mx = AutismUiScale.toVirtualInt(event.x());
         int my = AutismUiScale.toVirtualInt(event.y());
@@ -383,8 +402,14 @@ public final class AutismAdminItemStructuredScreen extends Screen {
             || modifier.mouseDragged(direct, mx, my, event.button(), (float) dx, (float) dy);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean keyPressed(KeyEvent input) {
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int autism$k, int autism$s, int autism$m) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             onClose();
             return true;
@@ -396,8 +421,14 @@ public final class AutismAdminItemStructuredScreen extends Screen {
             || modifier.keyPressed(direct, input.key(), input.scancode(), input.modifiers());
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean charTyped(CharacterEvent input) {
+    //?} else {
+    /*@Override
+    public boolean charTyped(char autism$c, int autism$mods) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         if (direct == null) return false;
         char chr = (char) input.codepoint();
         return search.charTyped(direct, chr, 0)
@@ -598,4 +629,5 @@ public final class AutismAdminItemStructuredScreen extends Screen {
         }
     }
 }
+
 

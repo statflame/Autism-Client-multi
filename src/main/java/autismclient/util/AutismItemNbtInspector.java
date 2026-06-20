@@ -81,8 +81,12 @@ public final class AutismItemNbtInspector {
             component(DataComponents.DYED_COLOR, "Dyed Color"),
             component(DataComponents.DYED_COLOR, "Dye"),
             component(DataComponents.RARITY, "Rarity"),
+            //? if >=1.21.5 {
             component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, "Glint Override"),
             component(DataComponents.TOOLTIP_DISPLAY, "Tooltip Display"));
+            //?} else {
+            /*component(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, "Glint Override"));
+            *///?}
 
         addEnchantments(builder, "Enchantments", stack.get(DataComponents.ENCHANTMENTS));
         addEnchantments(builder, "Stored Enchantments", stack.get(DataComponents.STORED_ENCHANTMENTS));
@@ -126,7 +130,7 @@ public final class AutismItemNbtInspector {
             component(DataComponents.PIERCING_WEAPON, "Piercing Weapon"),
             component(DataComponents.KINETIC_WEAPON, "Kinetic Weapon"),
             component(DataComponents.SWING_ANIMATION, "Swing Animation"));
-        //?} else {
+        //?} elif >=1.21.5 {
         /*addPresentComponents(builder, stack, "Usage / Combat", AutismColors.packetOrange(),
             component(DataComponents.FOOD, "Food"),
             component(DataComponents.CONSUMABLE, "Consumable"),
@@ -135,8 +139,16 @@ public final class AutismItemNbtInspector {
             component(DataComponents.DAMAGE_RESISTANT, "Damage Resistant"),
             component(DataComponents.TOOL, "Tool"),
             component(DataComponents.WEAPON, "Weapon"),
-            component(DataComponents.BLOCKS_ATTACKS, "Blocks Attacks"));*/
-        //?}
+            component(DataComponents.BLOCKS_ATTACKS, "Blocks Attacks"));
+        *///?} else {
+        /*addPresentComponents(builder, stack, "Usage / Combat", AutismColors.packetOrange(),
+            component(DataComponents.FOOD, "Food"),
+            component(DataComponents.CONSUMABLE, "Consumable"),
+            component(DataComponents.USE_REMAINDER, "Use Remainder"),
+            component(DataComponents.USE_COOLDOWN, "Use Cooldown"),
+            component(DataComponents.DAMAGE_RESISTANT, "Damage Resistant"),
+            component(DataComponents.TOOL, "Tool"));
+        *///?}
 
         addPresentComponents(builder, stack, "Equipment / Enchanting", AutismColors.packetBlue(),
             component(DataComponents.ENCHANTABLE, "Enchantable"),
@@ -147,9 +159,13 @@ public final class AutismItemNbtInspector {
             component(DataComponents.CREATIVE_SLOT_LOCK, "Creative Slot Lock"),
             component(DataComponents.INTANGIBLE_PROJECTILE, "Intangible Projectile"),
             component(DataComponents.DEATH_PROTECTION, "Death Protection"),
+            //? if >=1.21.5 {
             component(DataComponents.TRIM, "Armor Trim"),
             component(DataComponents.PROVIDES_TRIM_MATERIAL, "Provides Trim Material"),
             component(DataComponents.BREAK_SOUND, "Break Sound"));
+            //?} else {
+            /*component(DataComponents.TRIM, "Armor Trim"));
+            *///?}
 
         addPresentComponents(builder, stack, "Placement / Mining", AutismColors.packetYellow(),
             component(DataComponents.CAN_PLACE_ON, "Can Place On"),
@@ -191,7 +207,9 @@ public final class AutismItemNbtInspector {
 
         addPresentComponents(builder, stack, "Potions / Maps", AutismColors.packetPink(),
             component(DataComponents.POTION_CONTENTS, "Potion Contents"),
+            //? if >=1.21.5 {
             component(DataComponents.POTION_DURATION_SCALE, "Potion Duration Scale"),
+            //?}
             component(DataComponents.SUSPICIOUS_STEW_EFFECTS, "Suspicious Stew Effects"),
             component(DataComponents.MAP_COLOR, "Map Color"),
             component(DataComponents.MAP_ID, "Map ID"),
@@ -208,7 +226,9 @@ public final class AutismItemNbtInspector {
             component(DataComponents.NOTE_BLOCK_SOUND, "Note Block Sound"));
 
         addPresentComponents(builder, stack, "Banners / Decorations", AutismColors.packetCyan(),
+            //? if >=1.21.5 {
             component(DataComponents.PROVIDES_BANNER_PATTERNS, "Provides Banner Patterns"),
+            //?}
             component(DataComponents.BANNER_PATTERNS, "Banner Patterns"),
             component(DataComponents.BASE_COLOR, "Base Color"),
             component(DataComponents.POT_DECORATIONS, "Pot Decorations"));

@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
@@ -34,6 +35,7 @@ public final class AutismGuiActions {
     }
 
     public static boolean closeCurrentScreen(Minecraft mc, boolean sendPacket) {
+        if (PackHideState.isHardLocked()) return false;
         return closeCurrentScreen(mc, sendPacket, true);
     }
 
@@ -75,6 +77,7 @@ public final class AutismGuiActions {
     }
 
     public static boolean desyncCurrentScreen(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return false;
         return desyncCurrentScreen(mc, true);
     }
 

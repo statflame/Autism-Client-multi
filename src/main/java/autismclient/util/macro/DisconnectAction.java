@@ -355,7 +355,7 @@ public class DisconnectAction implements MacroAction {
             case CLICK_SLOT -> {
                 for (int i = 0; i < packetCount; i++) {
                     mc.getConnection().send(
-                        new ServerboundContainerClickPacket(0, 0, (short) 0, (byte) 0, ClickType.PICKUP, new Int2ObjectArrayMap<>(), HashedStack.EMPTY));
+                        autismclient.util.AutismPacketCompat.click(0, 0, (short) 0, (byte) 0, ClickType.PICKUP));
                 }
             }
             case BOAT_NBT -> {

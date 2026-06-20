@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 
@@ -9,6 +10,7 @@ public class SendCommandPacketAction implements MacroAction {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (mc == null || mc.getConnection() == null) return;
         String normalized = MacroVariables.expand(command, mc).trim();
         if (stripLeadingSlash && normalized.startsWith("/")) normalized = normalized.substring(1);

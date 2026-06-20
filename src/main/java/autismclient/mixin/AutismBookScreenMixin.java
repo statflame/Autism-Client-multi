@@ -150,7 +150,13 @@ public abstract class AutismBookScreenMixin extends Screen implements AutismSpec
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$mouseClicked(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$mouseClicked(double autism$x, double autism$y, int autism$b, CallbackInfoReturnable<Boolean> cir) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubled = false;*/
+    //?}
         if (!yang$isAutismActive()) return;
         if ((Object) this instanceof LecternScreen) {
             double mouseX = AutismUiScale.toVirtual(click.x());
@@ -167,20 +173,41 @@ public abstract class AutismBookScreenMixin extends Screen implements AutismSpec
         }
     }
 
+    //? if >=1.21.9 {
+    private boolean autism$superCharTyped(CharacterEvent e) { return super.charTyped(e); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
+    //?} else {
+/*    private boolean autism$superCharTyped(CharacterEvent e) { return super.charTyped((char) e.codepoint(), e.modifiers()); }
+    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e.x(), e.y(), e.button(), dx, dy); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (yang$isAutismActive() && AutismOverlayManager.get().handleMouseReleased(click.x(), click.y(), click.button())) {
             return true;
         }
-        return super.mouseReleased(click);
+        return autism$superMouseReleased(click);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double deltaX, double deltaY) {
+        MouseButtonEvent click = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (yang$isAutismActive() && AutismOverlayManager.get().handleMouseDragged(click.x(), click.y(), click.button(), deltaX, deltaY)) {
             return true;
         }
-        return super.mouseDragged(click, deltaX, deltaY);
+        return autism$superMouseDragged(click, deltaX, deltaY);
     }
 
     @Override
@@ -192,19 +219,30 @@ public abstract class AutismBookScreenMixin extends Screen implements AutismSpec
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    //? if >=1.21.9 {
     private void yang$keyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
+    //?} else {
+    /*private void yang$keyPressed(int autism$k, int autism$s, int autism$m, CallbackInfoReturnable<Boolean> cir) {
+        KeyEvent input = new KeyEvent(autism$k, autism$s, autism$m);*/
+    //?}
         if (!yang$isAutismActive()) return;
         if (AutismOverlayManager.get().handleKeyPressed(input.key(), input.scancode(), input.modifiers())) {
             cir.setReturnValue(true);
         }
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean charTyped(CharacterEvent input) {
+    //?} else {
+    /*@Override
+    public boolean charTyped(char autism$c, int autism$mods) {
+        CharacterEvent input = new CharacterEvent(autism$c, autism$mods);*/
+    //?}
         if (yang$isAutismActive() && AutismOverlayManager.get().handleCharTyped((char) input.codepoint(), 0)) {
             return true;
         }
-        return super.charTyped(input);
+        return autism$superCharTyped(input);
     }
 
     @Unique
@@ -244,3 +282,4 @@ public abstract class AutismBookScreenMixin extends Screen implements AutismSpec
         if (notify) AutismClientMessaging.sendPrefixed("This book screen has no update packet to desync.");
     }
 }
+

@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 
@@ -43,6 +44,7 @@ public class SendChatAction implements MacroAction, WaitsForGui {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (message == null || message.isEmpty()) return;
         if (mc.getConnection() == null) return;
         if (message.startsWith("/") && message.length() > 1) {

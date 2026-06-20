@@ -41,7 +41,9 @@ import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.player.PlayerModel;
+//? if >=1.21.9 {
 import net.minecraft.client.renderer.PlayerSkinRenderCache;
+//?}
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -116,8 +118,12 @@ public class AutismTitleScreen extends Screen {
     private float essentialPreviewRotationY = 30.0F;
     private double essentialPreviewAutoRotationStartTime = Blaze3D.getTime();
     private String essentialSkinLookupKey = "";
+    //? if >=1.21.9 {
     private Supplier<PlayerSkinRenderCache.RenderInfo> essentialSkinLookup;
     private CompletableFuture<Optional<PlayerSkinRenderCache.RenderInfo>> essentialSkinFuture = CompletableFuture.completedFuture(Optional.empty());
+    //?} else {
+    /*private Supplier<PlayerSkin> essentialSkinLookup;
+    private CompletableFuture<Optional<PlayerSkin>> essentialSkinFuture = CompletableFuture.completedFuture(Optional.empty());*///?}
     private PlayerSkin essentialFallbackSkin;
 
     private static final Component COPYRIGHT_TEXT = Component.translatable("title.credits");
@@ -218,7 +224,11 @@ public class AutismTitleScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
         GuiGraphicsExtractor graphics = (GuiGraphicsExtractor)(Object) g;
         long perf = AutismPerf.begin();
+        //? if >=1.21.6 {
         this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        //?} else {
+        /*autismclient.util.AutismPanoramaCompat.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        *///?}
 
         float uiMouseX = (float) AutismUiScale.toVirtual(mouseX);
         float uiMouseY = (float) AutismUiScale.toVirtual(mouseY);
@@ -251,7 +261,11 @@ public class AutismTitleScreen extends Screen {
     }
 
     private void renderVanillaSkin(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        //? if >=1.21.6 {
         this.minecraft.gameRenderer.getPanorama().render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        //?} else {
+        /*autismclient.util.AutismPanoramaCompat.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.height, this.panoramaShouldSpin());
+        *///?}
         super.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, mouseX, mouseY, delta);
         this.vanillaLogo.renderLogo((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, 1.0F);
         if (!this.vanillaSplashChosen) {
@@ -259,7 +273,11 @@ public class AutismTitleScreen extends Screen {
             this.vanillaSplashChosen = true;
         }
         if (this.vanillaSplash != null && !this.minecraft.options.hideSplashTexts().get()) {
+            //? if >=1.21.6 {
             this.vanillaSplash.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.font, 1.0F);
+            //?} else {
+            /*this.vanillaSplash.render((net.minecraft.client.gui.GuiGraphics)(Object) graphics, this.width, this.font, -1);
+            *///?}
         }
         String version = "Minecraft " + SharedConstants.getCurrentVersion().name();
         graphics.text(this.font, version, 2, this.height - 10, ARGB.white(1.0F));
@@ -298,10 +316,22 @@ public class AutismTitleScreen extends Screen {
         return vanillaSplashPool;
     }
 
+    //? if >=1.21.9 {
     private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e); }
     private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e, dx, dy); }
+    //?} else {
+/*    private boolean autism$superMouseReleased(MouseButtonEvent e) { return super.mouseReleased(e.x(), e.y(), e.button()); }
+    private boolean autism$superMouseDragged(MouseButtonEvent e, double dx, double dy) { return super.mouseDragged(e.x(), e.y(), e.button(), dx, dy); }*/
+    //?}
+    //? if >=1.21.9 {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));
+        boolean doubleClick = false;*/
+    //?}
         if (event.button() != 0) return false;
 
         float uiMouseX = (float) AutismUiScale.toVirtual(event.x());
@@ -323,8 +353,14 @@ public class AutismTitleScreen extends Screen {
         return false;
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
+    //?} else {
+    /*@Override
+    public boolean mouseReleased(double autism$x, double autism$y, int autism$b) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (essentialPreviewDragging) {
             essentialPreviewAutoRotationStartTime = Blaze3D.getTime();
             essentialPreviewDragging = false;
@@ -333,8 +369,14 @@ public class AutismTitleScreen extends Screen {
         return autism$superMouseReleased(event);
     }
 
+    //? if >=1.21.9 {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
+    //?} else {
+    /*@Override
+    public boolean mouseDragged(double autism$x, double autism$y, int autism$b, double dx, double dy) {
+        MouseButtonEvent event = new MouseButtonEvent(autism$x, autism$y, new net.minecraft.client.input.MouseButtonInfo(autism$b, 0));*/
+    //?}
         if (essentialPreviewDragging) {
             essentialPreviewRotationX = Math.max(-50.0F, Math.min(50.0F, essentialPreviewRotationX - (float) AutismUiScale.toVirtual(dy) * 2.5F));
             essentialPreviewRotationY += (float) AutismUiScale.toVirtual(dx) * 2.5F;
@@ -347,7 +389,9 @@ public class AutismTitleScreen extends Screen {
     public void removed() {
     }
 
+    //? if >=1.21.9 {
     @Override
+    //?}
     protected boolean panoramaShouldSpin() {
         return true;
     }
@@ -488,7 +532,10 @@ public class AutismTitleScreen extends Screen {
         int scaledX1 = Math.round((panel.previewX() + panel.previewW() - inset) * drawScale);
         int scaledY1 = Math.round((panel.previewY() + panel.previewH() - 2) * drawScale);
         float scale = 0.94F * Math.max(1, scaledY1 - scaledY0) / 2.125F;
+        //? if >=1.21.9 {
         graphics.skin(model, skin.body().texturePath(), scale, essentialPreviewRotationX, currentEssentialPreviewRotationY(), -1.0625F, scaledX0, scaledY0, scaledX1, scaledY1);
+        //?} else {
+        /*graphics.skin(model, skin.texture(), scale, essentialPreviewRotationX, currentEssentialPreviewRotationY(), -1.0625F, scaledX0, scaledY0, scaledX1, scaledY1);*///?}
     }
 
     private float currentEssentialPreviewRotationY() {
@@ -506,6 +553,7 @@ public class AutismTitleScreen extends Screen {
             essentialFallbackSkin = DefaultPlayerSkin.get(fallbackId);
             essentialSkinLookup = null;
             essentialSkinFuture = CompletableFuture.completedFuture(Optional.empty());
+            //? if >=1.21.9 {
             try {
                 ResolvableProfile profile = id == null ? ResolvableProfile.createUnresolved(name) : ResolvableProfile.createUnresolved(id);
                 PlayerSkinRenderCache.RenderInfo defaultInfo = this.minecraft.playerSkinRenderCache().getOrDefault(profile);
@@ -514,7 +562,9 @@ public class AutismTitleScreen extends Screen {
                 essentialSkinFuture = this.minecraft.playerSkinRenderCache().lookup(profile);
             } catch (Exception ignored) {
             }
+            //?}
         }
+        //? if >=1.21.9 {
         try {
             if (essentialSkinLookup != null) {
                 PlayerSkinRenderCache.RenderInfo info = essentialSkinLookup.get();
@@ -526,6 +576,7 @@ public class AutismTitleScreen extends Screen {
             }
         } catch (Exception ignored) {
         }
+        //?}
         return essentialFallbackSkin;
     }
 
@@ -1108,4 +1159,5 @@ public class AutismTitleScreen extends Screen {
     }
 
 }
+
 

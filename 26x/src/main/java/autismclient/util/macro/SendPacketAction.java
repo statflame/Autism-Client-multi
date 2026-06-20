@@ -1,5 +1,6 @@
 package autismclient.util.macro;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -49,6 +50,7 @@ public class SendPacketAction implements MacroAction, WaitsForGui {
 
     @Override
     public void execute(Minecraft mc) {
+        if (PackHideState.isHardLocked()) return;
         if (mc.player == null || mc.getConnection() == null) {
             AutismClientMessaging.sendPrefixed("§cNo network connection!");
             return;

@@ -17,14 +17,17 @@ public final class AutismInputClicker {
     }
 
     public static void queueAttackClick() {
+        if (PackHideState.isHardLocked()) return;
         attackQueued = true;
     }
 
     public static void queueUseClick() {
+        if (PackHideState.isHardLocked()) return;
         useQueued = true;
     }
 
     public static void queueHotbarSlot(int slot) {
+        if (PackHideState.isHardLocked()) return;
         hotbarSlotQueued = Math.max(0, Math.min(8, slot));
     }
 

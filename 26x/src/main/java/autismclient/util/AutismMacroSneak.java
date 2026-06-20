@@ -1,5 +1,6 @@
 package autismclient.util;
 
+import autismclient.modules.PackHideState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.world.entity.player.Input;
@@ -32,6 +33,7 @@ public final class AutismMacroSneak {
     }
 
     public static void sendInput(Minecraft mc, boolean sneak) {
+        if (PackHideState.isHardLocked()) return;
         if (mc == null || mc.options == null || mc.getConnection() == null) return;
         Input input = new Input(
             mc.options.keyUp.isDown(),
