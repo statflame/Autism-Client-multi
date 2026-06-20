@@ -60,8 +60,7 @@ public abstract class AutismInGameHudMixin {
         PackModule hud = PackModuleRegistry.get("hud");
         boolean nativeHudVisible = AutismHudManager.shouldRenderInGame(MC.screen, hud);
         boolean esp2dVisible = PackModuleRenderUtil.has2dEspWork();
-        boolean tracerHudVisible = PackModuleRenderUtil.hasWorldTracerWork();
-        boolean mainHudVisible = nativeHudVisible || macroRunning || queueVisible || captureActive || payloadStudyActive || esp2dVisible || tracerHudVisible;
+        boolean mainHudVisible = nativeHudVisible || macroRunning || queueVisible || captureActive || payloadStudyActive || esp2dVisible;
 
         AutismServerInfoOverlay serverInfoOverlay = null;
         boolean serverProbeBannerVisible = false;
@@ -133,7 +132,7 @@ public abstract class AutismInGameHudMixin {
                     false, true, false);
             }
 
-            if (esp2dVisible || tracerHudVisible) PackModuleScreenRenderer.render(context);
+            if (esp2dVisible) PackModuleScreenRenderer.render(context);
         };
 
         if (mainHudVisible) {

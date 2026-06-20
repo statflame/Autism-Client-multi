@@ -3878,6 +3878,8 @@ public final class PackBuiltinModules {
             super("tracers", "Tracers", PackModuleCategory.RENDER, "Draws tracer lines to entities.");
             option(PackModuleOption.registryList(PackModuleOption.Type.ENTITY_TYPE_LIST, "entities", "Entities", "minecraft:player").description("Traced entities.").build());
             option(PackModuleOption.integer("max-distance", "Max Distance", 256, 0, 512, 16));
+            option(PackModuleOption.enumChoice("target", "Target", "Body", "Head", "Body", "Feet").group("General").description("What part of the entity to target."));
+            option(PackModuleOption.bool("stem", "Stem", true).group("General").description("Draw a vertical line through the target."));
             option(PackModuleOption.decimal("line-width", "Line Width", 1.0, 0.5, 4.0, 0.25).group("General").description("Tracer thickness."));
             option(PackModuleOption.color("players-color", "Players", 0xCCFFFFFF).group("Colors"));
             option(PackModuleOption.color("animals-color", "Animals", 0xCC74FF8F).group("Colors"));

@@ -95,16 +95,18 @@ public final class PackModuleWorldRenderer {
 
         final VertexConsumer lineBuf = consumers.getBuffer(AutismRenderTypes.storageEspLinesSeeThrough());
         final float finalTracerWidth = tracerWidth;
+        final String tracerTarget = tracer == null ? "Body" : tracer.value("target");
+        final boolean tracerStem = tracer == null || Boolean.parseBoolean(tracer.value("stem"));
         if (drawTracers) {
             for (Entity entity : mc.level.entitiesForRendering()) {
                 if (!PackModuleRenderUtil.shouldTrace(entity)) continue;
                 Vec3 feet = interpolatedPosition(entity, tickDelta).subtract(camera);
                 double height = entity.getBbHeight();
-                Vec3 center = feet.add(0, height * 0.5, 0);
-                if (!isOnScreen(center)) continue;
+                double targetY = "Head".equals(tracerTarget) ? height : "Feet".equals(tracerTarget) ? 0.0 : height * 0.5;
+                Vec3 endpoint = feet.add(0, targetY, 0);
                 int color = PackModuleRenderUtil.tracerColor(entity);
-                clippedLine(pose, lineBuf, origin, center, from, color, finalTracerWidth);
-                clippedLine(pose, lineBuf, feet, feet.add(0, height, 0), from, color, finalTracerWidth);
+                clippedLine(pose, lineBuf, origin, endpoint, from, color, finalTracerWidth);
+                if (tracerStem) clippedLine(pose, lineBuf, feet, feet.add(0, height, 0), from, color, finalTracerWidth);
             }
         }
         if (storageWire && storageFrame != null) {
@@ -192,16 +194,6 @@ public final class PackModuleWorldRenderer {
         if (camera == null) return Vec3.ZERO;
         org.joml.Vector3f dir = camera.rotation().transform(new org.joml.Vector3f(0.0f, 0.0f, -1.0f));
         return new Vec3(dir.x, dir.y, dir.z);
-    }
-
-    private static boolean isOnScreen(Vec3 cameraRelative) {
-        org.joml.Matrix4f vp = capturedViewProj;
-        if (vp == null) return true;
-        org.joml.Vector4f clip = vp.transform(new org.joml.Vector4f((float) cameraRelative.x, (float) cameraRelative.y, (float) cameraRelative.z, 1.0f));
-        if (clip.w <= 1.0e-6f) return false;
-        float nx = clip.x / clip.w;
-        float ny = clip.y / clip.w;
-        return nx >= -1.0f && nx <= 1.0f && ny >= -1.0f && ny <= 1.0f;
     }
 
     private static void renderEntityBox(PoseStack.Pose pose, VertexConsumer buffer, AABB box, int color) {
