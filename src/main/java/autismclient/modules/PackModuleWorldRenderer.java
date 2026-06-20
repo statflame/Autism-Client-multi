@@ -167,14 +167,33 @@ public final class PackModuleWorldRenderer {
             org.joml.Matrix4f combined = new org.joml.Matrix4f(projection).mul(view);
             capturedViewProj = combined;
             org.joml.Matrix4f inv = new org.joml.Matrix4f(combined).invert();
-            org.joml.Vector4f p = inv.transform(new org.joml.Vector4f(0.0f, 0.0f, 0.0f, 1.0f));
-            if (p.w != 0.0f) {
-                capturedTracerOrigin = new Vec3(p.x / p.w, p.y / p.w, p.z / p.w);
-                return;
+            org.joml.Vector4f f4 = new org.joml.Matrix4f(view).invert().transform(new org.joml.Vector4f(0.0f, 0.0f, -1.0f, 0.0f));
+            Vec3 forward = new Vec3(f4.x, f4.y, f4.z);
+            double flen = forward.length();
+            Vec3 o0 = unprojectCenter(inv, 0.0f);
+            Vec3 o1 = unprojectCenter(inv, 0.5f);
+            if (flen > 1.0e-6 && o0 != null && o1 != null) {
+                forward = forward.scale(1.0 / flen);
+                double d0 = o0.dot(forward);
+                double d1 = o1.dot(forward);
+                if (Math.abs(d1 - d0) > 1.0e-9) {
+                    double t = (1.0 - d0) / (d1 - d0);
+                    Vec3 origin = o0.add(o1.subtract(o0).scale(t));
+                    if (origin.lengthSqr() < 100.0) {
+                        capturedTracerOrigin = origin;
+                        return;
+                    }
+                }
             }
         } catch (Exception ignored) {
         }
         capturedTracerOrigin = null;
+    }
+
+    private static Vec3 unprojectCenter(org.joml.Matrix4f inv, float ndcZ) {
+        org.joml.Vector4f p = inv.transform(new org.joml.Vector4f(0.0f, 0.0f, ndcZ, 1.0f));
+        if (p.w == 0.0f) return null;
+        return new Vec3(p.x / p.w, p.y / p.w, p.z / p.w);
     }
 
     private static Vec3 crosshairOrigin(Minecraft mc, Vec3 fallback) {
@@ -221,7 +240,7 @@ public final class PackModuleWorldRenderer {
         line(pose, buffer, x1, y1, z2, x1, y2, z2, color, width);
     }
 
-    private static final double NEAR_PLANE = 0.001;
+    private static final double NEAR_PLANE = 0.05;
 
     private static void clippedLine(PoseStack.Pose pose, VertexConsumer buffer,
                                     Vec3 a, Vec3 b, Vec3 forward,
