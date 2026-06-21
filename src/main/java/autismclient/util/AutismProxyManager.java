@@ -147,13 +147,10 @@ public final class AutismProxyManager implements Iterable<AutismProxy> {
       if (this.saveWorkerRunning.compareAndSet(false, true)) {
          Thread thread = new Thread(() -> {
             try {
-               while(true) {
+               do {
                   this.saveRequested = false;
                   this.save();
-                  if (this.saveRequested) {
-                     continue;
-                  }
-               }
+               } while (this.saveRequested);
             } finally {
                this.saveWorkerRunning.set(false);
                if (this.saveRequested) {

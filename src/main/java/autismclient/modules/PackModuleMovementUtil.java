@@ -118,7 +118,12 @@ public final class PackModuleMovementUtil {
     }
 
     public static Vec3 onPlayerMove(Entity entity, MoverType type, Vec3 movement) {
-        if (entity != MC.player) return movement;
+        if (entity != MC.player) {
+            if (PackHideState.isActive()) return movement;
+            Vec3 adjusted = EntityControlModule.modifyVehicleMovement(entity, type, movement);
+            adjusted = BoatFlyModule.modifyVehicleMovement(entity, type, adjusted);
+            return adjusted;
+        }
         if (!PackModuleRegistry.hasMovementHooks()) return movement;
         Vec3 adjusted = PackModuleRegistry.onPlayerMove(type, movement);
         if (type == MoverType.SELF && adjusted != movement) {

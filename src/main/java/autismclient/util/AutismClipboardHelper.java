@@ -214,7 +214,7 @@ public class AutismClipboardHelper {
                 return null;
             }
 
-            ListTag packetList = (ListTag) rootTag.get("packets");
+            ListTag packetList = rootTag.getList("packets").orElse(new ListTag());
             List<AutismSharedState.QueuedPacket> queue = new ArrayList<>();
 
             for (int i = 0; i < packetList.size(); i++) {
@@ -244,7 +244,7 @@ public class AutismClipboardHelper {
 
             if (tag.contains("packets")) {
 
-                ListTag list = (ListTag) tag.get("packets");
+                ListTag list = tag.getList("packets").orElse(new ListTag());
                 if (list != null && !list.isEmpty()) {
                     CompoundTag packetTag = (CompoundTag) list.get(0);
                     AutismSharedState.QueuedPacket qp = deserializeQueuedPacket(packetTag);

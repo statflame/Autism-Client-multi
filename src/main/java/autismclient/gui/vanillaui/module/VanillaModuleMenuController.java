@@ -592,6 +592,13 @@ public final class VanillaModuleMenuController {
     private void renderSettingRow(UiContext context, PackModule module, PackModuleOption option, UiBounds bounds) {
         boolean hovered = bounds.contains(context.mouseX(), context.mouseY());
         UiRenderer.frame(context.graphics(), bounds, hovered ? theme.colors().rowHover : theme.colors().row, hovered ? theme.colors().borderSoft : 0x55662C2C);
+        if (option.lockedNote() != null) {
+            context.text().drawFitted(context.graphics(), option.label(), bounds.x() + 5, bounds.y() + 4, bounds.width() - 10, theme.colors().muted);
+            UiRenderer.rect(context.graphics(), bounds, 0xB0000000);
+            context.text().drawCentered(context.graphics(), option.lockedNote(), bounds, theme.colors().text);
+            if (hovered) tooltip = option.description();
+            return;
+        }
         boolean macroDisplay = option.displayMode() == PackModuleOption.DisplayMode.MACRO_PICKER
             || option.displayMode() == PackModuleOption.DisplayMode.CONDITIONAL_MACRO_PICKER;
         int controlW = macroDisplay

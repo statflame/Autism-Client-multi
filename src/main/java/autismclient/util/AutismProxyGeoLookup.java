@@ -77,6 +77,10 @@ public final class AutismProxyGeoLookup {
 
             int code = connection.getResponseCode();
             if (code < 200 || code >= 300) {
+               try (InputStream error = connection.getErrorStream()) {
+                  if (error != null) error.readAllBytes();
+               } catch (Exception ignored) {
+               }
                return failedMap(ips, now);
             }
 

@@ -142,6 +142,8 @@ public final class PackBuiltinModules {
         PackModuleRegistry.register(new SpeedModule());
         PackModuleRegistry.register(new InvMoveModule());
         PackModuleRegistry.register(new SneakModule());
+        PackModuleRegistry.register(new BoatFlyModule());
+        PackModuleRegistry.register(new EntityControlModule());
         PackModuleRegistry.register(new FastUseModule());
         PackModuleRegistry.register(new FastBreakModule());
         PackModuleRegistry.register(new AimAssistModule());

@@ -51,6 +51,7 @@ public final class PackModuleOption {
     private final DisplayMode displayMode;
     private final String linkedActionId;
     private final String unit;
+    private final String lockedNote;
 
     private PackModuleOption(Builder builder) {
         this.id = builder.id;
@@ -71,6 +72,7 @@ public final class PackModuleOption {
         this.displayMode = builder.displayMode;
         this.linkedActionId = builder.linkedActionId;
         this.unit = builder.unit;
+        this.lockedNote = builder.lockedNote;
     }
 
     public static Builder builder(Type type, String id, String label, String defaultValue) {
@@ -213,6 +215,14 @@ public final class PackModuleOption {
         return copy().unit(unit).build();
     }
 
+    public String lockedNote() {
+        return lockedNote;
+    }
+
+    public PackModuleOption lockedNote(String lockedNote) {
+        return copy().lockedNote(lockedNote).build();
+    }
+
     public PackModuleOption displayMode(DisplayMode displayMode) {
         return copy().displayMode(displayMode).build();
     }
@@ -257,7 +267,8 @@ public final class PackModuleOption {
             .action(action)
             .displayMode(displayMode)
             .linkedActionId(linkedActionId)
-            .unit(unit);
+            .unit(unit)
+            .lockedNote(lockedNote);
         if (!choices.isEmpty()) builder.choices(choices.toArray(String[]::new));
         return builder;
     }
@@ -279,6 +290,7 @@ public final class PackModuleOption {
         private Function<String, String> formatter;
         private Runnable action;
         private String unit = "";
+        private String lockedNote = null;
         private DisplayMode displayMode = DisplayMode.DEFAULT;
         private String linkedActionId = "";
 
@@ -333,6 +345,11 @@ public final class PackModuleOption {
 
         public Builder unit(String unit) {
             this.unit = unit == null ? "" : unit;
+            return this;
+        }
+
+        public Builder lockedNote(String lockedNote) {
+            this.lockedNote = lockedNote;
             return this;
         }
 

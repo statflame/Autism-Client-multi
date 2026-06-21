@@ -48,6 +48,7 @@ public final class AutismClientMod implements ClientModInitializer {
                 "[AutismProtector] Built-in anti-fingerprint layer active.");
         }
         AutismInstaBreakRenderer.initialize();
+        autismclient.render.AutismFemaleBodyRenderer.initialize();
         autismclient.commands.AutismCommands.init();
 
         autismclient.addons.AddonManager.init();

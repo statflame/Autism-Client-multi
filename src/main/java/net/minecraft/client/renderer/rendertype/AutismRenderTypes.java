@@ -51,6 +51,8 @@ public final class AutismRenderTypes {
         "autism_storage_esp_lines_see_through",
         RenderSetup.builder(STORAGE_ESP_LINES_PIPELINE).createRenderSetup()
     );
+
+    private static final java.util.Map<Identifier, RenderType> FEMALE_BODY_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     //?}
 
     private AutismRenderTypes() {
@@ -71,4 +73,19 @@ public final class AutismRenderTypes {
         /*return net.minecraft.client.renderer.AutismSeeThroughRenderTypes.lines();*/
         //?}
     }
+
+    //? if >=1.21.11 {
+    public static RenderType femaleBodyTranslucentCull(Identifier texture) {
+        return FEMALE_BODY_CACHE.computeIfAbsent(texture, tex -> RenderType.create(
+            "autism_female_body_translucent_cull",
+            RenderSetup.builder(net.minecraft.client.renderer.RenderPipelines.ENTITY_TRANSLUCENT)
+                .withTexture("Sampler0", tex)
+                .useLightmap()
+                .useOverlay()
+                .affectsCrumbling()
+                .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
+                .createRenderSetup()
+        ));
+    }
+    //?}
 }

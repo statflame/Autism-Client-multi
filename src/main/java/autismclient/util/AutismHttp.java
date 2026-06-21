@@ -70,10 +70,20 @@ public final class AutismHttp {
 
     private static JsonObject readJson(HttpURLConnection connection) throws Exception {
         int code = connection.getResponseCode();
-        if (code < 200 || code >= 300) return null;
+        if (code < 200 || code >= 300) {
+            drainErrorStream(connection);
+            return null;
+        }
         try (InputStream input = connection.getInputStream()) {
             String text = new String(input.readAllBytes(), StandardCharsets.UTF_8);
             return JsonParser.parseString(text).getAsJsonObject();
+        }
+    }
+
+    private static void drainErrorStream(HttpURLConnection connection) {
+        try (InputStream error = connection.getErrorStream()) {
+            if (error != null) error.readAllBytes();
+        } catch (Exception ignored) {
         }
     }
 }

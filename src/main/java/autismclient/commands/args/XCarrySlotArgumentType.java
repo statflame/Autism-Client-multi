@@ -24,9 +24,6 @@ public class XCarrySlotArgumentType implements ArgumentType<Integer> {
         TOKENS.put("craft2",     2);
         TOKENS.put("craft3",     3);
         TOKENS.put("craft4",     4);
-        TOKENS.put("craft5",     0);
-        TOKENS.put("crafting5",  0);
-        TOKENS.put("result",     0);
         TOKENS.put("helmet",     5);
         TOKENS.put("chestplate", 6);
         TOKENS.put("leggings",   7);
@@ -36,7 +33,7 @@ public class XCarrySlotArgumentType implements ArgumentType<Integer> {
     }
 
     private static final SimpleCommandExceptionType UNKNOWN =
-        new SimpleCommandExceptionType(Component.literal("Unknown XCarry slot — use craft1..craft5 / helmet / chestplate / leggings / boots / offhand / cursor."));
+        new SimpleCommandExceptionType(Component.literal("Unknown XCarry slot — use craft1..craft4 / helmet / chestplate / leggings / boots / offhand / cursor."));
 
     public static XCarrySlotArgumentType slot() { return new XCarrySlotArgumentType(); }
 

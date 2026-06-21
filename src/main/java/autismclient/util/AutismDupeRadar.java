@@ -87,6 +87,7 @@ public final class AutismDupeRadar {
     });
     private static final AtomicInteger GENERATION = new AtomicInteger();
     private static final Object CACHE_LOCK = new Object();
+    private static final Object REFRESH_LOCK = new Object();
     private static final Path CACHE_FILE = AutismClientAddon.FOLDER.toPath().resolve("providers").resolve("dupedb-cache.json");
     private static ProviderCache cache = loadCache();
     private static volatile RadarState state = initialState();
@@ -1106,28 +1107,47 @@ public final class AutismDupeRadar {
 
     private static boolean refreshAccessToken() {
         String refreshToken;
+        String accessSnapshot;
         synchronized (CACHE_LOCK) {
             refreshToken = cache == null ? null : cache.refreshToken;
+            accessSnapshot = cache == null ? null : cache.accessToken;
         }
         if (refreshToken == null || refreshToken.isBlank()) {
             return false;
         }
-        try {
-            TokenResponse token = exchangeRefreshToken(refreshToken);
+        // Single-flight: only one network refresh at a time. A concurrent 401'd caller
+        // that lost the race reuses the token the winner already fetched instead of
+        // spending the same (possibly rotated) refresh token a second time.
+        synchronized (REFRESH_LOCK) {
             synchronized (CACHE_LOCK) {
-                cache.accessToken = token.accessToken;
-                if (token.refreshToken != null && !token.refreshToken.isBlank()) {
-                    cache.refreshToken = token.refreshToken;
+                if (cache == null) {
+                    return false;
                 }
-                saveCacheLocked();
+                if (cache.accessToken != null && !java.util.Objects.equals(cache.accessToken, accessSnapshot)) {
+                    return true;
+                }
+                refreshToken = cache.refreshToken;
             }
-            state = state.withAuth(true, cache.username);
-            return true;
-        } catch (Exception e) {
-            if (e instanceof HttpStatusException http && isAuthFailure(http.code())) {
-                clearSavedAuth("DupeDB session expired.");
+            if (refreshToken == null || refreshToken.isBlank()) {
+                return false;
             }
-            return false;
+            try {
+                TokenResponse token = exchangeRefreshToken(refreshToken);
+                synchronized (CACHE_LOCK) {
+                    cache.accessToken = token.accessToken;
+                    if (token.refreshToken != null && !token.refreshToken.isBlank()) {
+                        cache.refreshToken = token.refreshToken;
+                    }
+                    saveCacheLocked();
+                }
+                state = state.withAuth(true, cache.username);
+                return true;
+            } catch (Exception e) {
+                if (e instanceof HttpStatusException http && isAuthFailure(http.code())) {
+                    clearSavedAuth("DupeDB session expired.");
+                }
+                return false;
+            }
         }
     }
 

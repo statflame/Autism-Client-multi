@@ -1,9 +1,11 @@
 package autismclient.mixin;
 
+import autismclient.modules.EntityControlModule;
 import autismclient.modules.PackFreecamState;
 import autismclient.modules.PackModuleMovementUtil;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.world.entity.PlayerRideableJumping;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -41,4 +43,14 @@ public class AutismLocalPlayerMovementMixin {
         if (PackModuleMovementUtil.sprintIgnoresHunger()) cir.setReturnValue(true);
     }
     //?}
+
+    @Inject(method = "getJumpRidingScale", at = @At("RETURN"), cancellable = true)
+    private void autism$entityControlMaxJump(CallbackInfoReturnable<Float> cir) {
+        if (EntityControlModule.shouldMaxJump()) cir.setReturnValue(1.0F);
+    }
+
+    @Inject(method = "jumpableVehicle", at = @At("RETURN"), cancellable = true)
+    private void autism$entityControlFlightJump(CallbackInfoReturnable<PlayerRideableJumping> cir) {
+        if (EntityControlModule.shouldCancelRidingJump()) cir.setReturnValue(null);
+    }
 }

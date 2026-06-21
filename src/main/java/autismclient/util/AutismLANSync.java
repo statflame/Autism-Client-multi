@@ -87,11 +87,11 @@ public class AutismLANSync {
    private final Map<String, Integer> peerStepProgress = new ConcurrentHashMap<>();
    private volatile Runnable onStepProgressChanged;
    private static final int TCP_PORT = 25568;
-   private ServerSocket tcpServer;
-   private Thread tcpAcceptThread;
+   private volatile ServerSocket tcpServer;
+   private volatile Thread tcpAcceptThread;
    private final Map<String, Socket> tcpClients = new ConcurrentHashMap<>();
-   private Socket tcpHostSocket;
-   private Thread tcpReadThread;
+   private volatile Socket tcpHostSocket;
+   private volatile Thread tcpReadThread;
    private final Object tcpHostWriteLock = new Object();
    private final Map<String, Object> tcpClientWriteLocks = new ConcurrentHashMap<>();
    private final Map<String, Long> lastHeartbeatTime = new ConcurrentHashMap<>();
@@ -1376,8 +1376,9 @@ public class AutismLANSync {
 
    private void startTcpServer() {
       try {
-         this.tcpServer = new ServerSocket(25568);
+         this.tcpServer = new ServerSocket();
          this.tcpServer.setReuseAddress(true);
+         this.tcpServer.bind(new InetSocketAddress(25568));
          this.tcpAcceptThread = new Thread(() -> {
             while (this.running.get() && this.isHost && this.tcpServer != null && !this.tcpServer.isClosed()) {
                try {
@@ -1744,12 +1745,18 @@ public class AutismLANSync {
    private void stopTcp() {
       try {
          if (this.tcpServer != null) {
-            this.tcpServer.close();
+            try {
+               this.tcpServer.close();
+            } catch (IOException ignored) {
+            }
             this.tcpServer = null;
          }
 
          if (this.tcpHostSocket != null) {
-            this.tcpHostSocket.close();
+            try {
+               this.tcpHostSocket.close();
+            } catch (IOException ignored) {
+            }
             this.tcpHostSocket = null;
          }
 
@@ -1759,12 +1766,10 @@ public class AutismLANSync {
             } catch (IOException var4) {
             }
          }
-
+      } finally {
          this.tcpClients.clear();
          this.tcpClientWriteLocks.clear();
          this.pendingMacroTransfers.clear();
-      } catch (IOException var5) {
-         autismclient.AutismClientAddon.LOG.warn("[TCP] Stop error: {}", var5.getMessage());
       }
    }
 
